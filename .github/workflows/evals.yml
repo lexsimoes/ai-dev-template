@@ -36,8 +36,7 @@ jobs:
       # Must be the same config as the app in production. "none" turns off DeepSeek's reasoning:
       # in a short classifier, reasoning would use up the output limit before the answer.
       LLM_EXTRA_BODY: ${{ vars.EVAL_EXTRA_BODY || '{"reasoning_effort":"none"}' }}
-      # TEMPORARY (M7 PR 1): judge on, to compare scoring before/after the store translation. Revert before merge.
-      EVAL_JUDGE: ${{ vars.EVAL_JUDGE || '1' }}
+      EVAL_JUDGE: ${{ vars.EVAL_JUDGE || '0' }}
     steps:
       - name: Fork PR
         # Forks do not get secrets: the evals do not run and the check stays red, never green by omission.
