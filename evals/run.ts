@@ -15,7 +15,7 @@ import { createLLMClient } from "../src/ai/llm.ts";
 import type { LLMClient } from "../src/ai/llm.ts";
 import { TARGETS } from "./targets.ts";
 import type { TargetOutput } from "./targets.ts";
-import { EVAL_COMMENT_MARKER, estimateCost, goldenChanges, priceFor, renderEvalComment, trustedConfig } from "./lib.ts";
+import { EVAL_COMMENT_MARKER, estimateCost, goldenChanges, priceFor, protectedSuites, renderEvalComment, trustedConfig } from "./lib.ts";
 import type { EvalConfig, GoldenCase, Suite, TokenUsage } from "./lib.ts";
 
 const GOLDEN_APPROVAL_LABEL = "eval-aprovado";
@@ -237,7 +237,11 @@ async function main(): Promise<number> {
   const config = trusted.config;
   const notes = [...trusted.notes];
 
-  const maxCalls = Math.min(Number(process.env.EVAL_MAX_CALLS ?? config.maxCalls), config.maxCalls);
+  const envMax = process.env.EVAL_MAX_CALLS;
+  if (envMax !== undefined && !(Number.isInteger(Number(envMax)) && Number(envMax) >= 0)) {
+    throw new Error(`EVAL_MAX_CALLS inválido ("${envMax}"): use um inteiro, ex.: 20`);
+  }
+  const maxCalls = Math.min(envMax === undefined ? config.maxCalls : Number(envMax), config.maxCalls);
   const budget = { used: 0, max: maxCalls };
   const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
 
@@ -265,18 +269,27 @@ async function main(): Promise<number> {
   // Golden set protegido: apagar ou alterar casos existentes exige o rótulo do dono.
   const labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
   const goldenFailures: string[] = [];
-  if (baseDir) {
-    for (const suite of suites) {
-      const basePath = join(baseDir, suite.golden);
+  if (baseDir && baseConfig) {
+    for (const suite of protectedSuites(baseConfig, prConfig)) {
+      const basePath = join(baseDir, suite.baseGolden);
       if (!existsSync(basePath)) continue;
-      const { removed, changed } = goldenChanges(loadGolden(basePath), loadGolden(suite.golden));
-      if (removed.length + changed.length === 0) continue;
-      const msg = `Suite \`${suite.name}\`: casos do golden set ${[
-        removed.length ? `apagados (${removed.join(", ")})` : "",
-        changed.length ? `alterados (${changed.join(", ")})` : "",
-      ]
-        .filter(Boolean)
-        .join(" e ")}.`;
+      const baseCases = loadGolden(basePath);
+      let msg: string | null = null;
+      if (suite.prGolden === null) {
+        msg = `Suite \`${suite.name}\` removida de \`evals/config.json\`.`;
+      } else {
+        const prCases = existsSync(suite.prGolden) ? loadGolden(suite.prGolden) : [];
+        const { removed, changed } = goldenChanges(baseCases, prCases);
+        if (removed.length + changed.length > 0) {
+          msg = `Suite \`${suite.name}\`: casos do golden set ${[
+            removed.length ? `apagados (${removed.join(", ")})` : "",
+            changed.length ? `alterados (${changed.join(", ")})` : "",
+          ]
+            .filter(Boolean)
+            .join(" e ")}.`;
+        }
+      }
+      if (!msg) continue;
       if (labels.includes(GOLDEN_APPROVAL_LABEL)) notes.push(`${msg} Aprovado pelo rótulo \`${GOLDEN_APPROVAL_LABEL}\`.`);
       else goldenFailures.push(`${msg} Isso enfraquece o eval: só o dono aprova, com o rótulo \`${GOLDEN_APPROVAL_LABEL}\`.`);
     }

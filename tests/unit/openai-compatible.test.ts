@@ -35,9 +35,22 @@ test("openai-compatible: envia modelo, extras e chave; devolve texto e tokens", 
 
 test("openai-compatible: erro HTTP não expõe a chave", async () => {
   const srv = await server(() => [401, { error: "invalid key" }]);
-  const client = createOpenAICompatibleClient({ baseUrl: srv.url, model: "m1", apiKey: "chave-secreta-123" });
-  await assert.rejects(client.complete({ system: "s", user: "u" }), (e: Error) => /HTTP 401/.test(e.message) && !e.message.includes("chave-secreta-123"));
+  const client = createOpenAICompatibleClient({ baseUrl: srv.url, model: "m1", apiKey: "k-falsa-9" });
+  await assert.rejects(client.complete({ system: "s", user: "u" }), (e: Error) => /HTTP 401/.test(e.message) && !e.message.includes("k-falsa-9"));
   srv.close();
+});
+
+test("openai-compatible: resposta cortada ou sem texto é erro, não texto vazio", async () => {
+  for (const [choices, re] of [
+    [[{ message: { content: "{\"categ" }, finish_reason: "length" }], /limite de tokens/],
+    [[{ message: { content: null }, finish_reason: "stop" }], /não devolveu texto/],
+    [[], /não devolveu texto/],
+  ] as const) {
+    const srv = await server(() => [200, { choices }]);
+    const client = createOpenAICompatibleClient({ baseUrl: srv.url, model: "m1", apiKey: "k" });
+    await assert.rejects(client.complete({ system: "s", user: "u" }), re);
+    srv.close();
+  }
 });
 
 test("openai-compatible: configuração faltando dá erro claro", () => {

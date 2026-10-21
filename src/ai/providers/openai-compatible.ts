@@ -50,8 +50,14 @@ export function createOpenAICompatibleClient(options: OpenAICompatibleOptions = 
         throw new Error(`o provedor respondeu HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
       }
       const data = (await response.json()) as ChatCompletion;
+      const choice = data.choices?.[0];
+      // Resposta cortada ou vazia é falha do provedor, não uma saída para interpretar.
+      if (choice?.finish_reason === "length") throw new Error("a resposta passou do limite de tokens de saída (finish_reason: length)");
+      if (typeof choice?.message?.content !== "string" || !choice.message.content.trim()) {
+        throw new Error(`o provedor não devolveu texto (finish_reason: ${choice?.finish_reason ?? "?"})`);
+      }
       return {
-        text: data.choices?.[0]?.message?.content ?? "",
+        text: choice.message.content,
         model: data.model ?? model,
         inputTokens: data.usage?.prompt_tokens,
         outputTokens: data.usage?.completion_tokens,

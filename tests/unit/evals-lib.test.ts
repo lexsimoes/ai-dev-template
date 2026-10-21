@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { estimateCost, goldenChanges, priceFor, renderEvalComment, touchesAi, trustedConfig } from "../../evals/lib.ts";
+import { estimateCost, goldenChanges, priceFor, protectedSuites, renderEvalComment, touchesAi, trustedConfig } from "../../evals/lib.ts";
 import type { EvalConfig, GoldenCase } from "../../evals/lib.ts";
 
 const suite = { name: "s", golden: "g.jsonl", target: "t", thresholds: { accuracy: 0.9, rulePassRate: 1 }, maxDropFromBaseline: 0.05 };
@@ -28,6 +28,16 @@ test("golden set: apagar ou alterar casos é detectado; acrescentar é livre", (
   assert.deepEqual(goldenChanges(base, pr), { removed: [], changed: ["b", "c"] });
   assert.deepEqual(goldenChanges(base, [gc("a")]), { removed: ["b", "c"], changed: [] });
   assert.deepEqual(goldenChanges(base, [...base, gc("d")]), { removed: [], changed: [] });
+  assert.deepEqual(goldenChanges([gc("a", { rubric: "rigoroso" })], [gc("a", { rubric: "qualquer" })]).changed, ["a"]);
+});
+
+test("golden set: as suites protegidas vêm da branch de destino", () => {
+  const base = cfg({ suites: [suite, { ...suite, name: "outra" }] });
+  const pr = cfg({ suites: [{ ...suite, golden: "novo.jsonl" }] });
+  assert.deepEqual(protectedSuites(base, pr), [
+    { name: "s", baseGolden: "g.jsonl", prGolden: "novo.jsonl" },
+    { name: "outra", baseGolden: "g.jsonl", prGolden: null },
+  ]);
 });
 
 test("custo: preço pelo prefixo mais longo do nome do modelo", () => {

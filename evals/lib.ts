@@ -59,7 +59,15 @@ export function trustedConfig(pr: EvalConfig, base: EvalConfig | null): { config
   return { config: { ...pr, maxCalls: Math.min(pr.maxCalls, base.maxCalls), suites }, notes };
 }
 
-/** Casos do golden set que o PR apagou ou alterou (entrada, esperado ou regras). Acrescentar casos é livre. */
+/**
+ * Suites a proteger: todas as da branch de destino, com o golden de lá e o do PR.
+ * Vem da config da base para que o PR não escape apontando `golden` para outro arquivo ou apagando a suite.
+ */
+export function protectedSuites(base: EvalConfig, pr: EvalConfig): Array<{ name: string; baseGolden: string; prGolden: string | null }> {
+  return base.suites.map((b) => ({ name: b.name, baseGolden: b.golden, prGolden: pr.suites.find((s) => s.name === b.name)?.golden ?? null }));
+}
+
+/** Casos do golden set que o PR apagou ou alterou (entrada, esperado, regras ou critério do juiz). Acrescentar casos é livre. */
 export function goldenChanges(base: GoldenCase[], pr: GoldenCase[]): { removed: string[]; changed: string[] } {
   const byId = new Map(pr.map((c) => [c.id, c]));
   const removed: string[] = [];
@@ -70,7 +78,8 @@ export function goldenChanges(base: GoldenCase[], pr: GoldenCase[]): { removed: 
     else if (
       p.input !== b.input ||
       JSON.stringify(p.expected) !== JSON.stringify(b.expected) ||
-      JSON.stringify(p.mustNotContain ?? []) !== JSON.stringify(b.mustNotContain ?? [])
+      JSON.stringify(p.mustNotContain ?? []) !== JSON.stringify(b.mustNotContain ?? []) ||
+      (p.rubric ?? "") !== (b.rubric ?? "")
     ) {
       changed.push(b.id);
     }
@@ -106,7 +115,7 @@ export function renderEvalComment(input: {
   const cost = input.cost === null ? "sem preço configurado" : `≈ US$ ${input.cost.toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
   return [
     EVAL_COMMENT_MARKER,
-    `## 🧪 Evals ${input.failed ? "❌ abaixo do limite ou em queda" : "✅ dentro dos limites"}`,
+    `## 🧪 Evals ${input.failed ? "❌ reprovados (motivo abaixo)" : "✅ dentro dos limites"}`,
     "",
     input.summaryTable,
     "",

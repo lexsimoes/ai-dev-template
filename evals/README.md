@@ -59,7 +59,7 @@ Roda em PRs **prontos** (rascunhos não) que tocam arquivos de IA (`aiPaths` em 
 Proteções:
 
 - **Régua da `main`:** limites, queda máxima, teto de chamadas e `aiPaths` vêm da branch de destino. Um PR não afrouxa a própria nota.
-- **Golden set protegido:** apagar ou alterar um caso existente reprova, a menos que o dono aplique o rótulo `eval-aprovado`. Acrescentar casos é livre.
+- **Golden set protegido:** apagar ou alterar um caso existente (inclusive o critério do juiz), remover uma suite ou apontá-la para outro arquivo reprova, a menos que o dono aplique o rótulo `eval-aprovado`. A lista de suites protegidas vem da `main`. Acrescentar casos é livre.
 - **Chave separada:** segredo `EVAL_API_KEY`, de um projeto de testes com limite de gasto. Nunca a chave de produção nem a do revisor.
 
 Variáveis do repositório (Settings → Secrets and variables → Actions → Variables), todas opcionais:

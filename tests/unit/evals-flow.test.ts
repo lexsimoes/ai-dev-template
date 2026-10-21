@@ -64,3 +64,24 @@ test("evals: limite da branch de destino vale, mesmo que o PR o afrouxe", async 
   assert.match(r.out, /mínimo 101\.0%/);
   writeFileSync(cfgPath, original);
 });
+
+test("evals: suite removida ou golden trocado por outro arquivo também exigem o rótulo", async () => {
+  const cfgPath = join(base, "evals/config.json");
+  const original = readFileSync(cfgPath, "utf-8");
+  const cfg = JSON.parse(original) as { suites: Array<{ name: string; golden: string }> };
+  const first = cfg.suites[0]!;
+  // Na base, a suite lia outro arquivo (com um caso a mais); no PR, aponta para o atual.
+  writeFileSync(join(base, "evals/golden/antigo.jsonl"), readFileSync(first.golden, "utf-8") + JSON.stringify({ id: "so-no-antigo", input: "x", expected: { category: "outro" } }) + "\n");
+  cfg.suites = [{ ...first, golden: "evals/golden/antigo.jsonl" }, { ...first, name: "removida-no-pr" }];
+  writeFileSync(cfgPath, JSON.stringify(cfg));
+  const r = await evals();
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /apagados \(so-no-antigo\)/);
+  assert.match(r.out, /Suite `removida-no-pr` removida/);
+  writeFileSync(cfgPath, original);
+});
+
+test("evals: EVAL_MAX_CALLS inválido falha em vez de desligar o teto", async () => {
+  const r = await evals({ EVAL_MAX_CALLS: "abc" });
+  assert.equal(r.code, 1);
+});
