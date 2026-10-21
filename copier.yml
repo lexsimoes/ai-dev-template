@@ -1,0 +1,86 @@
+# Copier template: `copier copy gh:<owner>/ai-dev-template <new-project>` creates a project from this repository.
+# Files ending in .jinja are rendered with the answers below; every other file is copied as is.
+# Docs: https://copier.readthedocs.io (pinned and tested with Copier 9.18.2).
+
+_min_copier_version: "9.18.2"
+_answers_file: .copier-answers.yml
+# A {% tag %} alone on its line leaves no blank line behind.
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+  keep_trailing_newline: true
+
+project_name:
+  type: str
+  help: Project name (shown in the README, the PRD and package.json)
+  validator: "{% if not project_name.strip() %}The project name is required.{% endif %}"
+
+project_slug:
+  type: str
+  help: Package name (lowercase, digits and hyphens)
+  default: "{{ project_name.strip().lower().replace(' ', '-') }}"
+  validator: >-
+    {% if not (project_slug | regex_search('^[a-z0-9][a-z0-9-]*$')) %}Use lowercase letters, digits and hyphens.{% endif %}
+
+github_owner:
+  type: str
+  help: >-
+    GitHub username of the project owner (without @). It becomes the owner in .github/CODEOWNERS,
+    and the invariant guard accepts the invariant-approved label only from this owner.
+  validator: >-
+    {% if not (github_owner | regex_search('^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$')) %}Use a GitHub username, without @.{% endif %}
+
+conversation_language:
+  type: str
+  help: Language the agents use to talk to you and to write their reports (the repository itself is always in English)
+  choices:
+    English: en
+    Português (Brasil): pt-BR
+  default: en
+
+reviewer_provider:
+  type: str
+  help: Model provider of the automated reviewer
+  choices:
+    DeepSeek by default, Claude on sensitive paths (secrets REVIEW_API_KEY and REVIEW_DEEP_API_KEY): deepseek
+    Claude only (secret REVIEW_API_KEY with an Anthropic key): anthropic
+    None (no AI key; the reviewer stays off): none
+  default: deepseek
+
+optional_sections:
+  type: str
+  help: Optional sections of AGENTS.md
+  choices:
+    Library documentation through Context7: library-docs
+    UI/UX rules (projects with an interface): ui-ux
+  multiselect: true
+  default: [library-docs, ui-ux]
+
+# Template-only files: they describe or test the template itself, not the new project.
+_exclude:
+  - copier.yaml
+  - copier.yml
+  - "~*"
+  - "*.py[co]"
+  - __pycache__
+  - .git
+  - .DS_Store
+  - .svn
+  - node_modules
+  - tests/template
+  - .github/workflows/template.yml
+
+# Project-owned files: created once, never overwritten by `copier update` (recreated only if deleted).
+_skip_if_exists:
+  - README.md
+  - specs/PRD.md
+  - docs/HANDOFF.md
+  - .github/CODEOWNERS
+  - .env.example
+  - src
+  - tests/invariants
+  - tests/unit/pricing.test.ts
+  - tests/unit/classify-message.test.ts
+  - evals/golden
+  - evals/config.json
+  - evals/targets.ts

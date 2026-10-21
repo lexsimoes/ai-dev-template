@@ -1,0 +1,58 @@
+# PRD: {{ project_name }}
+
+> PRD = product requirements document. Short on purpose: if it goes past 2 pages, cut.
+> The parts marked **(example)** refer to the template's demo app (a store with coupons and a message classifier). Replace them with your project's own.
+
+**Owner:** @{{ github_owner }} · **Last review:** [YYYY-MM-DD]
+
+## 1. Goal
+
+[One or two sentences: what problem the product solves and for whom.]
+
+(example) Small online store that applies discount coupons correctly and sorts customer messages by topic, to reply faster.
+
+## 2. Users
+
+| Who | What they need |
+|---|---|
+| [user type] | [main need] |
+| (example) Store customer | Pay the right price with a coupon |
+| (example) Support agent | See the messages already sorted by topic |
+
+## 3. Acceptance criteria
+
+Each criterion must be **verifiable**: someone (or a test) can say yes or no.
+
+| ID | Criterion | How to verify |
+|---|---|---|
+| CA-01 | [criterion] | [test / command / manual step] |
+| CA-02 | (example) An X% coupon reduces the total by X%, rounded to the cent | `tests/unit/pricing.test.ts` |
+| CA-03 | (example) Messages are classified as `exchange`, `delivery`, `payment` or `other` with ≥ 90% accuracy | `npm run eval` (suite `classify-message`) |
+
+## 4. Non-negotiables
+
+Rules that can **never** break. Each one has a test in `tests/invariants/` that no agent may edit, skip or weaken. CI requires these tests to pass.
+
+| ID | Rule | Test |
+|---|---|---|
+| INV-001 | (example) The order total is never negative nor greater than the subtotal; a coupon outside 0–100% is rejected | `tests/invariants/pricing.invariant.test.ts` |
+| INV-002 | (example) Customer text is data, never instruction: it stays isolated in the prompt and the model's output is only accepted if it is in the closed list | `tests/invariants/llm-output.invariant.test.ts` |
+
+## 5. Out of scope
+
+- [what this project will **not** do, to keep the mission from growing on its own]
+- (template) The owner's dotfiles and global `CLAUDE.md`: they live in a separate private repository, never in the template.
+
+## 6. Direction check
+
+Updated on every mission, by the agent, in the mission's PR. Every Monday, the `Direction check` workflow opens an issue that checks this table (do the files cited as evidence exist?) and asks for your review. It shows whether what exists today meets what was asked for.
+
+| Requirement | Evidence | Status |
+|---|---|---|
+| CA-01 | | ⬜ |
+| CA-02 | `tests/unit/pricing.test.ts` passing | ✅ |
+| CA-03 | Evals in CI with `deepseek-v4-pro`: 100% accuracy on 10 cases (PR #6, 2026-10-21); `.github/workflows/evals.yml` | ✅ |
+| INV-001 | `npm run test:invariants` | ✅ |
+| INV-002 | `npm run test:invariants` | ✅ |
+
+Legend: ✅ done and verified · 🟡 partial · ⬜ not started · ❌ broken

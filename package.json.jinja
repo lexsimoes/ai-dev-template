@@ -1,0 +1,33 @@
+{
+  "name": "{{ project_slug }}",
+  "version": "0.1.0",
+  "private": true,
+  "description": "{{ project_name | replace('"', '') }}: built with the ai-dev-template workflow (mission → PR → CI → review → human approval).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc",
+    "test": "node --test \"tests/unit/**/*.test.ts\"",
+    "test:invariants": "node --test \"tests/invariants/**/*.test.ts\"",
+    "guard:invariants": "node scripts/guard-invariants.ts",
+    "eval": "node evals/run.ts",
+    "eval:mock": "node evals/run.ts --provider mock",
+    "review:local": "node --env-file-if-exists=.env.local scripts/review/run.ts --mode local",
+    "review:dry-run": "node scripts/review/run.ts --mode local --dry-run",
+    "review:canary": "node --env-file-if-exists=.env.local scripts/review/run.ts --mode canary",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:invariants"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.134.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0"
+  }
+}

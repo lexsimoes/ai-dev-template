@@ -1,0 +1,124 @@
+{
+  "$comment": "Configuration of the automated reviewer (scripts/review). Read from the PR's target branch. REVIEW_API_BASE_URL and REVIEW_MODEL (repository variables) override baseUrl and model of the 'standard' and 'light' tiers.",
+{% if reviewer_provider == 'none' %}
+  "disabled": "reviewer_provider none: no AI key; the review check passes with a notice (no-key mode)",
+{% endif %}
+  "maxDiffChars": 150000,
+  "timeoutMs": 480000,
+  "maxFindings": 20,
+  "deepLabel": "deep-review",
+  "rereviewLabel": "re-review",
+  "afterReviewPush": "require-re-review",
+  "excludePaths": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/id_rsa*",
+    "**/id_ed25519*",
+    "**/secrets/**",
+    "**/*secret*.json"
+  ],
+  "allowPaths": [".env.example", "**/.env.example"],
+  "ignorePaths": ["package-lock.json", "**/package-lock.json", "pnpm-lock.yaml", "yarn.lock", "scripts/review/canary/**"],
+  "sensitivePaths": [
+    "tests/invariants/**",
+    "evals/**",
+    "AGENTS.md",
+    "REVIEW.md",
+    ".github/**",
+    ".claude/**",
+    "scripts/**",
+    "package.json",
+    "**/*auth*",
+    "**/*login*",
+    "**/*session*",
+    "**/*payment*",
+    "**/*billing*",
+    "**/*checkout*",
+    "**/migrations/**",
+    "src/pricing.ts",
+    "src/ai/**"
+  ],
+  "trivial": {
+    "$comment": "Trivial PR = every file matches 'paths', none matches 'exceptPaths' or sensitivePaths. mode: 'light' (light tier) or 'none' (secret detectors only). Documents that agents read as instructions go in exceptPaths.",
+    "mode": "light",
+    "paths": ["README.md", "**/README.md", "CHANGELOG.md", "docs/**/*.md", "package-lock.json", "**/package-lock.json", "pnpm-lock.yaml", "yarn.lock"],
+    "exceptPaths": [
+      "AGENTS.md", "**/AGENTS.md", "REVIEW.md", "CLAUDE.md", "**/CLAUDE.md", "specs/**",
+      "docs/missions/**", "docs/HANDOFF.md", "docs/SKILLS.md", "**/SKILL.md", ".claude/**", ".cursor/**", ".agents/**"
+    ]
+  },
+{% if reviewer_provider == 'anthropic' %}
+  "tiers": {
+    "standard": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "apiKeyEnv": "REVIEW_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.1 }
+    },
+    "light": {
+      "$comment": "Same model as standard, with a lower output limit: for trivial PRs.",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "apiKeyEnv": "REVIEW_API_KEY",
+      "maxOutputTokens": 16000,
+      "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.1 }
+    },
+    "sensitive": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "apiKeyEnv": "REVIEW_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.1 }
+    },
+    "deep": {
+      "provider": "anthropic",
+      "model": "claude-opus-5-5",
+      "apiKeyEnv": "REVIEW_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 4.0, "output": 20.0, "cachedInput": 0.2 }
+    }
+  }
+{% else %}
+  "tiers": {
+    "standard": {
+      "provider": "openai-compatible",
+      "baseUrl": "https://api.deepseek.com",
+      "model": "deepseek-v4-pro",
+      "apiKeyEnv": "REVIEW_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
+    },
+    "light": {
+      "$comment": "Same model as standard, with short reasoning: for trivial PRs.",
+      "provider": "openai-compatible",
+      "baseUrl": "https://api.deepseek.com",
+      "model": "deepseek-v4-pro",
+      "apiKeyEnv": "REVIEW_API_KEY",
+      "maxOutputTokens": 16000,
+      "extraBody": { "reasoning_effort": "low" },
+      "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
+    },
+    "sensitive": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "apiKeyEnv": "REVIEW_DEEP_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.1 }
+    },
+    "deep": {
+      "provider": "anthropic",
+      "model": "claude-opus-5-5",
+      "apiKeyEnv": "REVIEW_DEEP_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 4.0, "output": 20.0, "cachedInput": 0.2 }
+    }
+  }
+{% endif %}
+}

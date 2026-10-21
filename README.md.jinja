@@ -1,0 +1,28 @@
+# {{ project_name }}
+
+Built with the ai-dev-template workflow: an agent implements, another model reviews, robots verify, and the owner (@{{ github_owner }}) decides and approves.
+
+## Where to start
+
+1. `specs/PRD.md`: what this project must do, its acceptance criteria and its non-negotiables.
+2. `docs/HANDOFF.md`: where things stand and what comes next.
+3. `AGENTS.md`: the rules every coding agent follows here.
+4. `docs/WORKFLOW.md`: the full flow (mission → PR → CI → review → merge) and what each check means.
+
+## Local commands
+
+```bash
+npm ci
+npm run check        # lint + types + unit tests + invariant tests
+npm run eval:mock    # evals with the fake provider (no key, no cost)
+```
+
+## Updating from the template
+
+This project remembers its template in `.copier-answers.yml`. To bring template improvements into it, on a clean working tree:
+
+```bash
+copier update --defaults
+```
+
+Project files (PRD, HANDOFF, app code, invariants, golden set) are never overwritten; template files (workflows, reviewer, guard, AGENTS.md) are merged. Review the diff before committing.
