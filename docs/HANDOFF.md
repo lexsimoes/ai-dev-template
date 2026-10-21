@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-21 · **By:** agent (M7, PR 2: Copier engine)
+**Updated on:** 2026-10-21 · **By:** agent (M7, PR 3: no-key mode + public release)
 
 ## Current state
 
@@ -16,9 +16,16 @@
 - `main` protection: ruleset `protect-main` (`.github/rulesets/protect-main.json`) active since the M-EN merge; the old `proteger-main` was deleted after the new one was imported (5 required checks `quality`, `invariants`, `dependencies`, `review`, `evals`, from Actions only; PR required; 0 approvals). Verified in PR #11: with `quality` and `review` red, `mergeable_state` = `blocked`.
 - Labels renamed in place after the M-EN merge: `invariant-approved`, `eval-approved`, `deep-review`, `re-review`, `direction-check` (PR #11 confirmed `re-review` triggers the incremental review).
 - Weekly direction check (`.github/workflows/direction-check.yml`, `scripts/direction/`): an issue every Monday with the `direction-check` label.
+- Copier template (`copier.yml`, `.jinja` twins), proven on every PR by the `template` check (`.github/workflows/template.yml`, `tests/template/`). The owner adds `template` to the live `protect-main` ruleset in the GitHub UI only, never to `protect-main.json`: that file is copied into projects, which have no `template` job, and the check would wait forever.
+- No-key mode: `disabled` in the target branch's `.github/review.json` / `evals/config.json` turns those checks into an "off" notice (secret detectors and golden set guard still run). Copier writes it for "no key" answers.
+- Template-only (not copied into projects): `LICENSE` (MIT), weekly traffic export to the `traffic` branch (`.github/workflows/traffic.yml`, `scripts/traffic/`, secret `TRAFFIC_TOKEN`).
 
 ## Last mission
 
+- M7 PR 3: no-key mode + public release.
+  - Reviewer race fixed in the reviewer itself: every run decides from the live PR (labels read from the API, review state in the comment). A push and `re-review` close together end with the same verdict in both runs, in either order, with one model call (`tests/unit/review-flow.test.ts`, "race"; the same test fails against the previous reviewer).
+  - Findings that depend on an approval label no longer stay pending: adding or removing `invariant-approved` / `eval-approved` (`approvalLabels`) runs a full review when findings are open; `review.yml` also triggers on `unlabeled`.
+  - No-key mode (see `docs/WORKFLOW.md`, "No-key mode"), Copier question `evals_with_model`, MIT `LICENSE`, "Getting started" README, traffic export.
 - M7 PR 2: Copier engine. `copier.yml` (project name, GitHub owner, conversation language, reviewer provider, optional sections), `.jinja` twins of `AGENTS.md`, `CODEOWNERS`, `review.json`, `package.json` plus starter README/PRD/HANDOFF, project-owned files in `_skip_if_exists`. `Template` workflow: twins in sync, 2 generated projects pass their checks, no owner leak, `copier update` keeps project files. Reviewer tests now use a fixed provider config (they depended on this repository's `review.json`).
 - M7 PR 1: HANDOFF housekeeping, reviewer `maxDiffChars` back to 150000, and the sample store translated to English (prompt, tag `<customer_message>`, categories, golden set, LLM judge, mock, pricing errors), with evals before/after and the owner's `invariant-approved` (INV-002) and `eval-approved` (golden set).
 - M-EN (done, PR #10): translated the template to English (docs, messages, check and label names), with no behavior change.
@@ -34,8 +41,8 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 1. **M-EN: done** (PR #10, merged 2026-10-21; post-merge test in PR #11).
 2. **M7 (engine)**, split by the owner into 3 PRs, each stopping for the owner's merge:
    1. Housekeeping + sample store in English (done, PR #12).
-   2. Copier engine (this PR): `copier.yml` (project name, GitHub owner → CODEOWNERS and the guard's owner, conversation language pt-BR/en, reviewer provider including "none", optional sections Context7 and UI/UX); no hardcoded `@lexsimoes`; 2 generated projects with CI; `copier update` brings a template change without overwriting project files (PRD, invariants, app code).
-   3. No-key mode + public release: without an AI key, `quality`, `invariants` and `dependencies` run normally and `review`/`evals` pass with a clear "disabled" notice, without reopening the "skipped check counts as green" loophole for projects that do have a key; MIT license; "Getting started" README; weekly export of GitHub traffic data to a versioned file.
+   2. Copier engine (done, PR #13): `copier.yml` (project name, GitHub owner → CODEOWNERS and the guard's owner, conversation language pt-BR/en, reviewer provider including "none", optional sections Context7 and UI/UX); no hardcoded `@lexsimoes`; 2 generated projects with CI; `copier update` brings a template change without overwriting project files (PRD, invariants, app code).
+   3. No-key mode + public release (this PR): without an AI key, `quality`, `invariants` and `dependencies` run normally and `review`/`evals` pass with a clear "disabled" notice, without reopening the "skipped check counts as green" loophole for projects that do have a key; MIT license; "Getting started" README; weekly export of GitHub traffic data to a versioned file.
    - The owner's dotfiles and global CLAUDE.md stay out of the template, in a separate private repository.
 3. **M7b (entry point): Claude Code plugin** (marketplace in this repository):
    - `/new-project`: empty folder → discovery; existing code → audit. Talks with the person and passes the answers to Copier (`--data`), with no terminal prompts.
@@ -61,6 +68,9 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 - M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
 - `tests/invariants/README.md`, "Owner required" row: it said the `main` protection requires the owner's approval, which does not hold under option A (0 approvals). The M-EN PR rewrites that row (together with the translation of `tests/invariants/` and `.github/CODEOWNERS`), in a separate commit that needs the owner's `invariant-approved` label.
 - Default model of the Anthropic adapter: `claude-opus-5-5`. Switching to a cheaper model in the evals is the owner's decision (see `evals/README.md`, Costs).
+- M7 PR 3: `LICENSE` names the copyright holder as `lexsimoes`; the owner may prefer their full name. MIT asks for the notice in "substantial portions" of the software, and generated projects get no license file: keep MIT (projects should then carry the template's notice) or switch the template to MIT-0 (no attribution needed).
+- M7 PR 3: in no-key mode, the secret detectors (review) and the golden set guard (evals) still turn the check red, because they need no key. The owner may prefer notices only.
+- M7 PR 3: the traffic export needs the owner to create `TRAFFIC_TOKEN` (fine-grained, "Administration: Read-only", this repository only) and save it with `gh secret set TRAFFIC_TOKEN`.
 
 ## Decisions made (owner, 2026-10-21)
 

@@ -153,7 +153,8 @@ for (const p of PROJECTS) {
     assert.match(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), new RegExp(`^# PRD: ${p.answers.project_name}$`, "m"));
     assert.doesNotMatch(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), /Template roadmap/);
     assert.ok(existsSync(join(dest, ".copier-answers.yml")));
-    for (const f of ["copier.yml", "tests/template/template.test.ts", ".github/workflows/template.yml"]) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
+    const templateOnly = ["copier.yml", "tests/template/template.test.ts", ".github/workflows/template.yml", "LICENSE", ".github/workflows/traffic.yml", "scripts/traffic", "tests/unit/traffic.test.ts"];
+    for (const f of templateOnly) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
     assert.deepEqual(filesUnder(dest).filter((f) => f.endsWith(".jinja")), [], "no .jinja file left");
 
     runProjectChecks(dest);

@@ -77,6 +77,10 @@ _exclude:
   - node_modules
   - tests/template
   - .github/workflows/template.yml
+  - LICENSE
+  - .github/workflows/traffic.yml
+  - scripts/traffic
+  - tests/unit/traffic.test.ts
 
 # Project-owned files: created once, never overwritten by `copier update` (recreated only if deleted).
 _skip_if_exists:

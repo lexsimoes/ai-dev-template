@@ -1,0 +1,62 @@
+# Traffic export (template repository only, not copied into projects): GitHub keeps a repository's traffic
+# (views, clones, popular pages, referrers) for 14 days. Every Monday this adds the current window to CSV files
+# in data/ on the `traffic` branch, so the history is versioned and not lost. That branch holds only data;
+# `main` stays protected. Needs the TRAFFIC_TOKEN secret: a fine-grained token with "Administration: read" on
+# this repository only, because the workflow token cannot read traffic. See README.md, "Traffic export".
+
+name: Traffic export
+
+on:
+  schedule:
+    - cron: "41 6 * * 1" # Monday, 06:41 UTC: with a 14-day window, one missed week loses nothing
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: traffic-export
+  cancel-in-progress: false
+
+jobs:
+  traffic:
+    name: traffic
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # commit the CSV files to the traffic branch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: repo
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: repo/.nvmrc
+      # No npm ci: the script only uses Node's built-in modules. It is copied out because the data branch has no code.
+      - name: Script from main
+        run: cp -r repo/scripts/traffic "$RUNNER_TEMP/traffic"
+      - name: Switch to the data branch
+        working-directory: repo
+        run: |
+          if git fetch --quiet --depth=1 origin traffic; then
+            git switch --quiet -c traffic FETCH_HEAD
+          else
+            echo "First run: creating the traffic branch."
+            git switch --quiet --orphan traffic
+          fi
+      - name: Export
+        working-directory: repo
+        env:
+          TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+        run: node "$RUNNER_TEMP/traffic/run.ts" --out data
+      - name: Commit
+        working-directory: repo
+        run: |
+          git add data
+          if git diff --cached --quiet; then
+            echo "No change since the last export."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -m "chore: traffic data up to $(date -u +%F)"
+          git push --quiet origin traffic

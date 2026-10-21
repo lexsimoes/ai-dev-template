@@ -406,5 +406,4 @@ The `Template` workflow (job `template`) proves this on every PR of the template
 ## Still under construction
 
 The sections below come in the next PRs:
-- **M7 PR 3:** no-key mode, license, "Getting started" README, traffic export.
 - **M7b/M7c:** first day of a new project (`/new-project`, discovery, audit).
