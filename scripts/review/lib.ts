@@ -535,6 +535,36 @@ export function resolvePrevious(
   });
 }
 
+/**
+ * Lê renomeações de `git diff --name-status -z -M` ("R<nota>\0antigo\0novo\0…").
+ * Um achado num arquivo renomeado acompanha o arquivo: renomear não fecha achado.
+ */
+export function parseRenames(nameStatusZ: string): Record<string, string> {
+  const parts = nameStatusZ.split("\0");
+  const renames: Record<string, string> = {};
+  for (let i = 0; i < parts.length; i++) {
+    const status = parts[i] ?? "";
+    if (status.startsWith("R") && parts[i + 1] && parts[i + 2]) {
+      renames[parts[i + 1]!] = parts[i + 2]!;
+      i += 2;
+    } else if (status.startsWith("C") && parts[i + 2]) {
+      i += 2;
+    } else if (status) {
+      i += 1;
+    }
+  }
+  return renames;
+}
+
+export function retargetRenamed<T extends Finding>(findings: T[], renames: Record<string, string>): T[] {
+  return findings.map((f) => (renames[f.arquivo] ? { ...f, arquivo: renames[f.arquivo]! } : f));
+}
+
+/** PR trivial com trivial.mode = "nenhuma": o modelo não é chamado, nem na revisão completa nem na incremental. */
+export function isDispensed(kind: ReviewKind, tierName: TierName, config: ReviewConfig): boolean {
+  return (kind === "completa" || kind === "incremental") && tierName === "leve" && config.trivial.mode === "nenhuma";
+}
+
 /** Arquivos que o diff apaga. */
 export function deletedFiles(files: DiffFile[]): string[] {
   return files.filter((f) => /^deleted file mode/m.test(f.text)).map((f) => f.path);

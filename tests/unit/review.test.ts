@@ -7,7 +7,10 @@ import {
   decideKind,
   decodeState,
   deletedFiles,
+  isDispensed,
+  parseRenames,
   pushReasons,
+  retargetRenamed,
   encodeState,
   estimateCost,
   extractReport,
@@ -373,4 +376,21 @@ test("achados anteriores: arquivo que saiu do PR se resolve; sem veredito, o com
       ["pendente", "arquivo não mudou desde a última revisão"],
     ],
   );
+});
+
+test("renomear o arquivo não fecha o achado: ele acompanha o caminho novo", () => {
+  const renames = parseRenames(["M", "src/x.ts", "R100", "src/a.ts", "src/b.ts", "D", "src/velho.ts", ""].join("\0"));
+  assert.deepEqual(renames, { "src/a.ts": "src/b.ts" });
+  const [moved] = retargetRenamed([finding({ arquivo: "src/a.ts" })], renames);
+  assert.equal(moved?.arquivo, "src/b.ts");
+  const [r] = resolvePrevious([{ ...moved!, id: 1 }], [], { prPaths: ["src/b.ts"], changedPaths: ["src/b.ts"] });
+  assert.equal(r?.status, "pendente");
+});
+
+test("trivial.mode = nenhuma vale para revisão completa e incremental", () => {
+  const nenhuma = { ...config, trivial: { ...config.trivial, mode: "nenhuma" as const } };
+  assert.equal(isDispensed("completa", "leve", nenhuma), true);
+  assert.equal(isDispensed("incremental", "leve", nenhuma), true);
+  assert.equal(isDispensed("incremental", "padrao", nenhuma), false);
+  assert.equal(isDispensed("completa", "leve", config), false, "modo leve chama o modelo");
 });

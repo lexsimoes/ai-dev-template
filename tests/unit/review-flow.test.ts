@@ -233,3 +233,14 @@ test("fluxo: segredo continua bloqueando em revisão incremental até sair do PR
   const r2 = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.S3! });
   assert.equal(r2.code, 0, r2.out);
 });
+
+test("fluxo: renomear o arquivo com defeito não fecha o achado bloqueante", async () => {
+  git("checkout", "-q", "-b", "renomeia", sha.A!);
+  await review("15", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
+  git("mv", "src/a.ts", "src/b.ts");
+  git("-c", "commit.gpgsign=false", "commit", "-qm", "R");
+  sha.R = git("rev-parse", "HEAD");
+  const r = await review("15", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.R });
+  assert.doesNotMatch(r.out, /não faz mais parte do PR/, r.out);
+  assert.match(r.out, /src\/b\.ts/);
+});

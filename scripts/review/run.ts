@@ -31,12 +31,15 @@ import {
   deletedFiles,
   extractReport,
   filterFiles,
+  isDispensed,
   openFindings,
+  parseRenames,
   parseReview,
   pushReasons,
   redactSecrets,
   renderReport,
   resolvePrevious,
+  retargetRenamed,
   secretFinding,
   secretPathFindings,
   selectTier,
@@ -286,13 +289,20 @@ async function main(): Promise<number> {
     tierName = "padrao";
     tier = config.tiers.padrao;
   }
-  const dispensed = kind === "completa" && mode === "ci" && tierName === "leve" && config.trivial.mode === "nenhuma";
+  const dispensed = mode === "ci" && isDispensed(kind, tierName, config);
   const finalKind: ReviewKind = dispensed ? "dispensada" : kind;
 
   // ----- achados anteriores (revisão incremental) -----
   // Achados de detector não entram: o detector roda de novo no PR inteiro e os reporta enquanto existirem.
+  // Arquivo renomeado desde a última revisão: o achado passa para o caminho novo (renomear não fecha achado).
+  const renames =
+    finalKind === "incremental" && state && mode !== "canary"
+      ? parseRenames(git("diff", "--name-status", "-z", "-M", state.sha, headSha))
+      : {};
   const previous: PreviousFinding[] =
-    finalKind === "incremental" ? (state?.achados ?? []).filter((a) => a.origem !== "detector").map((a, i) => ({ ...a, id: i + 1 })) : [];
+    finalKind === "incremental"
+      ? retargetRenamed((state?.achados ?? []).filter((a) => a.origem !== "detector"), renames).map((a, i) => ({ ...a, id: i + 1 }))
+      : [];
   const changedNow = new Set(included.map((f) => f.path));
   const toCheck = previous.filter((p) => p.arquivo === "PR" || changedNow.has(p.arquivo));
 
