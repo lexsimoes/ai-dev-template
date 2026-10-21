@@ -7,6 +7,10 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Added
+- Claude Code plugin `ai-dev` and its marketplace in this repository (`/plugin marketplace add lexsimoes/ai-dev-template`, then `/plugin install ai-dev@ai-dev-template`), with `/ai-dev:check-setup`: GitHub login, repository, labels, protection of `main`, secrets by name, reviewer and evals config versus the keys, CI on `main`, template version.
+- Bridges to `AGENTS.md` for agents that do not read it on their own: `.gemini/settings.json` (Gemini CLI) and `.aider.conf.yml` (Aider).
+
 ## [0.1.0] - 2026-10-21
 
 First release: the workflow, the checks and the Copier template.
