@@ -15,11 +15,15 @@ export const DEFAULT_REQUIRED_CHECKS = ["quality", "invariants", "dependencies",
 /** GitHub Actions: required checks must come from it, so nobody can post a fake green through the API. */
 export const ACTIONS_APP_ID = 15368;
 
-/** `owner/repo` of a GitHub remote URL (https or ssh), or null. */
+/** `owner/repo` of a GitHub remote URL (https or ssh), or null. Only GitHub.com URLs; never `.` or `..` as the name. */
 export function parseGitHubRemote(url: string): string | null {
-  const m = /github\.com[:/]([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?\/?$/.exec(url.trim());
-  return m ? `${m[1]}/${m[2]}` : null;
+  const m = /^(?:https:\/\/(?:[^@/]+@)?|ssh:\/\/git@|git@)github\.com[:/]([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?\/?$/.exec(url.trim());
+  if (!m || m[2] === "." || m[2] === "..") return null;
+  return `${m[1]}/${m[2]}`;
 }
+
+/** GitHub secret names: letters, digits and `_`, not starting with a digit. Anything else never goes into a command. */
+export const SECRET_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** `owner/repo` of a Copier template source (`gh:owner/repo`, a GitHub URL), or null (e.g. a local path). */
 export function parseTemplateSource(src: string): string | null {

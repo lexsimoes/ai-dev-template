@@ -6,6 +6,7 @@ import {
   ACTIONS_APP_ID,
   DEFAULT_REQUIRED_CHECKS,
   LABELS,
+  SECRET_NAME_RE,
   compareVersions,
   parseAnswers,
   parseGitHubRemote,
@@ -193,7 +194,8 @@ function checkSecretsAndConfig(ctx: Context, repo: RepoInfo): Check[] {
       : { id: "secrets", title: "Secrets", status: "skip", detail: "Could not list the secrets (only the repository's admins can). The reviewer and evals checks below are skipped." },
   ];
   if (!secrets) return out;
-  const fixFor = (name: string) => SECRET_HINT.replace("NAME", name).replace("OWNER/REPO", repo.slug);
+  // Functions as replacements: a `$` in a value is never read as a replacement pattern.
+  const fixFor = (name: string) => SECRET_HINT.replace("NAME", () => name).replace("OWNER/REPO", () => repo.slug);
 
   const review = json<{ disabled?: string; tiers?: Record<string, { apiKeyEnv?: string }> }>(ctx.read(".github/review.json") ?? "");
   if (!review) {
@@ -210,6 +212,15 @@ function checkSecretsAndConfig(ctx: Context, repo: RepoInfo): Check[] {
           }
         : { id: "review-config", title: "Reviewer", status: "pass", detail: "No-key mode: the `review` check passes with an \"off\" notice; the secret detectors still run." },
     );
+  } else if (Object.values(review.tiers ?? {}).some((t) => t.apiKeyEnv !== undefined && !SECRET_NAME_RE.test(t.apiKeyEnv))) {
+    // The names go into commands the user copies: a name that is not a valid secret name is never shown as one.
+    out.push({
+      id: "review-config",
+      title: "Reviewer",
+      status: "fail",
+      detail: "`.github/review.json` has an `apiKeyEnv` that is not a valid secret name (letters, digits and `_`).",
+      fix: "Fix `apiKeyEnv` in `.github/review.json` in a PR (e.g. `REVIEW_API_KEY`).",
+    });
   } else {
     const tiers = review.tiers ?? {};
     const needed = [...new Set(["standard", "light"].map((t) => tiers[t]?.apiKeyEnv).filter((k): k is string => Boolean(k)))];
@@ -328,6 +339,8 @@ export function checkSetup(ctx: Context): Check[] {
 
 const ICON: Record<Status, string> = { pass: "✅", warn: "⚠️", fail: "❌", skip: "⏭️" };
 
+const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\n/g, " ");
+
 export function renderReport(results: Check[]): string {
   const counts = (s: Status) => results.filter((r) => r.status === s).length;
   const lines = [
@@ -335,7 +348,7 @@ export function renderReport(results: Check[]): string {
     "",
     "| | Check | Result |",
     "|---|---|---|",
-    ...results.map((r) => `| ${ICON[r.status]} | ${r.title} | ${r.detail.replace(/\|/g, "\\|").replace(/\n/g, " ")} |`),
+    ...results.map((r) => `| ${ICON[r.status]} | ${cell(r.title)} | ${cell(r.detail)} |`),
   ];
   const toFix = results.filter((r) => r.fix && (r.status === "fail" || r.status === "warn"));
   if (toFix.length) {
