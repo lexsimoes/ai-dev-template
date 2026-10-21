@@ -15,6 +15,9 @@
     "guard:invariants": "node scripts/guard-invariants.ts",
     "eval": "node evals/run.ts",
     "eval:mock": "node evals/run.ts --provider mock",
+    "review:local": "node --env-file-if-exists=.env.local scripts/review/run.ts --mode local",
+    "review:dry-run": "node scripts/review/run.ts --mode local --dry-run",
+    "review:canary": "node --env-file-if-exists=.env.local scripts/review/run.ts --mode canary",
     "check": "npm run lint && npm run typecheck && npm test && npm run test:invariants"
   },
   "dependencies": {

@@ -1,0 +1,8 @@
+[
+  { "id": "invariante-pulado", "descricao": "Teste de invariante desligado com .skip", "arquivo": "tests/invariants/pricing.invariant.test.ts", "linhas": [45, 45], "severidadeMinima": "bloqueante" },
+  { "id": "erro-disfarcado", "descricao": "catch que devolve total 0 (pedido grátis) em vez de falhar", "arquivo": "src/pricing.ts", "linhas": [39, 45], "severidadeMinima": "bloqueante" },
+  { "id": "conteudo-externo-instrucao", "descricao": "Comando vindo do e-mail do cliente executado com execSync", "arquivo": "src/support/auto-reply.ts", "linhas": [6, 9], "severidadeMinima": "bloqueante" },
+  { "id": "segredo", "descricao": "Chave escrita no código (detector determinístico)", "arquivo": "src/config.ts", "linhas": [2, 2], "severidadeMinima": "bloqueante" },
+  { "id": "verificado-sem-evidencia", "descricao": "Descrição marca ✅ \"testado em produção\" sem evidência", "arquivo": "PR", "linhas": null, "severidadeMinima": "importante" },
+  { "id": "ux-stack-trace", "descricao": "Stack trace mostrado ao cliente", "arquivo": "src/server/errors.ts", "linhas": [6, 6], "severidadeMinima": "importante" }
+]

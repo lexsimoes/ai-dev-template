@@ -8,6 +8,8 @@
 /specs/PRD.md        @lexsimoes
 /.github/            @lexsimoes
 /scripts/guard-invariants.ts  @lexsimoes
+/scripts/review/     @lexsimoes
+/REVIEW.md           @lexsimoes
 /.claude/            @lexsimoes
 /AGENTS.md           @lexsimoes
 /CLAUDE.md           @lexsimoes

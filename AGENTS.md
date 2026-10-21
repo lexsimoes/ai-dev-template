@@ -26,7 +26,7 @@ Cada regra em **Inegociáveis** do PRD tem um teste em `tests/invariants/`, exig
 
 ### 1.4 Funções com LLM
 - Toda função que chama LLM tem evals em `evals/` (golden set + regras; juiz LLM opcional).
-- Chame o LLM só por `src/ai/llm.ts`.
+- No código do app, chame o LLM só por `src/ai/llm.ts`. Ferramentas de desenvolvimento (o revisor em `scripts/review/`) têm adaptadores próprios, para não depender do provedor do app, e são medidas pelo próprio canário.
 - Valide a saída (lista fechada, schema, tamanho). Saída inválida vira "precisa de humano", nunca uma ação.
 - Evals com provedor real usam a chave de um projeto de testes, nunca a de produção, e respeitam o teto de chamadas.
 
@@ -64,6 +64,7 @@ Cada regra em **Inegociáveis** do PRD tem um teste em `tests/invariants/`, exig
 - Nunca faça commit ou push na `main`. Nunca faça merge.
 - Commits pequenos, no formato `tipo: o que mudou` (`feat`, `fix`, `test`, `docs`, `chore`, `refactor`).
 - Antes do PR: `npm run check` verde (e os evals, se tocou em IA).
+- O revisor automático (`REVIEW.md`) comenta em todo PR pronto. Corrija os bloqueantes; responda aos importantes (corrigido ou por que não).
 - O PR preenche todo o template: requisito → evidência → status, checks executados, o que NÃO foi verificado, decisões pendentes.
 - Ao terminar: atualize `docs/HANDOFF.md` e o "Relatório" da missão.
 

@@ -1,0 +1,66 @@
+{
+  "$comment": "Configuração do revisor automático (scripts/review). Lida da branch de destino do PR. REVIEW_API_BASE_URL e REVIEW_MODEL (variáveis do repositório) substituem baseUrl e model do nível 'padrao'.",
+  "maxDiffChars": 150000,
+  "timeoutMs": 480000,
+  "maxFindings": 20,
+  "deepLabel": "revisão-profunda",
+  "excludePaths": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/id_rsa*",
+    "**/id_ed25519*",
+    "**/secrets/**",
+    "**/*secret*.json"
+  ],
+  "allowPaths": [".env.example", "**/.env.example"],
+  "ignorePaths": ["package-lock.json", "**/package-lock.json", "pnpm-lock.yaml", "yarn.lock", "scripts/review/canary/**"],
+  "sensitivePaths": [
+    "tests/invariants/**",
+    "evals/**",
+    "AGENTS.md",
+    "REVIEW.md",
+    ".github/**",
+    ".claude/**",
+    "scripts/**",
+    "package.json",
+    "**/*auth*",
+    "**/*login*",
+    "**/*session*",
+    "**/*payment*",
+    "**/*billing*",
+    "**/*checkout*",
+    "**/migrations/**",
+    "src/pricing.ts",
+    "src/ai/**"
+  ],
+  "tiers": {
+    "padrao": {
+      "provider": "openai-compatible",
+      "baseUrl": "https://api.deepseek.com",
+      "model": "deepseek-v4-pro",
+      "apiKeyEnv": "REVIEW_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 1.32, "output": 3.96 }
+    },
+    "sensivel": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "apiKeyEnv": "REVIEW_DEEP_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 2.0, "output": 10.0 }
+    },
+    "profunda": {
+      "provider": "anthropic",
+      "model": "claude-opus-5-5",
+      "apiKeyEnv": "REVIEW_DEEP_API_KEY",
+      "maxOutputTokens": 64000,
+      "pricePerMTok": { "input": 4.0, "output": 20.0 }
+    }
+  }
+}

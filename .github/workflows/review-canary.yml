@@ -1,0 +1,47 @@
+# Canário do revisor: todo mês (e em PRs que mudam o revisor), roda o revisor contra
+# um PR fictício com defeitos plantados (scripts/review/canary/). Falha se algum passar despercebido.
+
+name: Canário do revisor
+
+on:
+  schedule:
+    - cron: "17 9 1 * *" # dia 1 de cada mês, 09:17 UTC
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "Nível a medir (padrao, sensivel, profunda)"
+        default: padrao
+  pull_request:
+    paths:
+      - REVIEW.md
+      - AGENTS.md
+      - scripts/review/**
+      - .github/review.json
+      - .github/workflows/review*.yml
+
+permissions:
+  contents: read
+
+jobs:
+  canario:
+    name: canario-revisor
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Rodar o canário
+        env:
+          REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
+          REVIEW_DEEP_API_KEY: ${{ secrets.REVIEW_DEEP_API_KEY }}
+          REVIEW_API_BASE_URL: ${{ vars.REVIEW_API_BASE_URL }}
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
+          TIER: ${{ inputs.tier || 'padrao' }}
+        run: node scripts/review/run.ts --mode canary --tier "$TIER"

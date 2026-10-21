@@ -21,10 +21,12 @@ O agente implementa, outro modelo revisa, os robôs verificam e **você decide e
        ├────────────────────────┬─────────────────────────────┐
        ▼                        ▼                             ▼
  🤖 5a. CI                 🤖 5b. REVISÃO               🤖 5c. PREVIEW (ex.: Vercel)
-     lint · tipos · testes     Claude (outro modelo)        um endereço só deste PR,
-     invariantes (obrig.)      lê o diff com o REVIEW.md    criado ANTES do merge
-     auditoria de deps         bloqueante/importante/       para você clicar e testar
-     evals (se tocou em IA)    sugestão
+     lint · tipos · testes     revisor independente         um endereço só deste PR,
+     invariantes (obrig.)      (outro provedor/modelo)      criado ANTES do merge
+     auditoria de deps         DeepSeek → Sonnet em         para você clicar e testar
+     evals (se tocou em IA)    caminho sensível → Opus
+                               com "revisão-profunda"
+                               bloqueante/importante/sugestão
        │                        │                             │
        └────────────┬───────────┴─────────────────────────────┘
                     ▼
@@ -74,7 +76,7 @@ O agente implementa, outro modelo revisa, os robôs verificam e **você decide e
 
 ## Pedir correção
 
-- Comente no PR o que está errado. Com o revisor configurado (M4), você pode escrever `@claude corrija X` no comentário.
+- Comente no PR o que está errado (ou aponte um achado do revisor) e peça ao agente: *"corrija o achado X do PR #N na mesma branch"*.
 - O agente corrige **na mesma branch**; o CI e a revisão rodam de novo sozinhos.
 - Feedback de cliente, issue ou e-mail vira uma **missão nova**, nunca uma correção direta (`AGENTS.md`, seção 1.5).
 
@@ -88,6 +90,9 @@ O agente implementa, outro modelo revisa, os robôs verificam e **você decide e
 | `npm run guard:invariants` | A guarda dos invariantes contra a `main` (pasta intocada, nada pulado) |
 | `npm run eval:mock` | Evals sem custo (testa só o encanamento) |
 | `npm run eval` | Evals com o provedor de `LLM_PROVIDER` |
+| `npm run review:dry-run` | Mostra o que o revisor enviaria (arquivos, segredos redigidos, nível, tamanho) sem chamar modelo nenhum |
+| `npm run review:local` | Revisa a sua branch contra a `main` com o modelo real (precisa do `.env.local`) |
+| `npm run review:canary` | Roda o canário do revisor com o modelo real (precisa do `.env.local`) |
 
 ## CI: os robôs de cada PR
 
@@ -138,10 +143,91 @@ O M6 resolve de vez, dando ao agente uma identidade própria no GitHub.
   - passando disso, o Linux padrão custa US$ 0,006 por minuto.
 - Cada PR usa 3 jobs de cerca de 1 minuto cada. Pushes seguidos no mesmo PR cancelam a execução anterior, para não gastar minutos à toa.
 
+## Revisor independente (check `revisao`)
+
+Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada como **um** comentário no PR que é atualizado a cada push. Quem revisa é um modelo de **outro provedor** que o agente que implementou, porque quem escreveu o texto não enxerga os próprios erros.
+
+### Como funciona
+
+1. O workflow `.github/workflows/review.yml` calcula o diff do PR.
+2. **Filtro de segredos, antes de qualquer envio:**
+   - arquivos `.env*` (menos o `.env.example`), chaves e certificados **nunca** são enviados;
+   - linhas com cara de chave ou token viram `[REDIGIDO]`;
+   - segredo numa linha **adicionada** vira achado bloqueante sem nem perguntar ao modelo.
+3. **Escolha do nível:**
+
+   | Nível | Quando | Modelo padrão | Segredo |
+   |---|---|---|---|
+   | `padrao` | PR comum | DeepSeek `deepseek-v4-pro` | `REVIEW_API_KEY` |
+   | `sensivel` | PR toca caminho sensível (`sensitivePaths` em `.github/review.json`: invariantes, evals, CI, autenticação, pagamento, IA…) | Claude `claude-sonnet-5-5` | `REVIEW_DEEP_API_KEY` |
+   | `profunda` | Você aplica o rótulo `revisão-profunda` | Claude `claude-opus-5-5` | `REVIEW_DEEP_API_KEY` |
+
+   Sem o `REVIEW_DEEP_API_KEY`, o escalonamento não acontece: o nível padrão revisa e o relatório **diz isso** explicitamente.
+4. O modelo recebe o `REVIEW.md` e o `AGENTS.md` **da branch de destino** (um PR não afrouxa a própria revisão) e responde em JSON.
+5. Achado sem evidência, ou que cita arquivo fora do diff, é **descartado**, e o relatório conta quantos foram descartados.
+6. Algum **bloqueante** deixa o check `revisao` vermelho. Importantes e sugestões só aparecem no comentário.
+7. Se o revisor falhar (provedor fora do ar, resposta inválida, diff grande demais), o check fica **vermelho** e o relatório diz que nada foi verificado. Erro nunca vira "aprovado".
+
+### Trocar de provedor
+
+- **Nível padrão:** em Settings → Secrets and variables → Actions → **Variables**, crie `REVIEW_API_BASE_URL` (qualquer API no formato da OpenAI) e `REVIEW_MODEL`. A chave continua no segredo `REVIEW_API_KEY`.
+- **Outros níveis e limites:** edite `.github/review.json` (protegido por CODEOWNERS). Lá ficam:
+  - os caminhos sensíveis;
+  - o tamanho máximo do diff (`maxDiffChars`);
+  - o tempo máximo de espera (`timeoutMs`);
+  - os preços usados na estimativa de custo.
+
+### Testar na sua máquina (sem colar chave em lugar nenhum)
+
+```bash
+read -s REVIEW_API_KEY        # cole a chave e tecle Enter (nada aparece na tela)
+printf 'REVIEW_API_KEY=%s\n' "$REVIEW_API_KEY" > .env.local
+unset REVIEW_API_KEY
+chmod 600 .env.local          # só você lê o arquivo
+npm run review:dry-run        # confere o que seria enviado, sem custo
+npm run review:local          # revisão real da sua branch
+```
+
+O `.env.local` está no `.gitignore` e o Claude Code não tem permissão de lê-lo (`.claude/settings.json`).
+
+### Canário do revisor
+
+Um PR **fictício** com 6 defeitos plantados (`scripts/review/canary/`):
+- invariante desligado;
+- `catch` que devolve pedido grátis;
+- comando do e-mail do cliente executado;
+- chave no código;
+- ✅ sem evidência;
+- stack trace mostrado ao cliente.
+
+O workflow **Canário do revisor** roda todo dia 1, em todo PR que muda o revisor, e sob demanda (aba Actions → Run workflow). Ele falha se algum defeito passar despercebido.
+
+É assim que você descobre se uma troca de modelo ou de critérios piorou a revisão.
+
+Por que um PR fictício, e não um PR de verdade: PRs abertos pelo próprio GitHub Actions não disparam outros workflows. Um PR real criado pelo robô não seria revisado.
+
+### Custos
+
+O relatório de cada execução mostra os tokens usados e o custo estimado. Por referência, um PR de tamanho médio (cerca de 20 mil tokens de entrada e 3 mil de saída) custa aproximadamente:
+
+| Modelo | Preço (entrada / saída, por milhão de tokens) | PR médio |
+|---|---|---|
+| DeepSeek `deepseek-v4-pro` | US$ 1,32 / 3,96 no pico; metade fora do pico | ≈ US$ 0,04 |
+| Claude `claude-sonnet-5-5` | US$ 2 / 10 | ≈ US$ 0,07 |
+| Claude `claude-opus-5-5` | US$ 4 / 20 | ≈ US$ 0,14 |
+
+O canário custa uma chamada por mês. Os minutos do GitHub Actions seguem a tabela do CI acima (grátis em repositório público).
+
+### Por que não "max-turns"
+
+O revisor faz **uma** chamada por execução, sem ferramentas e sem loop. Por isso não precisa de limite de turnos (`--max-turns` só faz sentido para agentes que agem em vários passos). Os limites que valem aqui são:
+- tamanho máximo do diff;
+- tempo máximo de espera por resposta;
+- `timeout-minutes: 15` no job.
+
 ## Ainda em construção
 
 As seções abaixo entram nos próximos módulos:
-- **M4:** revisão independente (`REVIEW.md`).
 - **M5:** evals no CI.
 - **M6:** proteção da `main` para dev solo com agentes.
 - **M7:** primeiro dia de um projeto novo (PRD → inegociáveis → primeira missão → primeiro PR).
