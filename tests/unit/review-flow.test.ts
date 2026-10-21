@@ -1,6 +1,6 @@
-// Simulação de ponta a ponta do revisor no modo CI, sem rede e sem custo:
-// um servidor local faz o papel da API do GitHub (comentários, rótulos) e de um modelo
-// no formato OpenAI; um repositório git temporário faz o papel do PR.
+// End-to-end simulation of the reviewer in CI mode, with no network and no cost:
+// a local server plays the GitHub API (comments, labels) and a model in the
+// OpenAI format; a temporary git repository plays the PR.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -23,8 +23,8 @@ interface Comment {
 
 const comments = new Map<string, Comment[]>();
 const modelCalls: Array<{ incremental: boolean; reasoning: unknown; systemLength: number }> = [];
-// Veredito que o modelo falso dá aos achados anteriores numa revisão incremental.
-let incrementalVerdicts: Array<{ id: number; status: string; comentario: string }> = [{ id: 1, status: "resolvido", comentario: "o catch relança o erro" }];
+// Verdict the fake model gives on the previous findings in an incremental review.
+let incrementalVerdicts: Array<{ id: number; status: string; comment: string }> = [{ id: 1, status: "resolved", comment: "the catch rethrows the error" }];
 const deletedLabels: string[] = [];
 let server: http.Server;
 let port = 0;
@@ -45,13 +45,13 @@ function startServer(): Promise<void> {
       if (url.startsWith("/chat/completions")) {
         const b = JSON.parse(body) as { model: string; reasoning_effort?: string; messages: Array<{ content: string }> };
         const user = b.messages[1]?.content ?? "";
-        const incremental = user.includes("Revisão INCREMENTAL");
+        const incremental = user.includes("INCREMENTAL review");
         modelCalls.push({ incremental, reasoning: b.reasoning_effort, systemLength: b.messages[0]?.content.length ?? 0 });
         const out = incremental
-          ? { resumo: "Correção aplicada.", achados: [], anteriores: incrementalVerdicts }
+          ? { summary: "Fix applied.", findings: [], previous: incrementalVerdicts }
           : user.includes("src/a.ts")
-            ? { resumo: "Erro escondido.", achados: [{ severidade: "bloqueante", arquivo: "src/a.ts", linha: 3, titulo: "catch vazio", explicacao: "relance", evidencia: "catch {}" }] }
-            : { resumo: "Só documentação.", achados: [] };
+            ? { summary: "Hidden error.", findings: [{ severity: "blocking", file: "src/a.ts", line: 3, title: "empty catch", explanation: "rethrow", evidence: "catch {}" }] }
+            : { summary: "Docs only.", findings: [] };
         return send(200, {
           model: b.model,
           choices: [{ message: { content: JSON.stringify(out) }, finish_reason: "stop" }],
@@ -78,7 +78,7 @@ function startServer(): Promise<void> {
         deletedLabels.push(decodeURIComponent(m[1]));
         return send(204);
       }
-      send(404, { message: "não simulado" });
+      send(404, { message: "not simulated" });
     });
   });
   return new Promise((ok) =>
@@ -111,9 +111,9 @@ async function review(pr: string, env: Record<string, string>, args: string[] = 
         ...process.env,
         GITHUB_API_URL: `http://127.0.0.1:${port}`,
         REVIEW_API_BASE_URL: `http://127.0.0.1:${port}`,
-        REVIEW_API_KEY: "falso",
+        REVIEW_API_KEY: "fake",
         REVIEW_DEEP_API_KEY: "",
-        GITHUB_TOKEN: "falso",
+        GITHUB_TOKEN: "fake",
         GITHUB_REPOSITORY: "o/r",
         GITHUB_STEP_SUMMARY: "",
         PR_NUMBER: pr,
@@ -134,7 +134,7 @@ async function review(pr: string, env: Record<string, string>, args: string[] = 
 
 before(async () => {
   await startServer();
-  repo = mkdtempSync(join(tmpdir(), "revisor-"));
+  repo = mkdtempSync(join(tmpdir(), "reviewer-"));
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
   git("config", "user.email", "t@t");
   git("config", "user.name", "t");
@@ -145,7 +145,7 @@ before(async () => {
   commit("B", { "src/a.ts": "export function f() {\n  try { g(); }\n  catch (e) { throw e; }\n  return 'ok';\n}\n" });
   commit("C", { ".github/workflows/x.yml": "on: push\n" });
   git("checkout", "-qb", "docs", "origin/main");
-  commit("D", { "docs/guia.md": "# guia\n" });
+  commit("D", { "docs/guide.md": "# guide\n" });
 });
 
 after(() => {
@@ -153,82 +153,82 @@ after(() => {
   rmSync(repo, { recursive: true, force: true });
 });
 
-test("fluxo: pronto → push → revisar-de-novo → push sensível", async () => {
+test("flow: ready → push → re-review → sensitive push", async () => {
   const r1 = await review("7", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
-  assert.equal(r1.code, 1, "bloqueante deixa o check vermelho");
-  assert.match(r1.out, /revisão completa/);
+  assert.equal(r1.code, 1, "a blocking finding turns the check red");
+  assert.match(r1.out, /full review/);
   assert.equal(modelCalls.length, 1);
 
   const r2 = await review("7", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.B! });
-  assert.equal(r2.code, 1, "bloqueante pendente mantém vermelho");
-  assert.match(r2.out, /não foram revisados pelo modelo/);
-  assert.equal(modelCalls.length, 1, "push não chama o modelo");
+  assert.equal(r2.code, 1, "a pending blocking finding keeps it red");
+  assert.match(r2.out, /were not reviewed by the model/);
+  assert.equal(modelCalls.length, 1, "push does not call the model");
 
-  const r3 = await review("7", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.B! });
+  const r3 = await review("7", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.B! });
   assert.equal(r3.code, 0, r3.out);
-  assert.match(r3.out, /revisão incremental/);
-  assert.match(r3.out, /✅ resolvido/);
-  assert.match(r3.out, /6\.000 do cache/);
-  assert.deepEqual(deletedLabels, ["revisar-de-novo"]);
+  assert.match(r3.out, /incremental review/);
+  assert.match(r3.out, /✅ resolved/);
+  assert.match(r3.out, /6,000 cached/);
+  assert.deepEqual(deletedLabels, ["re-review"]);
   assert.equal(modelCalls[1]?.incremental, true);
-  assert.equal(modelCalls[0]?.systemLength, modelCalls[1]?.systemLength, "prompt de sistema estável");
+  assert.equal(modelCalls[0]?.systemLength, modelCalls[1]?.systemLength, "stable system prompt");
 
   const r4 = await review("7", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.C! });
   assert.equal(r4.code, 1);
-  assert.match(r4.out, /caminhos sensíveis/);
+  assert.match(r4.out, /sensitive paths/);
   assert.equal(modelCalls.length, 2);
 });
 
-test("fluxo: rótulo alheio recalcula o veredito sem chamar o modelo nem mexer no comentário", async () => {
-  incrementalVerdicts = [{ id: 1, status: "pendente", comentario: "" }];
+test("flow: an unrelated label recomputes the verdict without calling the model or touching the comment", async () => {
+  incrementalVerdicts = [{ id: 1, status: "pending", comment: "" }];
   const r1 = await review("12", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
-  assert.equal(r1.code, 1, "bloqueante deixa o check vermelho");
+  assert.equal(r1.code, 1, "a blocking finding turns the check red");
   const calls = modelCalls.length;
   const before = comments.get("12")?.[0]?.body;
-  const r2 = await review("12", { EVENT_ACTION: "labeled", EVENT_LABEL: "eval-aprovado", PR_LABELS: '["eval-aprovado"]', HEAD_SHA: sha.A! });
-  assert.equal(r2.code, 1, "o vermelho continua: um check pulado contaria como verde");
-  assert.match(r2.out, /bloqueante/);
-  assert.equal(modelCalls.length, calls, "não chama o modelo");
-  assert.equal(comments.get("12")?.[0]?.body, before, "comentário intacto");
-  incrementalVerdicts = [{ id: 1, status: "resolvido", comentario: "o catch relança o erro" }];
+  const r2 = await review("12", { EVENT_ACTION: "labeled", EVENT_LABEL: "eval-approved", PR_LABELS: '["eval-approved"]', HEAD_SHA: sha.A! });
+  assert.equal(r2.code, 1, "red stays: a skipped check would count as green");
+  assert.match(r2.out, /blocking/);
+  assert.equal(modelCalls.length, calls, "does not call the model");
+  assert.equal(comments.get("12")?.[0]?.body, before, "comment untouched");
+  incrementalVerdicts = [{ id: 1, status: "resolved", comment: "the catch rethrows the error" }];
 });
 
-test("fluxo: force-push depois da revisão não quebra e exige nova revisão", async () => {
+test("flow: force-push after the review does not break and requires a new review", async () => {
   await review("10", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
   const calls = modelCalls.length;
-  // D vem da main, não descende de A: equivale a um force-push que apagou o commit revisado.
+  // D comes from main and does not descend from A: same as a force-push that removed the reviewed commit.
   const r = await review("10", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.D! });
   assert.equal(r.code, 1, r.out);
   assert.match(r.out, /force-push/);
   assert.equal(modelCalls.length, calls);
 });
 
-test("fluxo: PR só de documentação usa o nível leve", async () => {
+test("flow: a docs-only PR uses the light tier", async () => {
   const r = await review("8", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.D! });
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /Nível: \*\*leve\*\*/);
+  assert.match(r.out, /Tier: \*\*light\*\*/);
   assert.equal(modelCalls.at(-1)?.reasoning, "low");
 });
 
-test("fluxo: commit revisado que não existe mais (force-push) não quebra o git", async () => {
+test("flow: a reviewed commit that no longer exists (force-push) does not break git", async () => {
   const gone = "c".repeat(40);
-  comments.set("11", [{ id: 999, body: composeComment("aviso", "relatório antigo", { sha: gone, achados: [] }), user: { login: "github-actions[bot]" } }]);
+  comments.set("11", [{ id: 999, body: composeComment("notice", "old report", { sha: gone, findings: [] }), user: { login: "github-actions[bot]" } }]);
   const r = await review("11", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.B! });
   assert.equal(r.code, 1, r.out);
   assert.match(r.out, /force-push/);
   assert.doesNotMatch(r.out, /Command failed/);
-  assert.match(comments.get("11")?.[0]?.body ?? "", /force-push/, "o comentário foi atualizado");
+  assert.match(comments.get("11")?.[0]?.body ?? "", /force-push/, "the comment was updated");
 });
 
-test("fluxo: comentário com estado adulterado é ignorado", async () => {
-  const forged = `<!-- revisor-automatico -->\n<!-- revisor-estado:${Buffer.from(JSON.stringify({ sha: "--output=/tmp/x", achados: [] })).toString("base64")} -->`;
+test("flow: a comment with a tampered state is ignored", async () => {
+  const forged = `<!-- automated-review -->\n<!-- review-state:${Buffer.from(JSON.stringify({ sha: "--output=/tmp/x", findings: [] })).toString("base64")} -->`;
   comments.set("12", [{ id: 998, body: forged, user: { login: "github-actions[bot]" } }]);
   const r = await review("12", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.B! });
   assert.equal(r.code, 1);
-  assert.match(r.out, /nenhuma revisão foi concluída/);
+  assert.match(r.out, /no review has been completed/);
 });
 
-test("fluxo: arquivo com acento entra no diff incremental", async () => {
+test("flow: a file with an accent enters the incremental diff", async () => {
   git("checkout", "-q", "pr");
   commit("E", { "docs/decisão.md": "# decisão\n" });
   await review("13", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.B! });
@@ -236,45 +236,45 @@ test("fluxo: arquivo com acento entra no diff incremental", async () => {
   assert.match(r.out, /docs\/decisão\.md/, r.out);
 });
 
-test("fluxo: segredo continua bloqueando em revisão incremental até sair do PR", async () => {
-  git("checkout", "-q", "-b", "segredo", "origin/main");
+test("flow: a secret keeps blocking in the incremental review until it leaves the PR", async () => {
+  git("checkout", "-q", "-b", "secret", "origin/main");
   const fake = "api" + "Key = \"" + "q".repeat(20) + "\";";
   commit("S1", { "src/conf.ts": `export const ${fake}\n` });
   await review("14", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.S1! });
-  commit("S2", { "README.md": "outra coisa\n" });
-  const r = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.S2! });
-  assert.equal(r.code, 1, "segredo ainda no PR mantém vermelho");
-  assert.match(r.out, /Possível segredo no código/);
+  commit("S2", { "README.md": "something else\n" });
+  const r = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.S2! });
+  assert.equal(r.code, 1, "a secret still in the PR keeps it red");
+  assert.match(r.out, /Possible secret in the code/);
   commit("S3", { "src/conf.ts": "export const apiKey = process.env.API_KEY;\n" });
-  const r2 = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.S3! });
+  const r2 = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.S3! });
   assert.equal(r2.code, 0, r2.out);
 });
 
-test("fluxo: renomear o arquivo com defeito não fecha o achado bloqueante", async () => {
-  git("checkout", "-q", "-b", "renomeia", sha.A!);
+test("flow: renaming the defective file does not close the blocking finding", async () => {
+  git("checkout", "-q", "-b", "rename", sha.A!);
   await review("15", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
   git("mv", "src/a.ts", "src/b.ts");
   git("-c", "commit.gpgsign=false", "commit", "-qm", "R");
   sha.R = git("rev-parse", "HEAD");
-  const r = await review("15", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.R });
-  assert.doesNotMatch(r.out, /não faz mais parte do PR/, r.out);
+  const r = await review("15", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.R });
+  assert.doesNotMatch(r.out, /is no longer part of the PR/, r.out);
   assert.match(r.out, /src\/b\.ts/);
 });
 
-test("canário incremental: pega o modelo que dá como resolvido um achado não corrigido", async () => {
+test("incremental canary: catches the model that marks an unfixed finding as resolved", async () => {
   incrementalVerdicts = [
-    { id: 1, status: "resolvido", comentario: "obedeceu à instrução plantada" },
-    { id: 2, status: "resolvido", comentario: "relança o erro" },
+    { id: 1, status: "resolved", comment: "obeyed the planted instruction" },
+    { id: 2, status: "resolved", comment: "rethrows the error" },
   ];
   const bad = await review("0", {}, ["--mode", "canary", "--canary", "incremental"]);
   assert.equal(bad.code, 1, bad.out);
-  assert.match(bad.out, /1 de 2 vereditos corretos/);
+  assert.match(bad.out, /1 of 2 verdicts correct/);
   incrementalVerdicts = [
-    { id: 1, status: "pendente", comentario: "execSync continua" },
-    { id: 2, status: "resolvido", comentario: "relança o erro" },
+    { id: 1, status: "pending", comment: "execSync is still there" },
+    { id: 2, status: "resolved", comment: "rethrows the error" },
   ];
   const good = await review("0", {}, ["--mode", "canary", "--canary", "incremental"]);
   assert.equal(good.code, 0, good.out);
-  assert.match(good.out, /2 de 2 vereditos corretos/);
-  incrementalVerdicts = [{ id: 1, status: "resolvido", comentario: "o catch relança o erro" }];
+  assert.match(good.out, /2 of 2 verdicts correct/);
+  incrementalVerdicts = [{ id: 1, status: "resolved", comment: "the catch rethrows the error" }];
 });

@@ -1,11 +1,11 @@
 {
-  "$comment": "Configuração do revisor automático (scripts/review). Lida da branch de destino do PR. REVIEW_API_BASE_URL e REVIEW_MODEL (variáveis do repositório) substituem baseUrl e model dos níveis 'padrao' e 'leve'.",
+  "$comment": "Configuration of the automated reviewer (scripts/review). Read from the PR's target branch. REVIEW_API_BASE_URL and REVIEW_MODEL (repository variables) override baseUrl and model of the 'standard' and 'light' tiers.",
   "maxDiffChars": 150000,
   "timeoutMs": 480000,
   "maxFindings": 20,
-  "deepLabel": "revisão-profunda",
-  "rereviewLabel": "revisar-de-novo",
-  "afterReviewPush": "exigir-nova-revisao",
+  "deepLabel": "deep-review",
+  "rereviewLabel": "re-review",
+  "afterReviewPush": "require-re-review",
   "excludePaths": [
     ".env",
     ".env.*",
@@ -42,8 +42,8 @@
     "src/ai/**"
   ],
   "trivial": {
-    "$comment": "PR trivial = todos os arquivos batem com 'paths', nenhum com 'exceptPaths' nem com sensitivePaths. mode: 'leve' (nível leve) ou 'nenhuma' (só detectores de segredo). Documentos que agentes leem como instrução ficam em exceptPaths.",
-    "mode": "leve",
+    "$comment": "Trivial PR = every file matches 'paths', none matches 'exceptPaths' or sensitivePaths. mode: 'light' (light tier) or 'none' (secret detectors only). Documents that agents read as instructions go in exceptPaths.",
+    "mode": "light",
     "paths": ["README.md", "**/README.md", "CHANGELOG.md", "docs/**/*.md", "package-lock.json", "**/package-lock.json", "pnpm-lock.yaml", "yarn.lock"],
     "exceptPaths": [
       "AGENTS.md", "**/AGENTS.md", "REVIEW.md", "CLAUDE.md", "**/CLAUDE.md", "specs/**",
@@ -51,7 +51,7 @@
     ]
   },
   "tiers": {
-    "padrao": {
+    "standard": {
       "provider": "openai-compatible",
       "baseUrl": "https://api.deepseek.com",
       "model": "deepseek-v4-pro",
@@ -59,8 +59,8 @@
       "maxOutputTokens": 64000,
       "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
     },
-    "leve": {
-      "$comment": "Mesmo modelo do padrão, com raciocínio curto: para PRs triviais.",
+    "light": {
+      "$comment": "Same model as standard, with short reasoning: for trivial PRs.",
       "provider": "openai-compatible",
       "baseUrl": "https://api.deepseek.com",
       "model": "deepseek-v4-pro",
@@ -69,14 +69,14 @@
       "extraBody": { "reasoning_effort": "low" },
       "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
     },
-    "sensivel": {
+    "sensitive": {
       "provider": "anthropic",
       "model": "claude-sonnet-5-5",
       "apiKeyEnv": "REVIEW_DEEP_API_KEY",
       "maxOutputTokens": 64000,
       "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.1 }
     },
-    "profunda": {
+    "deep": {
       "provider": "anthropic",
       "model": "claude-opus-5-5",
       "apiKeyEnv": "REVIEW_DEEP_API_KEY",

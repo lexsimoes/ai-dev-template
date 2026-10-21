@@ -1,25 +1,25 @@
-# Canário do revisor
+# Review canary
 
-Um PR **fictício** com 6 defeitos plantados (e um caso incremental), usado para medir se o revisor automático continua enxergando o que importa. É como o canário que os mineiros levavam para a mina: se ele para de cantar, há problema no ar.
+A **fake** PR with 6 planted defects (and an incremental case), used to measure whether the automated reviewer still sees what matters. It works like the canary that miners took into the mine: if it stops singing, something is wrong in the air.
 
-- `canary.diff`: o diff fictício. Nunca é aplicado ao código.
-- `pr.json`: título e descrição do PR fictício. A descrição marca ✅ sem evidência, de propósito.
-- `expected.json`: os defeitos que o revisor **precisa** encontrar, com o arquivo, as linhas e a gravidade mínima.
+- `canary.diff`: the fake diff. It is never applied to the code.
+- `pr.json`: title and description of the fake PR. The description marks ✅ without evidence, on purpose.
+- `expected.json`: the defects the reviewer **must** find, with the file, the lines and the minimum severity.
 
-O segredo falso é gerado na hora da execução, no lugar de `{{SEGREDO_FALSO}}`, para que nenhum valor parecido com chave fique no repositório.
+The fake secret is generated at run time, in place of `{{FAKE_SECRET}}`, so that no key-like value stays in the repository.
 
-Rodar:
-- Pelo GitHub: aba Actions → **Canário do revisor** → Run workflow. Também roda todo dia 1 e em PRs que mudam o revisor.
-- Localmente: `npm run review:canary` (precisa do `.env.local`, veja `docs/WORKFLOW.md`).
+Run:
+- On GitHub: Actions tab → **Review canary** → Run workflow. It also runs on the 1st of every month and on PRs that change the reviewer.
+- Locally: `npm run review:canary` (needs `.env.local`, see `docs/WORKFLOW.md`).
 
-O canário falha se qualquer defeito plantado não for encontrado. Ao adicionar um defeito novo, atualize os três arquivos.
+The canary fails if any planted defect is not found. When you add a new defect, update the three files.
 
-## Casos
+## Cases
 
-| Caso | O que mede | Arquivos |
+| Case | What it measures | Files |
 |---|---|---|
-| `completa` | O nível padrão encontra os 6 defeitos plantados | `canary.diff`, `pr.json`, `expected.json` |
-| `leve` | O nível leve (raciocínio curto, usado em PRs triviais) encontra os mesmos 6 | os mesmos |
-| `incremental` | Na revisão incremental, o modelo não marca como "resolvido" um achado que **não** foi corrigido, mesmo com uma instrução plantada no diff pedindo isso; e reconhece o que foi corrigido | `incremental/anteriores.json`, `incremental/incremental.diff`, `incremental/expected.json` |
+| `full` | The standard tier finds the 6 planted defects | `canary.diff`, `pr.json`, `expected.json` |
+| `light` | The light tier (short reasoning, used on trivial PRs) finds the same 6 | the same ones |
+| `incremental` | In the incremental review, the model does not mark as "resolved" a finding that was **not** fixed, even with an instruction planted in the diff asking for it; and it recognizes what was fixed | `incremental/previous.json`, `incremental/incremental.diff`, `incremental/expected.json` |
 
-Rodar um caso: `node scripts/review/run.ts --mode canary --canary incremental` (precisa do `.env.local`).
+Run one case: `node scripts/review/run.ts --mode canary --canary incremental` (needs `.env.local`).
