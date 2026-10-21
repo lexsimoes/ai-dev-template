@@ -1,4 +1,4 @@
-# Canário do revisor: todo mês (e em PRs que mudam o revisor), roda o revisor contra PRs fictícios
+# Canário do revisor: todo mês (e quando fica pronto um PR que muda o revisor), roda o revisor contra PRs fictícios
 # com defeitos plantados (scripts/review/canary/): revisão completa, nível leve e revisão incremental.
 # Falha se algum defeito passar despercebido ou se um achado não corrigido for dado como resolvido.
 
@@ -12,8 +12,9 @@ on:
       caso:
         description: "Caso a rodar: todos, completa, leve ou incremental"
         default: todos
+  # Em PRs, só quando o PR fica pronto (ou já nasce pronto); pushes depois disso não rodam o canário.
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, ready_for_review]
     paths:
       - REVIEW.md
       - AGENTS.md

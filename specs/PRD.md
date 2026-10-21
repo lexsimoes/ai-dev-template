@@ -44,13 +44,13 @@ Regras que **nunca** podem quebrar. Cada uma tem um teste em `tests/invariants/`
 
 ## 6. Checagem de direção
 
-Atualizada pelo workflow semanal (M6) e a cada missão. Mostra se o que existe hoje atende ao que foi pedido.
+Atualizada a cada missão, pelo agente, no PR da missão. Toda segunda-feira, o workflow `Checagem de direção` abre uma issue que confere esta tabela (os arquivos citados como evidência existem?) e pede a sua revisão. Mostra se o que existe hoje atende ao que foi pedido.
 
 | Requisito | Evidência | Status |
 |---|---|---|
 | CA-01 | | ⬜ |
 | CA-02 | `tests/unit/pricing.test.ts` passando | ✅ |
-| CA-03 | `npm run eval:mock` passa; **com modelo real ainda não medido** | 🟡 |
+| CA-03 | Evals no CI com `deepseek-v4-pro`: 100% de acerto em 10 casos (PR #6, 2026-10-21); `.github/workflows/evals.yml` | ✅ |
 | INV-001 | `npm run test:invariants` | ✅ |
 | INV-002 | `npm run test:invariants` | ✅ |
 

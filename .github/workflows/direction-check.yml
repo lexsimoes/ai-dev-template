@@ -1,0 +1,40 @@
+# Checagem de direção: toda segunda-feira abre (ou atualiza) uma issue com o estado do projeto
+# (PRD x evidências, saúde da main, PRs da semana, fila e decisões do HANDOFF) para o dono revisar.
+# Sem modelo de IA e sem segredos: custa só alguns segundos de Actions.
+
+name: Checagem de direção
+
+on:
+  schedule:
+    - cron: "23 11 * * 1" # segunda-feira, 11:23 UTC (08:23 em Brasília)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checagem-de-direcao
+  cancel-in-progress: false
+
+jobs:
+  checagem:
+    name: checagem-de-direcao
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write # abrir ou atualizar a issue da semana
+      pull-requests: read # listar PRs abertos e mesclados
+      actions: read # ver a última execução do CI e do canário
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # Sem npm ci: o script só usa módulos do próprio Node.
+      - name: Abrir ou atualizar a issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/direction/run.ts

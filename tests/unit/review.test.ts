@@ -327,6 +327,8 @@ test("decisão por evento: push não chama o modelo; rótulo e 'pronto' revisam"
   assert.equal(k("labeled", "revisar-de-novo", st, false), "completa", "force-push volta a ser completa");
   assert.equal(k("labeled", "revisão-profunda"), "completa");
   assert.equal(k("synchronize", "", st, true, ["revisar-de-novo"]), "incremental", "push com o rótulo ainda no PR recupera a revisão pedida");
+  assert.equal(k("labeled", "eval-aprovado"), "sem-revisao", "rótulo alheio só recalcula o veredito");
+  assert.equal(k("labeled", "eval-aprovado", st, true, ["revisar-de-novo"]), "incremental", "rótulo alheio não engole a revisão pedida");
 });
 
 test("push depois da revisão: motivos para vermelho", () => {

@@ -96,3 +96,17 @@ test("evals: EVAL_MAX_CALLS inválido falha em vez de desligar o teto; vazio usa
   const vazio = await evals({ EVAL_MAX_CALLS: "" });
   assert.equal(vazio.code, 0, vazio.out);
 });
+
+test("evals: com --require-baseline, suite da branch de destino sem linha de base reprova", async () => {
+  const semBase = join(out, "nao-existe");
+  const args = ["evals/run.ts", "--provider", "mock", "--base-dir", base, "--out", out, "--baseline", semBase];
+  const env = { ...process.env, GITHUB_STEP_SUMMARY: "", PR_LABELS: "[]" };
+  const livre = await run("node", args, { env }).then(() => 0, (e: { code?: number }) => e.code ?? 1);
+  assert.equal(livre, 0, "sem a opção, falta de linha de base só vira aviso");
+  const exigida = await run("node", [...args, "--require-baseline"], { env }).then(
+    () => ({ code: 0, out: "" }),
+    (e: { code?: number; stdout?: string }) => ({ code: e.code ?? 1, out: e.stdout ?? "" }),
+  );
+  assert.equal(exigida.code, 1);
+  assert.match(exigida.out, /sem linha de base/);
+});

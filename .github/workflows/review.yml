@@ -19,18 +19,17 @@ permissions:
 jobs:
   revisao:
     name: revisao
-    # Só PRs prontos (não rascunhos), só deste repositório (forks não recebem segredos)
-    # e, em eventos de rótulo, só para "revisão-profunda" ou "revisar-de-novo".
-    if: >-
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action != 'labeled' ||
-       github.event.label.name == 'revisão-profunda' ||
-       github.event.label.name == 'revisar-de-novo')
+    # Só PRs prontos (rascunhos não podem ser mesclados; ao ficar pronto, o PR é revisado).
+    # Os demais eventos (inclusive rótulos alheios) rodam sem chamar o modelo e recalculam o veredito:
+    # este check é obrigatório na main, e um job pulado contaria como verde.
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Fila no nível do job (só entra quem passou no "if" acima, então rótulos irrelevantes não ocupam a vaga).
     # Sem cancelar: um push logo depois de "pronto" não pode jogar fora uma revisão já paga.
+    # A fila guarda só uma execução pendente; se ela descartar a do rótulo "revisar-de-novo",
+    # a execução seguinte encontra o rótulo no PR e faz a revisão pedida. Com "revisão-profunda"
+    # não há essa recuperação (o rótulo fica no PR, e reagir a ele a cada push sairia caro):
+    # se a revisão profunda não aparecer no comentário, remova e aplique o rótulo de novo.
     concurrency:
       group: revisao-${{ github.event.pull_request.number }}
       cancel-in-progress: false
@@ -38,6 +37,12 @@ jobs:
       contents: read
       pull-requests: write # publicar o relatório como comentário no PR
     steps:
+      - name: PR de fork
+        # Forks não recebem segredos: o revisor não roda e o check fica vermelho, nunca verde por omissão.
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::PR vindo de fork: a revisão automática não roda (sem acesso aos segredos). Revise o diff à mão; para mesclar, traga as mudanças para uma branch deste repositório."
+          exit 1
       - name: Código do PR (só para calcular o diff)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

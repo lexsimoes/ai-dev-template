@@ -179,6 +179,20 @@ test("fluxo: pronto → push → revisar-de-novo → push sensível", async () =
   assert.equal(modelCalls.length, 2);
 });
 
+test("fluxo: rótulo alheio recalcula o veredito sem chamar o modelo nem mexer no comentário", async () => {
+  incrementalVerdicts = [{ id: 1, status: "pendente", comentario: "" }];
+  const r1 = await review("12", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
+  assert.equal(r1.code, 1, "bloqueante deixa o check vermelho");
+  const calls = modelCalls.length;
+  const before = comments.get("12")?.[0]?.body;
+  const r2 = await review("12", { EVENT_ACTION: "labeled", EVENT_LABEL: "eval-aprovado", PR_LABELS: '["eval-aprovado"]', HEAD_SHA: sha.A! });
+  assert.equal(r2.code, 1, "o vermelho continua: um check pulado contaria como verde");
+  assert.match(r2.out, /bloqueante/);
+  assert.equal(modelCalls.length, calls, "não chama o modelo");
+  assert.equal(comments.get("12")?.[0]?.body, before, "comentário intacto");
+  incrementalVerdicts = [{ id: 1, status: "resolvido", comentario: "o catch relança o erro" }];
+});
+
 test("fluxo: force-push depois da revisão não quebra e exige nova revisão", async () => {
   await review("10", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
   const calls = modelCalls.length;
