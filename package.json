@@ -12,6 +12,7 @@
     "typecheck": "tsc",
     "test": "node --test \"tests/unit/**/*.test.ts\"",
     "test:invariants": "node --test \"tests/invariants/**/*.test.ts\"",
+    "test:template": "node --test \"tests/template/**/*.test.ts\"",
     "guard:invariants": "node scripts/guard-invariants.ts",
     "eval": "node evals/run.ts",
     "eval:mock": "node evals/run.ts --provider mock",
