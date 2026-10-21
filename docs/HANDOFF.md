@@ -25,7 +25,7 @@
 - M7 PR 3: no-key mode + public release.
   - Reviewer race fixed in the reviewer itself: every run decides from the live PR (labels read from the API, review state in the comment). A push and `re-review` close together end with the same verdict in both runs, in either order, with one model call (`tests/unit/review-flow.test.ts`, "race"; the same test fails against the previous reviewer).
   - Findings that depend on an approval label no longer stay pending: adding or removing `invariant-approved` / `eval-approved` (`approvalLabels`) runs a full review when findings are open; `review.yml` also triggers on `unlabeled`.
-  - No-key mode (see `docs/WORKFLOW.md`, "No-key mode"), Copier question `evals_with_model`, MIT `LICENSE`, "Getting started" README, traffic export.
+  - No-key mode (see `docs/WORKFLOW.md`, "No-key mode"), Copier question `evals_with_model`, MIT `LICENSE` (+ `THIRD_PARTY_NOTICES.md` in projects), "Getting started" README, traffic export with an alert issue on failure or near expiry.
 - M7 PR 2: Copier engine. `copier.yml` (project name, GitHub owner, conversation language, reviewer provider, optional sections), `.jinja` twins of `AGENTS.md`, `CODEOWNERS`, `review.json`, `package.json` plus starter README/PRD/HANDOFF, project-owned files in `_skip_if_exists`. `Template` workflow: twins in sync, 2 generated projects pass their checks, no owner leak, `copier update` keeps project files. Reviewer tests now use a fixed provider config (they depended on this repository's `review.json`).
 - M7 PR 1: HANDOFF housekeeping, reviewer `maxDiffChars` back to 150000, and the sample store translated to English (prompt, tag `<customer_message>`, categories, golden set, LLM judge, mock, pricing errors), with evals before/after and the owner's `invariant-approved` (INV-002) and `eval-approved` (golden set).
 - M-EN (done, PR #10): translated the template to English (docs, messages, check and label names), with no behavior change.
@@ -68,9 +68,6 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 - M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
 - `tests/invariants/README.md`, "Owner required" row: it said the `main` protection requires the owner's approval, which does not hold under option A (0 approvals). The M-EN PR rewrites that row (together with the translation of `tests/invariants/` and `.github/CODEOWNERS`), in a separate commit that needs the owner's `invariant-approved` label.
 - Default model of the Anthropic adapter: `claude-opus-5-5`. Switching to a cheaper model in the evals is the owner's decision (see `evals/README.md`, Costs).
-- M7 PR 3: `LICENSE` names the copyright holder as `lexsimoes`; the owner may prefer their full name. MIT asks for the notice in "substantial portions" of the software, and generated projects get no license file: keep MIT (projects should then carry the template's notice) or switch the template to MIT-0 (no attribution needed).
-- M7 PR 3: in no-key mode, the secret detectors (review) and the golden set guard (evals) still turn the check red, because they need no key. The owner may prefer notices only.
-- M7 PR 3: the traffic export needs the owner to create `TRAFFIC_TOKEN` (fine-grained, "Administration: Read-only", this repository only) and save it with `gh secret set TRAFFIC_TOKEN`.
 
 ## Decisions made (owner, 2026-10-21)
 
@@ -87,6 +84,10 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 - `afterReviewPush: "require-re-review"` starting now: a push after the review stays red until `re-review`.
 - `trivial.mode: "light"`.
 - `@claude` mode in comments (`claude-code-action`): dropped for now.
+
+- M7 PR 3: license holder "Alexandre Simoes"; keep MIT; generated projects get `THIRD_PARTY_NOTICES.md` with the template's notice (template-managed, so `copier update` keeps it; it does not set the project's license).
+- M7 PR 3: in no-key mode, the secret detectors and the golden set guard stay blocking, and their comment explains the fix.
+- M7 PR 3: `TRAFFIC_TOKEN` set by the owner (fine-grained, Administration read-only, this repository only, expires in 1 year). A failed export opens an alert issue; it also warns 30 days before expiry.
 
 ## Risks and warnings
 

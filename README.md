@@ -131,7 +131,7 @@ These parts exist only in this repository; Copier does not copy them into projec
 | `copier.yml`, `*.jinja` files | The questions and the files that change with the answers |
 | `tests/template/`, check `template` | Proves on every PR that the `.jinja` twins match this repository's files, that two projects with different answers pass their own checks, and that `copier update` keeps project files |
 | `.github/workflows/traffic.yml`, `scripts/traffic/` | **Traffic export**, below |
-| `LICENSE` | The template's license |
+| `LICENSE` | The template's license. Projects get its notice in `THIRD_PARTY_NOTICES.md` instead (from `THIRD_PARTY_NOTICES.md.jinja`), which does not set the project's own license |
 
 ### Traffic export
 
@@ -141,8 +141,10 @@ The workflow token cannot read traffic, so it needs a token of yours, read-only 
 1. GitHub → **Settings → Developer settings → Fine-grained tokens → Generate new token**.
 2. Repository access: **Only select repositories** → this one. Permissions: **Administration: Read-only** (nothing else). Pick an expiration date and note it down.
 3. In your own terminal: `gh secret set TRAFFIC_TOKEN` (it asks for the value without showing it).
-4. **Actions → Traffic export → Run workflow** to test. Without the secret, or when it expires, the run turns red with the reason.
+4. **Actions → Traffic export → Run workflow** to test.
+
+When the token is missing, expired or lacks the permission (or any step fails), the run turns red **and** opens an issue labeled `traffic-export` with the reason and the steps to fix it; the next good run closes it. The same issue warns 30 days before the token expires.
 
 ## License
 
-The template is under the [MIT License](LICENSE). Projects created from it do not get a license file: choose one for your project.
+The template is under the [MIT License](LICENSE), © Alexandre Simoes. Projects created from it get a `THIRD_PARTY_NOTICES.md` with that notice (keep it; `copier update` keeps it up to date). It covers only what came from the template and does not license your project: choose your own license and put it in a `LICENSE` file.

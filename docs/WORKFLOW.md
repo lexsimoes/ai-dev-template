@@ -356,8 +356,8 @@ A project can start without any AI key. Then `quality`, `invariants` and `depend
 
 | Check | In no-key mode | Still runs without a key |
 |---|---|---|
-| `review` | Comment "Automated review is off in this repository" | Secret detectors: a key or `.env` file in the PR still turns the check red |
-| `evals` (PR touches AI) | Comment "Evals off in this repository" | Golden set guard: deleting or changing cases still needs `eval-approved` |
+| `review` | Comment "Automated review is off in this repository" | Secret detectors: a key or `.env` file in the PR still turns the check red, and the comment then opens with "Blocked: possible secret" and the steps to fix it |
+| `evals` (PR touches AI) | Comment "Evals off in this repository" | Golden set guard: deleting or changing cases still needs `eval-approved`; the comment then opens with "blocked: golden set weakened" and the two ways out |
 | Review canary | Skipped with a notice | — |
 
 **The switch** is a `disabled` field (the text says why) in `.github/review.json` and in `evals/config.json`. Copier writes it when you answer "None" for the reviewer or "no" for evals with a model.
@@ -395,6 +395,7 @@ What belongs to whom:
 
 | Kind | Files | On `copier update` |
 |---|---|---|
+| **Template notice** | `THIRD_PARTY_NOTICES.md` (the template's MIT notice; it does not set your project's license) | Kept and updated from the template, like the files below; do not delete it |
 | **Project** | `README.md`, `specs/PRD.md`, `docs/HANDOFF.md`, `.github/CODEOWNERS`, `.env.example`, `src/`, `tests/invariants/`, the app's unit tests, `evals/golden/`, `evals/config.json`, `evals/targets.ts` | Never overwritten (recreated only if deleted) |
 | **Template** | Workflows, reviewer, guard, direction check, `AGENTS.md`, `REVIEW.md`, `docs/WORKFLOW.md`, tooling tests | Merged: your edits are kept, template changes are added; conflicts show up as markers to resolve |
 | **Template only** | `copier.yml`, `tests/template/`, `.github/workflows/template.yml` | Never copied into projects |
