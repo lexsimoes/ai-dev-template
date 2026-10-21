@@ -83,16 +83,60 @@ O agente implementa, outro modelo revisa, os robôs verificam e **você decide e
 | Comando | O que faz |
 |---|---|
 | `npm ci` | Instala as dependências exatamente como no `package-lock.json` |
-| `npm run check` | Lint + tipos + testes + invariantes (o mesmo que o CI vai rodar) |
+| `npm run check` | Lint + tipos + testes + invariantes (o mesmo que o CI roda) |
 | `npm run test:invariants` | Só os inegociáveis |
+| `npm run guard:invariants` | A guarda dos invariantes contra a `main` (pasta intocada, nada pulado) |
 | `npm run eval:mock` | Evals sem custo (testa só o encanamento) |
 | `npm run eval` | Evals com o provedor de `LLM_PROVIDER` |
+
+## CI: os robôs de cada PR
+
+O arquivo `.github/workflows/ci.yml` roda sozinho em todo PR (inclusive rascunhos) e em todo push na `main`. São 3 jobs independentes, cada um numa máquina própria:
+
+| Check | O que verifica | Falha quando |
+|---|---|---|
+| `qualidade` | Instala com `npm ci`, roda lint, tipos e testes unitários | Código fora do padrão, erro de tipo ou teste quebrado |
+| `invariantes` | Roda a guarda (`scripts/guard-invariants.ts`) e os testes de `tests/invariants/` | Um inegociável quebrou, um teste dele foi pulado, ou a pasta mudou sem o rótulo `invariante-aprovado` |
+| `dependencias` | Confere **só as dependências que o PR adiciona ou muda** | Alguma tem vulnerabilidade conhecida de gravidade alta ou crítica |
+
+Os três viram **checks obrigatórios** no M6: com qualquer um vermelho, o botão de merge trava.
+
+### Como ler um check vermelho
+
+1. No fim da página do PR, na caixa de checks, procure o ❌ e clique em **Details** ao lado dele.
+2. Abre a página do job, com a lista de **steps** à esquerda. O step com ❌ é onde parou; os seguintes nem rodam.
+3. Clique no step vermelho para abrir o **log** (o texto que a máquina escreveu). Leia de baixo para cima: a causa costuma estar nas últimas 20 linhas.
+4. Procure estas palavras:
+   - `not ok`: teste que falhou, com o nome dele (ex.: `INV-001b`);
+   - `error`: lint ou tipos;
+   - `❌ Guarda dos invariantes`: a guarda explica o motivo em português.
+5. Atalho: a aba **Summary** do job mostra o resumo da guarda dos invariantes sem precisar abrir o log.
+
+Depois, peça ao agente: *"o check X falhou com esta mensagem: …, corrija na mesma branch"*. Se o vermelho for em `invariantes`, o agente **não** pode mexer no teste: ou corrige o código, ou para e te pergunta (`AGENTS.md`, seção 1.2).
+
+### Rótulo `invariante-aprovado`
+
+Quando **você** decide mudar uma regra inegociável:
+1. Abra o PR.
+2. Na coluna da direita, em **Labels**, aplique `invariante-aprovado`.
+3. A guarda roda de novo e aceita a mudança na pasta.
+
+Mesmo com o rótulo, testes pulados (`.skip`, `.todo`, `.only`) **nunca** passam.
+
+Limite atual: o agente trabalha com a sua conta do GitHub e, tecnicamente, consegue aplicar o rótulo. Hoje quem impede isso é a regra no `AGENTS.md` e a revisão. O M6 resolve de vez, separando a identidade do agente da sua.
+
+### Custos do CI
+
+- **Repositório público** (como este template): os runners padrão do GitHub são **grátis**.
+- **Repositório privado:**
+  - o plano Free inclui 2.000 minutos por mês, e o Pro, 3.000;
+  - passando disso, o Linux padrão custa US$ 0,006 por minuto.
+- Cada PR usa 3 jobs de cerca de 1 minuto cada. Pushes seguidos no mesmo PR cancelam a execução anterior, para não gastar minutos à toa.
 
 ## Ainda em construção
 
 As seções abaixo entram nos próximos módulos:
-- **M3:** CI de qualidade e como ler um check vermelho.
-- **M4:** revisão com Claude (`REVIEW.md`, `@claude`).
+- **M4:** revisão independente (`REVIEW.md`).
 - **M5:** evals no CI.
 - **M6:** proteção da `main` para dev solo com agentes.
 - **M7:** primeiro dia de um projeto novo (PRD → inegociáveis → primeira missão → primeiro PR).

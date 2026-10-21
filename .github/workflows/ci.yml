@@ -1,0 +1,82 @@
+# CI de qualidade: roda em todo PR e em todo push na main.
+# Os nomes dos jobs (qualidade, invariantes, dependencias) são usados como
+# checks obrigatórios na proteção da main (M6). Não renomeie sem atualizar lá.
+
+name: CI
+
+on:
+  pull_request:
+    # labeled/unlabeled: reavalia a guarda quando o dono aplica o rótulo invariante-aprovado.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  push:
+    branches: [main]
+
+# Permissão mínima: os jobs só leem o código.
+permissions:
+  contents: read
+
+# Um push novo no mesmo PR cancela a execução anterior (economiza minutos).
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualidade:
+    name: qualidade
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Tipos
+        run: npm run typecheck
+      - name: Testes unitários
+        run: npm test
+
+  invariantes:
+    name: invariantes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # histórico completo para comparar com a branch de destino
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Guarda (pasta intocada, nada pulado, nenhum teste a menos)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: node scripts/guard-invariants.ts
+      - name: Testes de invariantes
+        # Chamado direto (sem npm run) para que mudar o package.json não pule os testes.
+        run: node --test "tests/invariants/**/*.test.ts"
+
+  dependencias:
+    name: dependencias
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Olha só as dependências que este PR adiciona ou muda (o diff), não o projeto inteiro.
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high

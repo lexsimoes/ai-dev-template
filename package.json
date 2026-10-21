@@ -12,6 +12,7 @@
     "typecheck": "tsc",
     "test": "node --test \"tests/unit/**/*.test.ts\"",
     "test:invariants": "node --test \"tests/invariants/**/*.test.ts\"",
+    "guard:invariants": "node scripts/guard-invariants.ts",
     "eval": "node evals/run.ts",
     "eval:mock": "node evals/run.ts --provider mock",
     "check": "npm run lint && npm run typecheck && npm test && npm run test:invariants"

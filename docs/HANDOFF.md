@@ -3,27 +3,26 @@
 > Este arquivo é a "passagem de turno": qualquer agente (ou você, daqui a um mês) lê aqui primeiro para saber onde as coisas estão.
 > O agente atualiza ao fim de **cada** missão.
 
-**Atualizado em:** 2026-10-21 · **Por:** agente (M2 do template)
+**Atualizado em:** 2026-10-21 · **Por:** agente (M3 do template)
 
 ## Estado atual
 
 - Esqueleto do template criado: regras para agentes (`AGENTS.md`), PRD modelo, modelo de missão, invariantes de exemplo, evals de exemplo, modelo de PR.
 - App de demonstração: `src/pricing.ts` (cupom) e `src/ai/classify-message.ts` (classificador com LLM).
 - `npm run check` passa localmente; `npm run eval:mock` passa (mock não mede qualidade real).
-- Ainda **não** existe CI no GitHub (vem no M3).
+- CI no GitHub (`.github/workflows/ci.yml`): jobs `qualidade`, `invariantes` (com a guarda `scripts/guard-invariants.ts`) e `dependencias`, em todo PR e push na `main`.
 
 ## Última missão
 
-- M2: esqueleto do template.
+- M3: CI de qualidade (PR #2) e PR de falha proposital para demonstração.
 
 ## Fila (próximos itens)
 
-1. M3: CI de qualidade (lint, tipos, testes, invariantes como job obrigatório, auditoria de dependências).
-2. M4: revisão independente (`REVIEW.md`). **Nota do dono:** o revisor é independente de provedor, com DeepSeek como padrão e escalonamento para outro modelo quando o PR tocar caminhos sensíveis. No M4, atualizar o `docs/WORKFLOW.md` (diagrama e texto) para refletir isso, em vez de "Claude (outro modelo)".
-3. M5: evals no CI.
-4. M6: proteção da `main` e checagem de direção semanal.
-5. M7: bootstrap e Template repository.
-6. M8: ensaio completo com projeto de demonstração.
+1. M4: revisão independente (`REVIEW.md`). **Nota do dono:** o revisor é independente de provedor, com DeepSeek como padrão e escalonamento para outro modelo quando o PR tocar caminhos sensíveis. No M4, atualizar o `docs/WORKFLOW.md` (diagrama e texto) para refletir isso, em vez de "Claude (outro modelo)".
+2. M5: evals no CI.
+3. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes` e `dependencias` checks obrigatórios. Resolver o limite do rótulo `invariante-aprovado`: hoje o agente usa a conta do dono e tecnicamente consegue aplicá-lo.
+4. M7: bootstrap e Template repository.
+5. M8: ensaio completo com projeto de demonstração.
 
 ## Decisões pendentes (do dono)
 
