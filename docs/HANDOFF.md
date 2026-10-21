@@ -20,6 +20,7 @@
 ## Fila (próximos itens)
 
 1. M5: evals no CI.
+   - Pendente da revisão do PR #5: canário para a revisão incremental (o modelo marca "resolvido" algo que não foi corrigido?) e para o nível leve.
 2. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes`, `dependencias` e `revisao` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
 3. M7: bootstrap e Template repository.
 4. M8: ensaio completo com projeto de demonstração.

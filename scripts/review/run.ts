@@ -197,7 +197,7 @@ async function main(): Promise<number> {
   // Contexto do PR
   const baseRef = mode === "ci" ? `origin/${process.env.BASE_REF || "main"}` : (values.base ?? "origin/main");
   const headSha = mode === "ci" ? (process.env.HEAD_SHA || git("rev-parse", "HEAD").trim()) : "HEAD";
-  const labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
+  let labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
   let title = process.env.PR_TITLE ?? "";
   let body = process.env.PR_BODY ?? "";
   if (mode === "local") title = git("log", "-1", "--format=%s").trim();
@@ -217,9 +217,10 @@ async function main(): Promise<number> {
   let fullDiff: string;
   let prPaths: string[];
   if (mode === "canary") {
-    const pr = JSON.parse(readFileSync(join(CANARY_DIR, "pr.json"), "utf-8")) as { title: string; body: string };
+    const pr = JSON.parse(readFileSync(join(CANARY_DIR, "pr.json"), "utf-8")) as { title: string; body: string; labels?: string[] };
     title = pr.title;
     body = pr.body;
+    labels = pr.labels ?? [];
     // O segredo falso é gerado na hora: nenhum valor parecido com chave fica gravado no repositório.
     const fake = ["canario", "nao", "e", "real", Date.now().toString(36), "x".repeat(12)].join("-");
     diff = readFileSync(join(CANARY_DIR, "canary.diff"), "utf-8").replaceAll("{{SEGREDO_FALSO}}", fake);
@@ -258,7 +259,7 @@ async function main(): Promise<number> {
       changed.length ? `> Arquivos alterados: ${changed.map((p) => `\`${p}\``).join(", ")}` : "",
       reasons.length
         ? `> ❌ Check vermelho: ${reasons.join("; ")}. Corrija se for o caso e aplique o rótulo \`${config.rereviewLabel}\` para uma nova revisão.`
-        : `> ✅ Check verde: veredito anterior mantido. Para revisar estes commits, aplique o rótulo \`${config.rereviewLabel}\`.`,
+        : `> ✅ Check verde: veredito anterior mantido. **O verde não cobre estes commits**: para revisá-los, aplique o rótulo \`${config.rereviewLabel}\`.`,
     ]
       .filter(Boolean)
       .join("\n");
@@ -352,7 +353,11 @@ async function main(): Promise<number> {
   }
 
   const checkedIds = new Set(toCheck.map((p) => p.id));
-  const resolved = resolvePrevious(previous, (review?.anteriores ?? []).filter((s) => checkedIds.has(s.id)), deletedFiles(allFiles));
+  const resolved = resolvePrevious(previous, (review?.anteriores ?? []).filter((s) => checkedIds.has(s.id)), {
+    deletedPaths: deletedFiles(splitDiff(diff)),
+    prPaths: mode === "canary" ? undefined : prPaths,
+    changedPaths: [...changedNow],
+  });
   const report: ReportInput = {
     kind: finalKind,
     reviewedSha: mode === "ci" ? headSha : null,

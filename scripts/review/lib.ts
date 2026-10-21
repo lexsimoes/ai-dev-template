@@ -519,13 +519,19 @@ export function parseReview(raw: string, allowedFiles: string[], maxFindings: nu
 export function resolvePrevious(
   previous: PreviousFinding[],
   statuses: PreviousStatus[],
-  deletedPaths: string[] = [],
+  context: { deletedPaths?: string[]; prPaths?: string[]; changedPaths?: string[] } = {},
 ): Array<PreviousFinding & { status: "resolvido" | "pendente"; comentario: string }> {
+  const { deletedPaths = [], prPaths, changedPaths = [] } = context;
   return previous.map((p) => {
-    // Arquivo apagado do PR (ex.: um .env que não devia estar ali): o achado se resolve sem perguntar ao modelo.
+    // Arquivo apagado, ou que voltou a ser igual à main e saiu do PR: o achado se resolve sem perguntar ao modelo.
     if (deletedPaths.includes(p.arquivo)) return { ...p, status: "resolvido" as const, comentario: "arquivo removido do PR" };
+    if (prPaths && p.arquivo !== "PR" && !prPaths.includes(p.arquivo)) {
+      return { ...p, status: "resolvido" as const, comentario: "arquivo não faz mais parte do PR" };
+    }
     const s = statuses.find((x) => x.id === p.id);
-    return { ...p, status: s?.status ?? "pendente", comentario: s?.comentario ?? "arquivo não mudou desde a última revisão" };
+    if (s) return { ...p, status: s.status, comentario: s.comentario };
+    const changed = p.arquivo === "PR" || changedPaths.includes(p.arquivo);
+    return { ...p, status: "pendente" as const, comentario: changed ? "o modelo não conferiu este achado" : "arquivo não mudou desde a última revisão" };
   });
 }
 

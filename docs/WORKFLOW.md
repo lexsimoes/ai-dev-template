@@ -163,7 +163,8 @@ Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada c
 O commit revisado e os achados em aberto ficam guardados no próprio comentário do revisor, de forma invisível. É por isso que a revisão incremental sabe de onde partir.
 - Ninguém deve editar esse comentário. Se ele for adulterado, o estado é validado e, se estiver inválido, é ignorado.
 - Um force-push que apague o commit revisado deixa o check vermelho, e a próxima revisão volta a ser completa.
-- A revisão incremental só olha os arquivos do PR: um merge da `main` na branch não infla o diff.
+- A revisão incremental só olha os arquivos do PR. Um merge da `main` na branch não traz arquivos novos para o diff, mas trechos vindos da `main` **dentro** de arquivos do PR podem aparecer.
+- Achado de arquivo que saiu do PR (apagado, ou revertido ao que está na `main`) se resolve sozinho.
 
 - **Segredos** são decididos só pelos detectores, que rodam sobre o PR inteiro em toda execução. O achado só some quando o segredo sai do PR; o modelo nunca decide isso.
 - **Lockfiles** (`package-lock.json` e afins) nunca são enviados ao modelo. Quem os cobre é o check `dependencias`, que olha vulnerabilidades conhecidas. Um PR só de lockfile não recebe revisão de conteúdo.

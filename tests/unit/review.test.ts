@@ -341,7 +341,7 @@ test("push depois da revisão: motivos para vermelho", () => {
 test("achado de arquivo apagado se resolve sozinho", () => {
   const files = splitDiff(["diff --git a/.env b/.env", "deleted file mode 100644", "--- a/.env", "+++ /dev/null", "@@ -1 +0,0 @@", "-X=1"].join("\n"));
   assert.deepEqual(deletedFiles(files), [".env"]);
-  const [r] = resolvePrevious([{ ...finding({ arquivo: ".env" }), id: 1 }], [], deletedFiles(files));
+  const [r] = resolvePrevious([{ ...finding({ arquivo: ".env" }), id: 1 }], [], { deletedPaths: deletedFiles(files) });
   assert.equal(r?.status, "resolvido");
 });
 
@@ -356,4 +356,21 @@ test("estado: só vale o que fecha o comentário; marcador forjado no meio é ne
 
 test("detector: achados de segredo saem marcados como 'detector'", () => {
   assert.equal(secretPathFindings(splitDiff(fileDiff(".env", ["X=1"])), [".env"])[0]?.origem, "detector");
+});
+
+test("achados anteriores: arquivo que saiu do PR se resolve; sem veredito, o comentário diz o motivo certo", () => {
+  const prev = [
+    { ...finding({ arquivo: "src/revertido.ts" }), id: 1 },
+    { ...finding({ arquivo: "src/mudou.ts" }), id: 2 },
+    { ...finding({ arquivo: "src/parado.ts" }), id: 3 },
+  ];
+  const r = resolvePrevious(prev, [], { prPaths: ["src/mudou.ts", "src/parado.ts"], changedPaths: ["src/mudou.ts"] });
+  assert.deepEqual(
+    r.map((x) => [x.status, x.comentario]),
+    [
+      ["resolvido", "arquivo não faz mais parte do PR"],
+      ["pendente", "o modelo não conferiu este achado"],
+      ["pendente", "arquivo não mudou desde a última revisão"],
+    ],
+  );
 });
