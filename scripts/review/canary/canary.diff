@@ -2,14 +2,14 @@ diff --git a/tests/invariants/pricing.invariant.test.ts b/tests/invariants/prici
 index 1111111..2222222 100644
 --- a/tests/invariants/pricing.invariant.test.ts
 +++ b/tests/invariants/pricing.invariant.test.ts
-@@ -42,7 +42,7 @@ test("INV-001a: 0 <= total <= subtotal para qualquer cupom válido", () => {
+@@ -42,7 +42,7 @@ test("INV-001a: 0 <= total <= subtotal for any valid coupon", () => {
    }
  });
  
--test("INV-001b: cupom fora de 0–100% é recusado", () => {
-+test.skip("INV-001b: cupom fora de 0–100% é recusado", () => {
+-test("INV-001b: a coupon outside 0–100% is rejected", () => {
++test.skip("INV-001b: a coupon outside 0–100% is rejected", () => {
    for (const percentOff of [-0.01, -50, 100.01, 150, 1e9, Number.NaN, Infinity, -Infinity]) {
-     assert.throws(() => applyCoupon(10_000, { code: "RUIM", percentOff }, now), RangeError, `aceitou ${percentOff}%`);
+     assert.throws(() => applyCoupon(10_000, { code: "RUIM", percentOff }, now), RangeError, `accepted ${percentOff}%`);
    }
 diff --git a/src/pricing.ts b/src/pricing.ts
 index 3333333..4444444 100644

@@ -59,7 +59,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 - The template's `AGENTS.md` is the official version of the method (owner decision, 2026-10-21).
 - Sections 4 (Context7) and 5 (UI/UX) of `AGENTS.md` incorporate the summary of the owner's `~/.codex/AGENTS.md` sent on 2026-10-21.
 - M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
-- `tests/invariants/README.md`, line "Dono obrigatório" (owner required): it says the `main` protection requires the owner's approval, which does not hold under option A (0 approvals). The folder is protected: only the owner updates it, with the `invariant-approved` label.
+- `tests/invariants/README.md`, "Owner required" row: it said the `main` protection requires the owner's approval, which does not hold under option A (0 approvals). The M-EN PR rewrites that row (together with the translation of `tests/invariants/` and `.github/CODEOWNERS`), in a separate commit that needs the owner's `invariant-approved` label.
 - Default model of the Anthropic adapter: `claude-opus-5-5`. Switching to a cheaper model in the evals is the owner's decision (see `evals/README.md`, Costs).
 
 ## Decisions made (owner, 2026-10-21)
