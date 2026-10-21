@@ -372,6 +372,18 @@ A project can start without any AI key. Then `quality`, `invariants` and `depend
 2. In **your own terminal** (never in a chat with an agent): `gh secret set REVIEW_API_KEY` (and `gh secret set EVAL_API_KEY` for the evals). The command asks for the value without showing it.
 3. Open a PR that removes the `disabled` field from `.github/review.json` and/or `evals/config.json`. That PR still runs in no-key mode (the switch comes from `main`); from the next PR on, the checks call the model.
 
+## Coding agents and their instruction files
+
+`AGENTS.md` is the only copy of the rules. Most agents read it on their own; the two that do not get a small bridge that points to it, never a second copy (checked against each tool's docs on 2026-10-21):
+
+| Agent | Reads `AGENTS.md` | Bridge in this repository |
+|---|---|---|
+| Codex, Cursor, Antigravity (IDE and CLI), GitHub Copilot (cloud agent, CLI, VS Code), Windsurf, Cline, Zed, Jules, Amp, Kilo Code, Roo Code | On its own | None |
+| Claude Code | On its own when there is no `CLAUDE.md`, from v2.1.277 | `CLAUDE.md` imports it (`@AGENTS.md`) and adds the Claude Code notes |
+| Gemini CLI | No (reads `GEMINI.md`) | `.gemini/settings.json` makes it load `AGENTS.md` |
+| Aider | No | `.aider.conf.yml` loads `AGENTS.md` as read-only context |
+| Copilot Chat in Visual Studio, JetBrains, Eclipse, Xcode | No | None: it would need a full copy in `.github/copilot-instructions.md`, which would drift and would make Zed stop reading `AGENTS.md` |
+
 ## Creating a project from this template (Copier)
 
 Analogy: the template is a cake mold with a few adjustable parts. Copier asks how you want each part (owner, language, reviewer, optional sections), pours the project out of the mold, and remembers the answers. Later it can bring improvements of the mold into the cake without touching the filling you added.
