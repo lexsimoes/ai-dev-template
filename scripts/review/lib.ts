@@ -239,11 +239,31 @@ const SEVERITY_ALIASES: Record<string, Severity> = {
   "sugestão": "sugestao",
 };
 
+/**
+ * Modelos às vezes escrevem quebras de linha ou tabs crus dentro de textos do JSON
+ * (comum quando citam código). Escapa só esses caracteres, e só dentro de strings.
+ */
+export function escapeControlCharsInStrings(json: string): string {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (const ch of json) {
+    if (inString && !escaped && ch < " ") {
+      out += ch === "\n" ? "\\n" : ch === "\r" ? "\\r" : ch === "\t" ? "\\t" : `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`;
+      continue;
+    }
+    if (ch === '"' && !escaped) inString = !inString;
+    escaped = inString && ch === "\\" && !escaped;
+    out += ch;
+  }
+  return out;
+}
+
 /** Valida a resposta do modelo. Achados sem evidência ou de arquivos fora do diff são descartados. */
 export function parseReview(raw: string, allowedFiles: string[], maxFindings: number): ParsedReview {
   const json = /\{[\s\S]*\}/.exec(raw)?.[0];
   if (!json) throw new Error("o revisor não devolveu JSON");
-  const data = JSON.parse(json) as Record<string, unknown>;
+  const data = JSON.parse(escapeControlCharsInStrings(json)) as Record<string, unknown>;
   if (typeof data.resumo !== "string" || !Array.isArray(data.achados)) {
     throw new Error("o JSON do revisor não tem os campos 'resumo' e 'achados'");
   }

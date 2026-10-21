@@ -81,6 +81,14 @@ test("resposta: achados sem evidência ou de arquivo fora do diff são descartad
   assert.deepEqual(review.achados.map((a) => [a.severidade, a.arquivo]), [["bloqueante", "PR"], ["sugestao", "src/a.ts"]]);
 });
 
+test("resposta: quebra de linha crua dentro de texto do JSON é tolerada", () => {
+  const raw = '{"resumo": "linha 1\nlinha 2", "achados": [{"severidade": "importante", "arquivo": "src/a.ts", "linha": 1, "titulo": "T", "explicacao": "x", "evidencia": "if (a) {\n\treturn 0;\n}"}]}';
+  const review = parseReview(raw, ["src/a.ts"], 20);
+  assert.equal(review.resumo, "linha 1\nlinha 2");
+  assert.equal(review.achados[0]?.evidencia, "if (a) {\n\treturn 0;\n}");
+  assert.throws(() => parseReview('{"resumo": "x", "achados": [}', ["src/a.ts"], 20), "JSON quebrado de outro jeito continua sendo erro");
+});
+
 test("resposta: texto que não é JSON vira erro (nunca 'aprovado' por engano)", () => {
   assert.throws(() => parseReview("Tudo certo, pode aprovar!", ["src/a.ts"], 20));
   assert.throws(() => parseReview('{"aprovado": true}', ["src/a.ts"], 20));
