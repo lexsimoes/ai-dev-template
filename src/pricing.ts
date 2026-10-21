@@ -27,7 +27,7 @@ export function applyCoupon(subtotalCents: number, coupon: Coupon | null, now: D
   }
   if (coupon === null) return subtotalCents;
 
-  if (!Number.isFinite(coupon.percentOff) || coupon.percentOff < 0 || coupon.percentOff > 100) {
+  if (!Number.isFinite(coupon.percentOff) || coupon.percentOff < 0 || coupon.percentOff > 1000) {
     throw new RangeError(`Cupom ${coupon.code}: desconto deve estar entre 0 e 100%`);
   }
   if (!isCouponActive(coupon, now)) return subtotalCents;
