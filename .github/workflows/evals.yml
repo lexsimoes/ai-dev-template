@@ -2,6 +2,8 @@
 # runs the golden set with the real model, compares it with the target branch run now with the same model,
 # posts the table on the PR and fails below the thresholds, on a drop, or with a weakened golden set.
 # Key: secret EVAL_API_KEY (test project with a spending limit), never the production key or the reviewer's key.
+# No-key mode: "disabled" in the target branch's evals/config.json. Then no model runs, the key is not needed,
+# and the job only runs the golden set guard and posts an "off" notice. Without "disabled", a missing key fails.
 
 name: Evals
 
@@ -73,7 +75,7 @@ jobs:
           [ -f "$CONFIG" ] || CONFIG=evals/config.json
           node evals/touches-ai.ts --base "origin/$BASE_REF" --config "$CONFIG"
       - name: Check the secret
-        if: steps.ai.outputs.touched == 'true'
+        if: steps.ai.outputs.touched == 'true' && steps.ai.outputs.disabled != 'true'
         env:
           EVAL_API_KEY: ${{ secrets.EVAL_API_KEY }}
         run: |
@@ -87,7 +89,7 @@ jobs:
           (cd pr && npm ci)
           (cd base && npm ci)
       - name: Target branch evals (baseline)
-        if: steps.ai.outputs.touched == 'true'
+        if: steps.ai.outputs.touched == 'true' && steps.ai.outputs.disabled != 'true'
         # Continues even if it fails, so the next step posts the reason on the PR. The baseline is required:
         # without it (e.g. API down), the next step fails. Run the job again when the API is back.
         continue-on-error: true
@@ -97,6 +99,7 @@ jobs:
           GITHUB_STEP_SUMMARY: ""
         run: node evals/run.ts --out ../results-base
       - name: PR evals
+        # In no-key mode, run.ts reads "disabled" from ../base and only runs the golden set guard.
         if: steps.ai.outputs.touched == 'true'
         working-directory: pr
         env:

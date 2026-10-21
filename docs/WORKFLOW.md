@@ -154,9 +154,12 @@ Every **ready** PR (not drafts) gets an automated review, published as **one** c
 | PR in **draft** (the agent is still working) | Nothing | No |
 | PR marked **Ready for review** (or opened already ready) | **Full review** of the whole PR | Yes, once |
 | **Push** after the review | Does not call the model. The check stays **red** until someone applies `re-review`, and the comment lists the unreviewed commits. This is the default: `afterReviewPush: "require-re-review"` in `.github/review.json`, the owner's decision. With `"keep-verdict"`, the push keeps the previous green and only turns red on: secret, sensitive path, open blocking finding, failed review or force-push | No |
-| Label **`re-review`** (you or the agent apply it) | **Incremental review**: only the diff since the last reviewed commit, checking whether each previous finding was resolved. The label is removed on its own, so it can be applied again. If a push arrives right after and the GitHub queue drops that run, the push finds the label and does the review in its place | Yes, smaller |
+| Label **`re-review`** (you or the agent apply it) | **Incremental review**: only the diff since the last reviewed commit, checking whether each previous finding was resolved. The label is removed on its own, so it can be applied again. A push and the label close together are safe: every run reads the labels on the PR when it starts (not the event), so the first run to start does the review and the other only recomputes the verdict, and both end with the same result (tested in `tests/unit/review-flow.test.ts`, "race") | Yes, smaller, once |
+| Label `re-review` on a commit that was **already reviewed** | Recomputes the verdict and removes the label | No |
+| **Approval label** added or removed (`approvalLabels` in `.github/review.json`: `invariant-approved`, `eval-approved`) | If findings are open, or the label removed was there at the last review: **full review**, because a finding like "invariant changed without approval" depends on the label and an incremental review would leave it pending. Otherwise, only recomputes the verdict | Yes, only in that case |
 | Label **`deep-review`** (only you) | Full review with the strongest model (Opus) | Yes, more expensive |
-| **Any other label** (e.g. `eval-approved`) | Recomputes the verdict of the last review, without touching the comment. The job cannot be skipped: with the required check (M6), a skipped job would count as green on top of a red one | No |
+| **Any other label** | Recomputes the verdict of the last review, without touching the comment. The job cannot be skipped: with the required check (M6), a skipped job would count as green on top of a red one | No |
+| Repository in **no-key mode** (`disabled` in `.github/review.json`) | Green check with an "off" notice; only the secret detectors run. See [No-key mode](#no-key-mode) | No |
 | PR from a **fork** | Red check with a notice: forks do not get secrets, so nobody reviewed it. Review it by hand | No |
 | **Trivial** PR: only `README.md`, `CHANGELOG.md` and `docs/**/*.md`, or only a lockfile. It is never trivial if it touches a document that guides agents (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `specs/`, `docs/missions/`, `docs/HANDOFF.md`, `docs/SKILLS.md`, `SKILL.md`, `.claude/`) or a sensitive path | **Light** review (same model, short reasoning) or **none** (only the secret detectors), according to `trivial.mode` (`light` or `none`) in `.github/review.json` | Light or no |
 
@@ -347,6 +350,28 @@ If the previous week's issue is still open, it is updated (and gets a comment, w
 
 It does not call an AI model and does not use secrets: it costs a few seconds of Actions. To run it right away: **Actions** tab → **Direction check** → **Run workflow**. To see the text without publishing: `node scripts/direction/run.ts --dry-run`.
 
+## No-key mode
+
+A project can start without any AI key. Then `quality`, `invariants` and `dependencies` run as usual, and `review` and `evals` stay required but pass with a clear "off" notice:
+
+| Check | In no-key mode | Still runs without a key |
+|---|---|---|
+| `review` | Comment "Automated review is off in this repository" | Secret detectors: a key or `.env` file in the PR still turns the check red |
+| `evals` (PR touches AI) | Comment "Evals off in this repository" | Golden set guard: deleting or changing cases still needs `eval-approved` |
+| Review canary | Skipped with a notice | — |
+
+**The switch** is a `disabled` field (the text says why) in `.github/review.json` and in `evals/config.json`. Copier writes it when you answer "None" for the reviewer or "no" for evals with a model.
+
+**Why this does not reopen the "skipped check counts as green" gap** for projects that do have a key:
+- The jobs never skip. They run on every event and decide; "off" is a decision written in the comment and in the job summary, not a missing check.
+- "Off" is never inferred. A missing key without the switch is still an error and a **red** check, so a project with keys that loses one does not turn green silently (tested: "no-key mode is never inferred" in `tests/unit/review-flow.test.ts` and `tests/unit/evals-flow.test.ts`).
+- The switch is read from the **target branch** (`main`), like the rest of the reviewer's config. A PR that adds `disabled` does not turn off its own review or evals; it is reviewed as usual, and the reviewer points it out to you ("This PR turns the automated review off"). After the merge, the change is in `main`'s history for anyone to see.
+
+**Turning the AI checks on later:**
+1. Create the key at the provider, with a **spending limit**.
+2. In **your own terminal** (never in a chat with an agent): `gh secret set REVIEW_API_KEY` (and `gh secret set EVAL_API_KEY` for the evals). The command asks for the value without showing it.
+3. Open a PR that removes the `disabled` field from `.github/review.json` and/or `evals/config.json`. That PR still runs in no-key mode (the switch comes from `main`); from the next PR on, the checks call the model.
+
 ## Creating a project from this template (Copier)
 
 Analogy: the template is a cake mold with a few adjustable parts. Copier asks how you want each part (owner, language, reviewer, optional sections), pours the project out of the mold, and remembers the answers. Later it can bring improvements of the mold into the cake without touching the filling you added.
@@ -362,7 +387,8 @@ copier copy --vcs-ref HEAD gh:<template-owner>/ai-dev-template my-project
 | Project name (and package name) | README, PRD title, `package.json` |
 | GitHub owner | `.github/CODEOWNERS`; the invariant guard accepts `invariant-approved` only from this owner |
 | Conversation language (`en` / `pt-BR`) | The `Conversation language` rule in `AGENTS.md` (the repository itself is always in English) |
-| Reviewer provider | `.github/review.json`: DeepSeek with Claude on sensitive paths, Claude only, or none (no AI key; the no-key behavior comes in M7 PR 3) |
+| Reviewer provider | `.github/review.json`: DeepSeek with Claude on sensitive paths, Claude only, or none (no AI key: [no-key mode](#no-key-mode)) |
+| Evals with a real model | `evals/config.json`: on (needs `EVAL_API_KEY`) or off ([no-key mode](#no-key-mode)). Defaults to on unless the reviewer is "none" |
 | Optional sections | Context7 and UI/UX sections of `AGENTS.md` (section numbers adjust) |
 
 What belongs to whom:

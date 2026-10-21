@@ -19,16 +19,19 @@ const run = promisify(execFile);
 // fixed provider setup (OpenAI format for standard/light, Anthropic for sensitive/deep), so a project that picks
 // another provider, or no reviewer, still tests the same flow against the fake server below.
 let SCRIPT = resolve("scripts/review/run.ts");
-let reviewerSrc = "";
+// Same reviewer, from a target branch where the review is off (no-key mode).
+let SCRIPT_OFF = "";
+const reviewerSrcs: string[] = [];
 
-function copyReviewer(): void {
-  reviewerSrc = mkdtempSync(join(tmpdir(), "reviewer-src-"));
-  cpSync("scripts/review", join(reviewerSrc, "scripts/review"), { recursive: true });
-  for (const f of ["REVIEW.md", "AGENTS.md"]) cpSync(f, join(reviewerSrc, f));
-  mkdirSync(join(reviewerSrc, ".github"));
-  writeFileSync(join(reviewerSrc, ".github/review.json"), JSON.stringify(testConfig(), null, 2));
-  symlinkSync(resolve("node_modules"), join(reviewerSrc, "node_modules"), "dir");
-  SCRIPT = join(reviewerSrc, "scripts/review/run.ts");
+function copyReviewer(extra: Record<string, unknown> = {}): string {
+  const dir = mkdtempSync(join(tmpdir(), "reviewer-src-"));
+  reviewerSrcs.push(dir);
+  cpSync("scripts/review", join(dir, "scripts/review"), { recursive: true });
+  for (const f of ["REVIEW.md", "AGENTS.md"]) cpSync(f, join(dir, f));
+  mkdirSync(join(dir, ".github"));
+  writeFileSync(join(dir, ".github/review.json"), JSON.stringify({ ...testConfig(), ...extra }, null, 2));
+  symlinkSync(resolve("node_modules"), join(dir, "node_modules"), "dir");
+  return join(dir, "scripts/review/run.ts");
 }
 
 interface Comment {
@@ -128,9 +131,9 @@ function commit(name: string, files: Record<string, string>): void {
   sha[name] = git("rev-parse", "HEAD");
 }
 
-async function review(pr: string, env: Record<string, string>, args: string[] = ["--mode", "ci"]): Promise<{ code: number; out: string }> {
+async function review(pr: string, env: Record<string, string>, args: string[] = ["--mode", "ci"], script = SCRIPT): Promise<{ code: number; out: string }> {
   try {
-    const { stdout } = await run("node", [SCRIPT, ...args], {
+    const { stdout } = await run("node", [script, ...args], {
       cwd: repo,
       env: {
         ...process.env,
@@ -158,7 +161,8 @@ async function review(pr: string, env: Record<string, string>, args: string[] = 
 
 before(async () => {
   await startServer();
-  copyReviewer();
+  SCRIPT = copyReviewer();
+  SCRIPT_OFF = copyReviewer({ disabled: "no AI key in this test" });
   repo = mkdtempSync(join(tmpdir(), "reviewer-"));
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
   git("config", "user.email", "t@t");
@@ -176,7 +180,7 @@ before(async () => {
 after(() => {
   server.close();
   rmSync(repo, { recursive: true, force: true });
-  rmSync(reviewerSrc, { recursive: true, force: true });
+  for (const dir of reviewerSrcs) rmSync(dir, { recursive: true, force: true });
 });
 
 test("flow: ready → push → re-review → sensitive push", async () => {
@@ -361,6 +365,52 @@ test("flow: an approval label re-runs the review when findings may depend on it"
   const r4 = await review("22", { EVENT_ACTION: "unlabeled", EVENT_LABEL: "invariant-approved", HEAD_SHA: sha.I! });
   assert.equal(r4.code, 1, r4.out);
   assert.equal(modelCalls.length, calls + 2);
+});
+
+test("no-key mode: the review is off with a notice, the secret detector still runs, the model is never called", async () => {
+  const calls = modelCalls.length;
+  const env = { REVIEW_API_KEY: "" };
+  for (const action of ["ready_for_review", "synchronize", "labeled"]) {
+    prLabels.set("30", action === "labeled" ? ["re-review"] : []);
+    const r = await review("30", { ...env, EVENT_ACTION: action, EVENT_LABEL: action === "labeled" ? "re-review" : "", HEAD_SHA: sha.A! }, undefined, SCRIPT_OFF);
+    assert.equal(r.code, 0, `${action}: ${r.out}`);
+    assert.match(r.out, /Automated review is off in this repository/);
+    assert.match(r.out, /no AI key in this test/);
+  }
+  assert.match(comments.get("30")?.[0]?.body ?? "", /Automated review is off/, "the notice is posted on the PR");
+  assert.equal(comments.get("30")?.length, 1, "one comment, updated in place");
+
+  const secret = await review("31", { ...env, EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.S1! }, undefined, SCRIPT_OFF);
+  assert.equal(secret.code, 1, "a secret still turns the check red without a key");
+  assert.match(secret.out, /Possible secret in the code/);
+
+  const canary = await review("0", env, ["--mode", "canary", "--canary", "full"], SCRIPT_OFF);
+  assert.equal(canary.code, 0, canary.out);
+  assert.match(canary.out, /Canary skipped/);
+  assert.equal(modelCalls.length, calls, "no model call in any of these runs");
+});
+
+test("no-key mode is never inferred: without the switch, a missing key turns the check red", async () => {
+  prLabels.set("32", []);
+  const r = await review("32", { REVIEW_API_KEY: "", EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.B! });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /`REVIEW_API_KEY` is not available/);
+});
+
+test("a PR that turns the review or the evals off is pointed out to the owner", async () => {
+  git("checkout", "-q", "-b", "switch-off", "origin/main");
+  // Committed, then the working tree goes back to main: the reviewer reads the PR commit, not the checkout.
+  commit("OFF", {
+    ".github/review.json": JSON.stringify({ ...testConfig(), disabled: "x" }),
+    "evals/config.json": JSON.stringify({ disabled: "x", suites: [] }),
+  });
+  git("checkout", "-q", "main");
+  prLabels.set("33", []);
+  const r = await review("33", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.OFF! });
+  assert.match(r.out, /This PR turns the automated review off/, r.out);
+  assert.match(r.out, /This PR turns the evals off/);
+  assert.doesNotMatch(r.out, /Automated review is off in this repository/, "the switch does not apply to the PR that adds it");
+  assert.equal(modelCalls.at(-1)?.incremental, false, "the PR is reviewed by the model as usual");
 });
 
 test("incremental canary: catches the model that marks an unfixed finding as resolved", async () => {

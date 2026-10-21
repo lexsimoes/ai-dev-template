@@ -47,6 +47,7 @@ import {
   secretPathFindings,
   selectTier,
   splitDiff,
+  switchOffFindings,
 } from "./lib.ts";
 import type {
   Finding,
@@ -92,6 +93,23 @@ function loadConfig(): ReviewConfig {
     if (process.env.REVIEW_MODEL) config.tiers[name].model = process.env.REVIEW_MODEL;
   }
   return config;
+}
+
+/** A JSON config as it is in the PR's commit, or null if it is missing or invalid. */
+function readPrJson(path: string, sha: string): { disabled?: unknown } | null {
+  try {
+    return JSON.parse(execFileSync("git", ["show", `${sha}:${path}`], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] })) as { disabled?: unknown };
+  } catch {
+    return null;
+  }
+}
+
+function readSourceJson(path: string): { disabled?: unknown } | null {
+  try {
+    return JSON.parse(readSource(path)) as { disabled?: unknown };
+  } catch {
+    return null;
+  }
 }
 
 // core.quotePath=false: names with accents come out as they are (no quotes or octal codes).
@@ -239,6 +257,10 @@ async function main(): Promise<number> {
   const started = Date.now();
   const config = loadConfig();
   const notes: string[] = [];
+  if (mode === "canary" && config.disabled) {
+    console.log(`Canary skipped: the automated review is off in this repository (${config.disabled}).`);
+    return 0;
+  }
 
   // PR context
   const baseRef = mode === "ci" ? `origin/${process.env.BASE_REF || "main"}` : (values.base ?? "origin/main");
@@ -306,8 +328,35 @@ async function main(): Promise<number> {
     ...secretPathFindings(fullFiles, fullFiltered.excluded),
     ...fullHits.filter((h) => h.added).map((h) => secretFinding(h.path, h.line)),
   ];
+  const switchOff =
+    mode === "canary"
+      ? []
+      : switchOffFindings([
+          { file: ".github/review.json", check: "automated review", base: config, pr: readPrJson(".github/review.json", headSha) },
+          { file: "evals/config.json", check: "evals", base: readSourceJson("evals/config.json"), pr: readPrJson("evals/config.json", headSha) },
+        ]);
   const contextHits = redacted.flatMap((r) => r.hits).filter((h) => !h.added).length;
   if (contextHits > 0) notes.push(`${contextHits} possible secret(s) in existing lines were redacted before sending.`);
+
+  // ----- no-key mode: the review is off; only the deterministic detectors run -----
+  // The switch is read from the target branch: a PR cannot turn its own review off. Without the switch,
+  // a missing key is an error (red), never a silent green.
+  if (config.disabled && mode === "ci") {
+    const detected = [...secretFindings, ...switchOff];
+    const blocking = secretFindings.length;
+    const banner = [
+      `> ⏸️ **Automated review is off in this repository** (no AI model ran): ${config.disabled}`,
+      "> Only the secret detectors ran. To turn the review on, see `docs/WORKFLOW.md` (\"No-key mode\").",
+    ].join("\n");
+    const report = detected.length
+      ? ["### Detectors", "", ...detected.map((f) => `- ${f.severity === "blocking" ? "🔴" : "🟠"} \`${f.file}${f.line ? `:${f.line}` : ""}\`: **${f.title}**. ${f.explanation}`)].join("\n")
+      : "No secret found in the PR.";
+    const verdict = blocking ? `❌ Red check: ${blocking} possible secret(s) in the PR.` : "✅ Green check: review off, no secret found.";
+    console.log(`${banner}\n\n${report}\n\n${verdict}`);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${banner}\n\n${report}\n\n${verdict}\n`);
+    if (!values["dry-run"]) await upsertComment(existing, composeComment(banner, `${report}\n\n${verdict}`, state));
+    return blocking ? 1 : 0;
+  }
 
   // ----- push after the review: no model call -----
   if (kind === "no-review") {
@@ -446,7 +495,7 @@ async function main(): Promise<number> {
     notes,
     review,
     previous: resolved,
-    secretFindings,
+    secretFindings: [...secretFindings, ...switchOff],
     excluded: filtered.excluded,
     ignored: filtered.ignored,
     usage,

@@ -21,6 +21,8 @@ export interface Suite {
 }
 
 export interface EvalConfig {
+  /** No-key mode: CI runs no model, only the golden set guard. The text says why. Honored from the target branch only. */
+  disabled?: string;
   maxCalls: number;
   /** Paths that, when changed in a PR, make the evals run in CI. */
   aiPaths: string[];
@@ -124,4 +126,18 @@ export function renderEvalComment(input: {
     `- Baseline: ${input.baselineNote}`,
     ...input.notes.map((n) => `- ${n}`),
   ].join("\n");
+}
+
+/** Comment for the no-key mode: says clearly that no model ran, and what still did. */
+export function renderDisabledComment(reason: string, goldenFailures: string[], notes: string[]): string {
+  return [
+    EVAL_COMMENT_MARKER,
+    `## 🧪 Evals ⏸️ off in this repository${goldenFailures.length ? " · ❌ golden set weakened" : ""}`,
+    "",
+    `> No AI model ran: ${reason}`,
+    "> Only the golden set guard ran (deleting or changing cases needs the owner's label). To turn the evals on, see `docs/WORKFLOW.md` (\"No-key mode\").",
+    "",
+    ...goldenFailures.map((f) => `- ❌ ${f}`),
+    ...notes.map((n) => `- ${n}`),
+  ].join("\n").trimEnd();
 }

@@ -20,6 +20,8 @@ export interface Tier {
 }
 
 export interface ReviewConfig {
+  /** No-key mode: the reviewer does not call a model; only the secret detectors run. The text says why. */
+  disabled?: string;
   maxDiffChars: number;
   timeoutMs: number;
   maxFindings: number;
@@ -182,6 +184,24 @@ export function secretPathFindings(files: DiffFile[], excluded: string[]): Findi
       explanation:
         "This kind of file (.env, key, certificate) must not go into the repository. Remove it from the PR, check .gitignore and, if it held real keys, rotate them at the provider.",
       evidence: "[content not shown and not sent to the model]",
+    }));
+}
+
+/**
+ * A PR that turns an automated check off (`disabled` in its config) for every later PR. Read from the target
+ * branch, the switch never applies to the PR that adds it; this finding makes sure the owner sees it before the merge.
+ */
+export function switchOffFindings(configs: Array<{ file: string; check: string; base: { disabled?: unknown } | null; pr: { disabled?: unknown } | null }>): Finding[] {
+  return configs
+    .filter((c) => !c.base?.disabled && c.pr?.disabled)
+    .map((c) => ({
+      origin: "detector" as const,
+      severity: "important" as const,
+      file: c.file,
+      line: null,
+      title: `This PR turns the ${c.check} off`,
+      explanation: `After the merge, \`disabled\` in \`${c.file}\` turns the ${c.check} check into a notice for every later PR (no AI model runs). Only the owner decides this. If this repository has an AI key, remove the field instead.`,
+      evidence: `"disabled" added to ${c.file}`,
     }));
 }
 

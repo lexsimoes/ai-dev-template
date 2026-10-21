@@ -1,0 +1,52 @@
+{
+  "$comment": "Eval thresholds. Change them only with the project owner's approval (it is like changing an invariant). In CI, the target branch's limits and ceiling apply.",
+{% if not evals_with_model %}
+  "disabled": "No AI key (evals_with_model = false when the project was created): no model runs in CI, only the golden set guard. To turn the evals on, follow docs/WORKFLOW.md, \"No-key mode\".",
+{% endif %}
+  "maxCalls": 60,
+  "aiPaths": [
+    "src/ai/**",
+    "evals/**",
+    "**/*prompt*",
+    "**/*llm*"
+  ],
+  "pricing": {
+    "deepseek-v4-pro": {
+      "input": 1.32,
+      "output": 3.96
+    },
+    "deepseek-flash": {
+      "input": 0.3,
+      "output": 1.2
+    },
+    "claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0
+    },
+    "claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0
+    },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5
+    },
+    "mock": {
+      "input": 0,
+      "output": 0
+    }
+  },
+  "suites": [
+    {
+      "name": "classify-message",
+      "golden": "evals/golden/classify-message.jsonl",
+      "target": "classifyMessage",
+      "thresholds": {
+        "accuracy": 0.9,
+        "rulePassRate": 1.0,
+        "judgeAverage": 4.0
+      },
+      "maxDropFromBaseline": 0.05
+    }
+  ]
+}

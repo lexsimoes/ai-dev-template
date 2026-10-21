@@ -91,9 +91,10 @@ test("twins: rendering with this repository's answers gives back its own files",
     github_owner: templateOwner(),
     conversation_language: language,
     reviewer_provider: "deepseek",
+    evals_with_model: "true",
     optional_sections: '["library-docs", "ui-ux"]',
   });
-  for (const f of ["AGENTS.md", ".github/review.json"]) {
+  for (const f of ["AGENTS.md", ".github/review.json", "evals/config.json"]) {
     assert.equal(readFileSync(join(dest, f), "utf-8"), readFileSync(join(ROOT, f), "utf-8"), `${f}.jinja is out of sync with ${f}`);
   }
   const rules = (p: string) => readFileSync(p, "utf-8").split("\n").filter((l) => l && !l.startsWith("#"));
@@ -114,11 +115,14 @@ const PROJECTS = [
     name: "a",
     answers: { project_name: "Acme Store", github_owner: "acme-owner", conversation_language: "en", reviewer_provider: "none", optional_sections: "[]" },
     sections: { docs: false, ui: false },
+    // evals_with_model not answered: its default follows the reviewer (none → no key → evals off).
+    evals: false,
   },
   {
     name: "b",
     answers: { project_name: "Loja Teste", github_owner: "maria-dev", conversation_language: "pt-BR", reviewer_provider: "anthropic", optional_sections: '["ui-ux"]' },
     sections: { docs: false, ui: true },
+    evals: true,
   },
 ];
 
@@ -142,6 +146,8 @@ for (const p of PROJECTS) {
     else assert.equal(review.disabled, undefined);
     if (p.answers.reviewer_provider === "anthropic") assert.ok(Object.values(review.tiers).every((t) => t.provider === "anthropic"));
     assertUsableTiers(review.tiers as never);
+    const evals = JSON.parse(readFileSync(join(dest, "evals/config.json"), "utf-8")) as { disabled?: string };
+    assert.equal(Boolean(evals.disabled), !p.evals, "evals off exactly when the project has no eval key");
 
     assert.match(readFileSync(join(dest, "package.json"), "utf-8"), new RegExp(`"name": "${p.answers.project_name.toLowerCase().replace(" ", "-")}"`));
     assert.match(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), new RegExp(`^# PRD: ${p.answers.project_name}$`, "m"));

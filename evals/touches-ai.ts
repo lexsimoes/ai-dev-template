@@ -1,4 +1,5 @@
-// Says whether the PR touched AI files (aiPaths in evals/config.json) and writes it to GITHUB_OUTPUT.
+// Says whether the PR touched AI files (aiPaths in evals/config.json) and whether the evals are off
+// (`disabled`, no-key mode), and writes both to GITHUB_OUTPUT.
 // Usage: node evals/touches-ai.ts --base origin/main [--config path/to/config.json]
 // In CI, the config comes from the target branch: a PR cannot skip the evals by changing aiPaths.
 
@@ -18,4 +19,6 @@ const changed = execFileSync("git", ["-c", "core.quotePath=false", "diff", "--na
 const hits = touchesAi(changed, { aiPaths });
 
 console.log(hits.length ? `AI files in the PR: ${hits.join(", ")}` : "The PR does not touch AI files: evals skipped.");
-if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `touched=${hits.length > 0}\n`);
+// No-key mode (from this config, the target branch's in CI): the workflow skips the key check and the baseline.
+if (config.disabled && hits.length) console.log(`Evals off in this repository (${config.disabled}): only the golden set guard runs.`);
+if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `touched=${hits.length > 0}\ndisabled=${Boolean(config.disabled)}\n`);
