@@ -379,7 +379,7 @@ Analogy: the template is a cake mold with a few adjustable parts. Copier asks ho
 Requires [Copier](https://copier.readthedocs.io) 9.18.2 or newer (`pipx install copier`).
 
 ```bash
-copier copy --vcs-ref HEAD gh:<template-owner>/ai-dev-template my-project
+copier copy gh:<template-owner>/ai-dev-template my-project
 ```
 
 | Question | What it changes |
@@ -398,9 +398,9 @@ What belongs to whom:
 | **Template notice** | `THIRD_PARTY_NOTICES.md` (the template's MIT notice; it does not set your project's license) | Kept and updated from the template, like the files below; do not delete it |
 | **Project** | `README.md`, `specs/PRD.md`, `docs/HANDOFF.md`, `.github/CODEOWNERS`, `.env.example`, `src/`, `tests/invariants/`, the app's unit tests, `evals/golden/`, `evals/config.json`, `evals/targets.ts` | Never overwritten (recreated only if deleted) |
 | **Template** | Workflows, reviewer, guard, direction check, `AGENTS.md`, `REVIEW.md`, `docs/WORKFLOW.md`, tooling tests | Merged: your edits are kept, template changes are added; conflicts show up as markers to resolve |
-| **Template only** | `copier.yml`, `tests/template/`, `.github/workflows/template.yml` | Never copied into projects |
+| **Template only** | `copier.yml`, `tests/template/`, `.github/workflows/template.yml`, `LICENSE`, `CHANGELOG.md`, `docs/RELEASING.md`, the release and traffic scripts | Never copied into projects |
 
-To bring template improvements into a project, on a clean working tree: `copier update --defaults`, review the diff, open a PR.
+Copier uses the template's latest **release** tag, never unreleased commits on `main` (`--vcs-ref vX.Y.Z` picks a version). To bring template improvements into a project, on a clean working tree: `copier update --defaults` (moves to the latest release), read the template's changelog for entries marked **Action needed**, review the diff, open a PR.
 
 The `Template` workflow (job `template`) proves this on every PR of the template: the `.jinja` twins render back to this repository's own files, two projects with different answers pass their checks, no owner of the template leaks into them, and `copier update` brings a template change while keeping the project's PRD, app code and invariants.
 

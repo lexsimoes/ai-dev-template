@@ -5,6 +5,8 @@
 // 2. Two projects with different answers are generated, and each passes its own CI checks.
 // 3. No owner of this template leaks into a generated project.
 // 4. `copier update` brings a template change into a generated project without overwriting project files.
+// 5. Releases: Copier uses the latest release tag (not unreleased commits on main), and `copier update` moves a
+//    project from one release to the next (docs/RELEASING.md).
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -153,7 +155,19 @@ for (const p of PROJECTS) {
     assert.match(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), new RegExp(`^# PRD: ${p.answers.project_name}$`, "m"));
     assert.doesNotMatch(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), /Template roadmap/);
     assert.ok(existsSync(join(dest, ".copier-answers.yml")));
-    const templateOnly = ["copier.yml", "tests/template/template.test.ts", ".github/workflows/template.yml", "LICENSE", ".github/workflows/traffic.yml", "scripts/traffic", "tests/unit/traffic.test.ts"];
+    const templateOnly = [
+      "copier.yml",
+      "tests/template/template.test.ts",
+      ".github/workflows/template.yml",
+      "LICENSE",
+      ".github/workflows/traffic.yml",
+      "scripts/traffic",
+      "tests/unit/traffic.test.ts",
+      "CHANGELOG.md",
+      "docs/RELEASING.md",
+      "scripts/release",
+      "tests/unit/release.test.ts",
+    ];
     for (const f of templateOnly) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
     assert.deepEqual(filesUnder(dest).filter((f) => f.endsWith(".jinja")), [], "no .jinja file left");
     const notice = readFileSync(join(dest, "THIRD_PARTY_NOTICES.md"), "utf-8");
@@ -212,4 +226,33 @@ test("copier update: brings template changes, keeps project files", () => {
   assert.match(read("THIRD_PARTY_NOTICES.md"), /Permission is hereby granted/);
   assert.equal(read("LICENSE"), "Proprietary. All rights reserved.\n", "the project's own license is never touched");
   assert.match(read(".copier-answers.yml"), new RegExp(`_commit: ${v2}`), "answers file points at the new template commit");
+});
+
+test("releases: copy uses the latest tag, not unreleased commits; update moves to the next release", () => {
+  const tpl = templateRepo(join(work, "template-releases"));
+  const edit = (f: string, add: string) => writeFileSync(join(tpl, f), readFileSync(join(tpl, f), "utf-8") + add);
+  git(tpl, "tag", "v0.1.0");
+  edit("REVIEW.md", "\nReleased in v0.2.0.\n");
+  git(tpl, "commit", "-qam", "change for v0.2.0");
+  git(tpl, "tag", "v0.2.0");
+  edit("REVIEW.md", "\nNot released yet.\n");
+  git(tpl, "commit", "-qam", "unreleased change on main");
+
+  const answers = PROJECTS[0]!.answers;
+  const data = Object.entries(answers).flatMap(([k, v]) => ["--data", `${k}=${v}`]);
+  const latest = join(work, "release-latest");
+  sh(COPIER, ["copy", "--quiet", "--defaults", ...data, tpl, latest], ROOT);
+  assert.match(readFileSync(join(latest, ".copier-answers.yml"), "utf-8"), /^_commit: v0\.2\.0$/m, "no --vcs-ref: the latest release");
+  assert.doesNotMatch(readFileSync(join(latest, "REVIEW.md"), "utf-8"), /Not released yet/, "unreleased commits are not used");
+
+  const pinned = join(work, "release-pinned");
+  sh(COPIER, ["copy", "--quiet", "--defaults", "--vcs-ref", "v0.1.0", ...data, tpl, pinned], ROOT);
+  assert.match(readFileSync(join(pinned, ".copier-answers.yml"), "utf-8"), /^_commit: v0\.1\.0$/m, "pinned to the requested release");
+  git(pinned, "init", "-q", "-b", "main");
+  git(pinned, "add", "-A");
+  git(pinned, "commit", "-qm", "project created");
+  sh(COPIER, ["update", "--quiet", "--defaults"], pinned);
+  assert.match(readFileSync(join(pinned, ".copier-answers.yml"), "utf-8"), /^_commit: v0\.2\.0$/m, "update goes to the latest release");
+  assert.match(readFileSync(join(pinned, "REVIEW.md"), "utf-8"), /Released in v0\.2\.0\./);
+  assert.doesNotMatch(readFileSync(join(pinned, "REVIEW.md"), "utf-8"), /Not released yet/);
 });

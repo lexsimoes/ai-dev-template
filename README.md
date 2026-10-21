@@ -23,8 +23,10 @@ The full flow, check by check: [`docs/WORKFLOW.md`](docs/WORKFLOW.md).
 ### 2. Create the project
 
 ```bash
-copier copy --vcs-ref HEAD gh:lexsimoes/ai-dev-template my-project
+copier copy gh:lexsimoes/ai-dev-template my-project
 ```
+
+Copier uses the latest **release** of the template ([releases](https://github.com/lexsimoes/ai-dev-template/releases), [changelog](CHANGELOG.md)), never unreleased work on `main`. To pick a version: `--vcs-ref v0.1.0`.
 
 Copier asks a few questions: project name, your GitHub username (it becomes the owner in `.github/CODEOWNERS`), the language agents use to talk to you, the reviewer's provider (or "None" for no key), whether evals run with a real model, and optional sections. What each answer changes: [`docs/WORKFLOW.md`](docs/WORKFLOW.md#creating-a-project-from-this-template-copier).
 
@@ -100,7 +102,7 @@ The project remembers its template in `.copier-answers.yml`. On a clean working 
 copier update --defaults
 ```
 
-Your PRD, HANDOFF, app code, invariants and golden set are never overwritten; template files (workflows, reviewer, `AGENTS.md`…) are merged. Review the diff and open a PR.
+It moves the project to the latest release. Your PRD, HANDOFF, app code, invariants and golden set are never overwritten; template files (workflows, reviewer, `AGENTS.md`…) are merged. Read the [changelog](CHANGELOG.md) for entries marked **Action needed**, review the diff and open a PR.
 
 ## What comes ready
 
@@ -131,6 +133,7 @@ These parts exist only in this repository; Copier does not copy them into projec
 | `copier.yml`, `*.jinja` files | The questions and the files that change with the answers |
 | `tests/template/`, check `template` | Proves on every PR that the `.jinja` twins match this repository's files, that two projects with different answers pass their own checks, and that `copier update` keeps project files |
 | `.github/workflows/traffic.yml`, `scripts/traffic/` | **Traffic export**, below |
+| `CHANGELOG.md`, `docs/RELEASING.md`, `scripts/release/` | Versions and the release flow: projects are created and updated only from release tags |
 | `LICENSE` | The template's license. Projects get its notice in `THIRD_PARTY_NOTICES.md` instead (from `THIRD_PARTY_NOTICES.md.jinja`), which does not set the project's own license |
 
 ### Traffic export
