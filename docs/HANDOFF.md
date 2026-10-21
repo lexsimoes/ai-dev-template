@@ -56,6 +56,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 
 ## Pending decisions (owner)
 
+- Demo shop language: the demo app's runtime strings (classifier prompt, `<mensagem_do_cliente>` tag, categories, pricing errors), the golden set and the LLM judge prompt in `evals/run.ts` stay pt-BR after M-EN, because they are behavior (asserted by INV-002 or measured by the evals). Translating them is a separate PR with evals before/after and the owner's `invariant-approved` and `eval-approved` labels.
 - The template's `AGENTS.md` is the official version of the method (owner decision, 2026-10-21).
 - Sections 4 (Context7) and 5 (UI/UX) of `AGENTS.md` incorporate the summary of the owner's `~/.codex/AGENTS.md` sent on 2026-10-21.
 - M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
