@@ -282,9 +282,13 @@ export function decideKind(
   state: ReviewState | null,
   stateReachable: boolean,
 ): { kind: ReviewKind; note: string | null } {
-  // Um push que encontra o rótulo "revisar-de-novo" ainda no PR faz a revisão pedida: a fila do GitHub
-  // guarda só uma execução pendente e pode ter descartado a do rótulo.
-  if (event.action === "synchronize" && !event.labels.includes(config.rereviewLabel)) return { kind: "sem-revisao", note: null };
+  // Push ou rótulo alheio ao revisor: só recalcula o veredito, sem chamar o modelo. O job não pode ser
+  // pulado, porque um check obrigatório pulado conta como verde e esconderia um vermelho anterior.
+  // Se o rótulo "revisar-de-novo" ainda está no PR, faz a revisão pedida: a fila do GitHub guarda só
+  // uma execução pendente e pode ter descartado a do rótulo.
+  const reviewLabel = event.label === config.deepLabel || event.label === config.rereviewLabel;
+  const passive = event.action === "synchronize" || (event.action === "labeled" && !reviewLabel);
+  if (passive && !event.labels.includes(config.rereviewLabel)) return { kind: "sem-revisao", note: null };
   if (event.action === "labeled" && event.label === config.deepLabel) return { kind: "completa", note: null };
   if (state && stateReachable) return { kind: "incremental", note: null };
   if (state) {

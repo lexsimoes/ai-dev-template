@@ -312,6 +312,13 @@ async function main(): Promise<number> {
     ]
       .filter(Boolean)
       .join("\n");
+    // Nada mudou desde a revisão (ex.: um rótulo alheio): o veredito é recalculado e o comentário fica como está.
+    if (state && changed.length === 0) {
+      const verdict = reasons.length ? `❌ Check vermelho: ${reasons.join("; ")}.` : "✅ Veredito da última revisão mantido.";
+      console.log(verdict);
+      if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, verdict + "\n");
+      return reasons.length ? 1 : 0;
+    }
     const comment = composeComment(banner, existing ? extractReport(existing.body) : "", state);
     console.log(comment);
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, banner + "\n");
