@@ -106,7 +106,7 @@ O arquivo `.github/workflows/ci.yml` roda sozinho em todo PR (inclusive rascunho
 | `invariantes` | Roda a guarda (`scripts/guard-invariants.ts`) e os testes de `tests/invariants/` | Um inegociável quebrou, um teste dele foi pulado, ou a pasta mudou sem o rótulo `invariante-aprovado` |
 | `dependencias` | Confere **só as dependências que o PR adiciona ou muda** | Alguma tem vulnerabilidade conhecida de gravidade alta ou crítica |
 
-Os três viram **checks obrigatórios** no M6: com qualquer um vermelho, o botão de merge trava.
+Os três, mais `revisao` e `evals`, são **checks obrigatórios** quando a regra de proteção da `main` está ligada (veja "Proteção da `main`"): com qualquer um vermelho, o botão de merge trava.
 
 ### Como ler um check vermelho
 
@@ -130,12 +130,9 @@ Quando **você** decide mudar uma regra inegociável:
 
 Mesmo com o rótulo, testes pulados (`.skip`, `.todo`, `.only`) **nunca** passam.
 
-Limite atual: o agente trabalha com a sua conta do GitHub e, tecnicamente, consegue aplicar o rótulo. Hoje isso fica coberto de três formas:
-- o `AGENTS.md` proíbe qualquer agente de aplicar ou remover o rótulo;
-- a guarda registra no **Summary** do job quem aplicou ou removeu o rótulo, e quando;
-- a revisão confere.
+A guarda só aceita o rótulo se quem o aplicou **por último** é dono de `tests/invariants/` no `.github/CODEOWNERS` da `main`. Ela também mostra no **Summary** do job todo o histórico do rótulo: quem aplicou, quem removeu e quando. Se o robô do Actions ou uma conta de agente aplicar o rótulo, o check fica vermelho. A guarda que roda é sempre a da `main`, então um PR não consegue afrouxá-la.
 
-O M6 resolve de vez, dando ao agente uma identidade própria no GitHub.
+Limite: se o agente trabalha com a **sua** conta do GitHub (o padrão hoje), para o GitHub ele **é** você, e a guarda não tem como distinguir. Aí valem o `AGENTS.md`, que proíbe agentes de mexer no rótulo, e o histórico no Summary. Para fechar de vez, veja "Identidade dos agentes" mais abaixo.
 
 ### Custos do CI
 
@@ -144,6 +141,7 @@ O M6 resolve de vez, dando ao agente uma identidade própria no GitHub.
   - o plano Free inclui 2.000 minutos por mês, e o Pro, 3.000;
   - passando disso, o Linux padrão custa US$ 0,006 por minuto.
 - Cada PR usa 3 jobs de cerca de 1 minuto cada. Pushes seguidos no mesmo PR cancelam a execução anterior, para não gastar minutos à toa.
+- A checagem de direção semanal usa menos de 1 minuto por semana.
 
 ## Revisor independente (check `revisao`)
 
@@ -158,6 +156,8 @@ Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada c
 | **Push** depois da revisão | Não chama o modelo. O check fica **vermelho** até alguém aplicar `revisar-de-novo`, e o comentário lista os commits não revisados. É o padrão: `afterReviewPush: "exigir-nova-revisao"` em `.github/review.json`, decisão do dono. Com `"manter-veredito"`, o push mantém o verde anterior e só fica vermelho em: segredo, caminho sensível, bloqueante em aberto, revisão que falhou ou force-push | Não |
 | Rótulo **`revisar-de-novo`** (você ou o agente aplicam) | **Revisão incremental**: só o diff desde o último commit revisado, conferindo se cada achado anterior foi resolvido. O rótulo é removido sozinho, para poder ser aplicado de novo. Se um push chegar logo depois e a fila do GitHub descartar essa execução, o push encontra o rótulo e faz a revisão no lugar dela | Sim, menor |
 | Rótulo **`revisão-profunda`** (só você) | Revisão completa com o modelo mais forte (Opus) | Sim, mais cara |
+| **Outro rótulo** qualquer (ex.: `eval-aprovado`) | Recalcula o veredito da última revisão, sem mexer no comentário. O job não pode ser pulado: com o check obrigatório (M6), um job pulado contaria como verde por cima de um vermelho | Não |
+| PR vindo de **fork** | Check vermelho com aviso: forks não recebem segredos, então ninguém revisou. Revise à mão | Não |
 | PR **trivial**: só `README.md`, `CHANGELOG.md` e `docs/**/*.md`, ou só lockfile. Nunca é trivial se tocar documento que orienta agentes (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `specs/`, `docs/missions/`, `docs/HANDOFF.md`, `docs/SKILLS.md`, `SKILL.md`, `.claude/`) ou caminho sensível | Revisão **leve** (mesmo modelo, raciocínio curto) ou **nenhuma** (só os detectores de segredo), conforme `trivial.mode` em `.github/review.json` | Leve ou não |
 
 O commit revisado e os achados em aberto ficam guardados no próprio comentário do revisor, de forma invisível. É por isso que a revisão incremental sabe de onde partir.
@@ -228,7 +228,7 @@ Um PR **fictício** com 6 defeitos plantados (`scripts/review/canary/`):
 - ✅ sem evidência;
 - stack trace mostrado ao cliente.
 
-O workflow **Canário do revisor** roda todo dia 1, em todo PR que muda o revisor, e sob demanda (aba Actions → Run workflow). Ele falha se algum defeito passar despercebido.
+O workflow **Canário do revisor** roda todo dia 1, quando fica pronto um PR que muda o revisor (pushes seguintes não o rodam de novo, por decisão do dono) e sob demanda (aba Actions → Run workflow). Ele falha se algum defeito passar despercebido.
 
 É assim que você descobre se uma troca de modelo ou de critérios piorou a revisão.
 
@@ -263,7 +263,10 @@ Quando um PR **pronto** toca em arquivos de IA (`aiPaths` em `evals/config.json`
 O check fica vermelho:
 - abaixo do limite;
 - em queda maior que a tolerada;
-- se casos do golden set forem apagados ou alterados sem o rótulo `eval-aprovado`, que só você aplica.
+- se casos do golden set forem apagados ou alterados, ou uma suite for removida, sem o rótulo `eval-aprovado`, que só você aplica;
+- se a rodada da `main` (a linha de base) falhar, por exemplo com a API fora do ar. Rode o job de novo (botão **Re-run jobs**) quando ela voltar.
+
+Os evals rodam de novo a cada push e a cada rótulo aplicado em PR que toca em IA (menos de US$ 0,01 por rodada hoje). Pular o job num rótulo faria o check obrigatório contar como verde.
 
 PR que não toca em IA não chama o modelo. Detalhes, variáveis e custos: `evals/README.md`.
 
@@ -271,8 +274,80 @@ O canário do revisor também ganhou dois casos:
 - **revisão incremental:** o modelo não pode dar como "resolvido" um achado não corrigido, nem quando há uma instrução plantada pedindo isso;
 - **nível leve.**
 
+## Proteção da `main` (M6)
+
+Analogia: a `main` é o cofre. Os checks são os alarmes; a regra de proteção é a porta que só abre com todos os alarmes verdes e pelo caminho certo (um PR), nunca por fora.
+
+O arquivo `.github/rulesets/proteger-main.json` é a regra pronta para importar. Ela:
+
+| Regra | Por quê |
+|---|---|
+| Ninguém apaga a `main` nem faz force-push nela | Histórico não se reescreve |
+| Toda mudança entra por PR | Nem você nem um agente fazem push direto na `main` |
+| Exige os checks `qualidade`, `invariantes`, `dependencias`, `revisao` e `evals` verdes | Merge só com os robôs de acordo |
+| Os checks precisam vir do GitHub Actions (`integration_id` 15368) | Ninguém forja um "verde" pela API, nem um agente com o seu token |
+| 0 aprovações obrigatórias | O GitHub não deixa o autor aprovar o próprio PR, e hoje os agentes usam a sua conta: com 1 aprovação, nenhum PR entraria. **O seu clique em merge é a aprovação** (e, se o merge publica, o deploy) |
+| Sem "Require review from Code Owners" | Mesmo motivo: você é o autor e o dono, e o GitHub não aceita a sua própria revisão |
+| Sem "branch atualizada antes do merge" | Exigiria atualizar a branch a cada merge, e cada atualização pede nova revisão paga |
+| Ninguém na lista de exceções (bypass) | Nem você pula os checks. Numa emergência, desligue a regra (Settings → Rules), faça o necessário e religue |
+
+### Como ligar (uma vez, no GitHub)
+
+1. Baixe `.github/rulesets/proteger-main.json` para o seu computador (abra o arquivo no GitHub → botão **Download raw file**).
+2. No repositório: **Settings** → **Rules** → **Rulesets**.
+3. **New ruleset** → **Import a ruleset** → escolha o arquivo.
+4. Confira na tela: nome `proteger-main`, **Enforcement status: Active**, alvo **Default branch**, e os 5 checks listados em "Require status checks to pass".
+5. Clique em **Create**.
+
+Para conferir: abra um PR qualquer. Na caixa de merge deve aparecer "Required" ao lado dos 5 checks, e o botão de merge só fica verde quando todos passarem.
+
+### Repositório privado
+
+Regras de proteção (rulesets ou branch protection) funcionam de graça em repositórios **públicos**. Em repositório **privado** exigem o plano **GitHub Pro** (pessoal) ou **Team** (organização). No plano Free, num privado, a regra não é aplicada (o GitHub avisa na tela). Sem Pro, os checks continuam rodando e aparecendo no PR; você só perde a trava. Aí a disciplina é sua: não clique em merge com check vermelho.
+
+### Identidade dos agentes
+
+Hoje os agentes (Claude Code na nuvem, Codex) abrem PRs e aplicam rótulos **com a sua conta**. Para o GitHub, eles são você. O que isso permite e como cada opção resolve:
+
+| | A. Sua conta (atual) | B. Conta-robô (ex.: `lexsimoes-agente`) | C. GitHub App |
+|---|---|---|---|
+| Configuração | Nenhuma | Uma conta grátis a mais, convidada com papel **Write**, e um token fino só para os seus repositórios | Criar e instalar um App; gerar tokens curtos |
+| Você aprova o PR formalmente | Não (autor = você) | Sim: dá para exigir 1 aprovação + Code Owners | Sim |
+| Guarda distingue o rótulo do agente | Não | Sim: rótulo aplicado pelo robô fica vermelho | Sim |
+| Agente consegue clicar em merge | Sim (só o `AGENTS.md` impede) | Só depois da sua aprovação | Só depois da sua aprovação |
+| Agentes na nuvem (Claude Code web, Codex cloud) | São você | **Continuam sendo você**: eles usam o app de GitHub deles, com a sua conta | Idem |
+| Para quem | Dev solo começando | Quem usa agentes **locais** (CLI) com frequência | Times |
+
+Recomendação: **A agora**, com as travas que valem mesmo quando o agente é você:
+- PR obrigatório;
+- checks obrigatórios vindos só do Actions;
+- guarda e revisor rodando a versão da `main`;
+- golden set e régua dos evals vindos da `main`.
+
+Passe para **B** quando usar agentes locais no dia a dia ou quando entrar outra pessoa no projeto. Aí, na regra: aprovações = 1 e "Require review from Code Owners" ligado.
+
+O que continua dependendo de disciplina na opção A:
+- **Merge e rótulos:** um agente poderia fazer merge ou aplicar `invariante-aprovado` / `eval-aprovado`. O `AGENTS.md` proíbe, e o histórico do rótulo fica no Summary do job.
+- **Workflows:** um PR pode alterar workflows (o GitHub roda a versão do PR em `pull_request`). O revisor trata `.github/` como caminho sensível e manda para o modelo mais forte; leia esses diffs com atenção antes do merge.
+- **Segredos:** quem tem push pode, num PR, escrever um workflow que leia um segredo. Mitigação: só você e seus agentes têm push, e cada chave tem **limite de gasto** no provedor. Ambientes com aprovação manual para segredos protegeriam mais, mas pediriam um clique seu em cada revisão e cada eval; para um dev solo, o limite de gasto é a troca melhor.
+- **No Claude Code:** dá para bloquear o merge pelo terminal acrescentando `"Bash(gh pr merge:*)"` à lista `deny` de `.claude/settings.json`. O arquivo é protegido contra edição do agente, então essa mudança é sua.
+
+## Checagem de direção semanal
+
+Analogia: o GPS que, uma vez por semana, pergunta "ainda é para lá que você quer ir?". Robôs verificam se o código está **certo**; só você verifica se ele vai para o **lugar certo**.
+
+Toda segunda-feira às 08:23 (Brasília), o workflow **Checagem de direção** abre uma issue com o rótulo `checagem-de-direcao`:
+1. cinco perguntas para você (objetivo, critérios de aceite, inegociáveis, fila, gastos);
+2. saúde da `main`: última execução do CI e do canário mensal;
+3. a tabela de direção do `specs/PRD.md`, com uma conferência automática: os arquivos citados como evidência existem? Algum requisito ficou sem linha?
+4. PRs mesclados na semana e PRs abertos, com alerta para os parados há mais de 7 dias;
+5. a fila e as decisões pendentes do `docs/HANDOFF.md`.
+
+Se a issue da semana anterior ainda estiver aberta, ela é atualizada (e ganha um comentário, que te notifica) em vez de abrir outra. Feche a issue quando terminar.
+
+Não chama modelo de IA e não usa segredos: custa alguns segundos de Actions. Para rodar na hora: aba **Actions** → **Checagem de direção** → **Run workflow**. Para ver o texto sem publicar: `node scripts/direction/run.ts --dry-run`.
+
 ## Ainda em construção
 
 As seções abaixo entram nos próximos módulos:
-- **M6:** proteção da `main` para dev solo com agentes.
 - **M7:** primeiro dia de um projeto novo (PRD → inegociáveis → primeira missão → primeiro PR).
