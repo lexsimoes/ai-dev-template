@@ -42,6 +42,8 @@ const modelCalls: Array<{ incremental: boolean; reasoning: unknown; systemLength
 // Verdict the fake model gives on the previous findings in an incremental review.
 let incrementalVerdicts: Array<{ id: number; status: string; comment: string }> = [{ id: 1, status: "resolved", comment: "the catch rethrows the error" }];
 const deletedLabels: string[] = [];
+// Labels on each PR right now (what the reviewer reads from the API). The event payload is not used.
+const prLabels = new Map<string, string[]>();
 let server: http.Server;
 let port = 0;
 let repo = "";
@@ -65,6 +67,10 @@ function startServer(): Promise<void> {
         modelCalls.push({ incremental, reasoning: b.reasoning_effort, systemLength: b.messages[0]?.content.length ?? 0 });
         const out = incremental
           ? { summary: "Fix applied.", findings: [], previous: incrementalVerdicts }
+          : user.includes("tests/invariants/")
+            ? /^PR labels: .*invariant-approved/m.test(user)
+              ? { summary: "Approved invariant change.", findings: [] }
+              : { summary: "Invariant changed.", findings: [{ severity: "blocking", file: "tests/invariants/x.test.ts", line: 1, title: "invariant changed without invariant-approved", explanation: "owner approval", evidence: "test" }] }
           : user.includes("src/a.ts")
             ? { summary: "Hidden error.", findings: [{ severity: "blocking", file: "src/a.ts", line: 3, title: "empty catch", explanation: "rethrow", evidence: "catch {}" }] }
             : { summary: "Docs only.", findings: [] };
@@ -89,9 +95,12 @@ function startServer(): Promise<void> {
         if (c) c.body = (JSON.parse(body) as { body: string }).body;
         return send(200, c);
       }
-      m = /\/labels\/(.+)$/.exec(url);
-      if (m?.[1] && req.method === "DELETE") {
-        deletedLabels.push(decodeURIComponent(m[1]));
+      m = /^\/repos\/o\/r\/issues\/(\d+)\/labels(?:\/([^?]+))?/.exec(url);
+      if (m?.[1] && req.method === "GET" && !m[2]) return send(200, (prLabels.get(m[1]) ?? []).map((name) => ({ name })));
+      if (m?.[1] && m[2] && req.method === "DELETE") {
+        const name = decodeURIComponent(m[2]);
+        deletedLabels.push(name);
+        prLabels.set(m[1], (prLabels.get(m[1]) ?? []).filter((l) => l !== name));
         return send(204);
       }
       send(404, { message: "not simulated" });
@@ -136,7 +145,6 @@ async function review(pr: string, env: Record<string, string>, args: string[] = 
         BASE_REF: "main",
         PR_TITLE: "t",
         PR_BODY: "",
-        PR_LABELS: "[]",
         EVENT_LABEL: "",
         ...env,
       },
@@ -182,7 +190,8 @@ test("flow: ready → push → re-review → sensitive push", async () => {
   assert.match(r2.out, /were not reviewed by the model/);
   assert.equal(modelCalls.length, 1, "push does not call the model");
 
-  const r3 = await review("7", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.B! });
+  prLabels.set("7", ["re-review"]);
+  const r3 = await review("7", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.B! });
   assert.equal(r3.code, 0, r3.out);
   assert.match(r3.out, /incremental review/);
   assert.match(r3.out, /✅ resolved/);
@@ -203,7 +212,8 @@ test("flow: an unrelated label recomputes the verdict without calling the model 
   assert.equal(r1.code, 1, "a blocking finding turns the check red");
   const calls = modelCalls.length;
   const before = comments.get("12")?.[0]?.body;
-  const r2 = await review("12", { EVENT_ACTION: "labeled", EVENT_LABEL: "eval-approved", PR_LABELS: '["eval-approved"]', HEAD_SHA: sha.A! });
+  prLabels.set("12", ["documentation"]);
+  const r2 = await review("12", { EVENT_ACTION: "labeled", EVENT_LABEL: "documentation", HEAD_SHA: sha.A! });
   assert.equal(r2.code, 1, "red stays: a skipped check would count as green");
   assert.match(r2.out, /blocking/);
   assert.equal(modelCalls.length, calls, "does not call the model");
@@ -260,11 +270,13 @@ test("flow: a secret keeps blocking in the incremental review until it leaves th
   commit("S1", { "src/conf.ts": `export const ${fake}\n` });
   await review("14", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.S1! });
   commit("S2", { "README.md": "something else\n" });
-  const r = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.S2! });
+  prLabels.set("14", ["re-review"]);
+  const r = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.S2! });
   assert.equal(r.code, 1, "a secret still in the PR keeps it red");
   assert.match(r.out, /Possible secret in the code/);
   commit("S3", { "src/conf.ts": "export const apiKey = process.env.API_KEY;\n" });
-  const r2 = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.S3! });
+  prLabels.set("14", ["re-review"]);
+  const r2 = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.S3! });
   assert.equal(r2.code, 0, r2.out);
 });
 
@@ -274,9 +286,81 @@ test("flow: renaming the defective file does not close the blocking finding", as
   git("mv", "src/a.ts", "src/b.ts");
   git("-c", "commit.gpgsign=false", "commit", "-qm", "R");
   sha.R = git("rev-parse", "HEAD");
-  const r = await review("15", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", PR_LABELS: '["re-review"]', HEAD_SHA: sha.R });
+  prLabels.set("15", ["re-review"]);
+  const r = await review("15", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.R });
   assert.doesNotMatch(r.out, /is no longer part of the PR/, r.out);
   assert.match(r.out, /src\/b\.ts/);
+});
+
+test("race: a push and a re-review label close together give the same verdict in either order, with one model call", async () => {
+  // GitHub counts the run whose check suite is newest, not the one that ran last, so both runs must end the same.
+  for (const [order, pr] of [["push run first", "20"], ["label run first", "21"]] as const) {
+    prLabels.set(pr, []);
+    await review(pr, { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
+    const calls = modelCalls.length;
+    // B is pushed and re-review applied right away: two runs for B, and when either starts the label is already on the PR.
+    prLabels.set(pr, ["re-review"]);
+    const push = () => review(pr, { EVENT_ACTION: "synchronize", HEAD_SHA: sha.B! });
+    const label = () => review(pr, { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.B! });
+    const [first, second] = order === "push run first" ? [push, label] : [label, push];
+    const r1 = await first();
+    const r2 = await second();
+    assert.equal(r1.code, 0, `${order}, first run: ${r1.out}`);
+    assert.equal(r2.code, 0, `${order}, second run: ${r2.out}`);
+    assert.match(r1.out, /incremental review/, order);
+    assert.match(r2.out, /Verdict from the last review kept/, `${order}: the second run only recomputes`);
+    assert.equal(modelCalls.length, calls + 1, `${order}: the model is called once`);
+    assert.deepEqual(prLabels.get(pr), [], `${order}: the label is removed, so it can be applied again`);
+  }
+
+  // The push run started before the label existed: red, correct for that moment. The label run comes later,
+  // so its check suite is the newest one and the one GitHub counts: green.
+  prLabels.set("23", []);
+  await review("23", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
+  const early = await review("23", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.B! });
+  assert.equal(early.code, 1, early.out);
+  prLabels.set("23", ["re-review"]);
+  const late = await review("23", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.B! });
+  assert.equal(late.code, 0, late.out);
+
+  // re-review applied again on a commit that was already reviewed: no model call, label removed, verdict kept.
+  const calls = modelCalls.length;
+  prLabels.set("23", ["re-review"]);
+  const again = await review("23", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.B! });
+  assert.equal(again.code, 0, again.out);
+  assert.match(again.out, /already reviewed/);
+  assert.equal(modelCalls.length, calls);
+  assert.deepEqual(prLabels.get("23"), []);
+});
+
+test("flow: an approval label re-runs the review when findings may depend on it", async () => {
+  git("checkout", "-q", "-b", "approval", "origin/main");
+  commit("I", { "tests/invariants/x.test.ts": "test('x', () => {});\n" });
+  prLabels.set("22", []);
+  const r1 = await review("22", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.I! });
+  assert.equal(r1.code, 1, r1.out);
+  assert.match(r1.out, /without invariant-approved/);
+  const calls = modelCalls.length;
+
+  prLabels.set("22", ["invariant-approved"]);
+  const r2 = await review("22", { EVENT_ACTION: "labeled", EVENT_LABEL: "invariant-approved", HEAD_SHA: sha.I! });
+  assert.equal(r2.code, 0, r2.out);
+  assert.match(r2.out, /Approval labels changed/);
+  assert.match(r2.out, /full review/);
+  assert.equal(modelCalls.length, calls + 1);
+  assert.equal(modelCalls.at(-1)?.incremental, false, "the whole PR, not only changed files");
+
+  // Nothing open now: one more approval label does not cost a review.
+  prLabels.set("22", ["invariant-approved", "eval-approved"]);
+  const r3 = await review("22", { EVENT_ACTION: "labeled", EVENT_LABEL: "eval-approved", HEAD_SHA: sha.I! });
+  assert.equal(r3.code, 0, r3.out);
+  assert.equal(modelCalls.length, calls + 1);
+
+  // Removing the label the last review counted on brings the finding back.
+  prLabels.set("22", ["eval-approved"]);
+  const r4 = await review("22", { EVENT_ACTION: "unlabeled", EVENT_LABEL: "invariant-approved", HEAD_SHA: sha.I! });
+  assert.equal(r4.code, 1, r4.out);
+  assert.equal(modelCalls.length, calls + 2);
 });
 
 test("incremental canary: catches the model that marks an unfixed finding as resolved", async () => {

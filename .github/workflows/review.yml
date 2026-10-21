@@ -5,13 +5,15 @@
 # Savings: drafts are ignored; the full review runs once, when the PR becomes ready.
 # Later pushes do not call the model (they only keep or drop the previous verdict);
 # to review again, only what changed, apply the "re-review" label.
-# The job name (review) becomes a required check in M6.
+# Adding or removing an approval label (approvalLabels in .github/review.json) reviews the PR again
+# when findings are open, because they may depend on it.
+# The job name (review) is a required check on main.
 
 name: Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -26,9 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # No cancelling: a push right after "ready" must not throw away a review already paid for.
-    # The queue keeps only one pending run; if it drops the "re-review" label's run,
-    # the next run finds the label on the PR and runs the requested review. With "deep-review"
-    # there is no such recovery (the label stays on the PR, and reacting to it on every push would be costly):
+    # Runs of the same PR go one at a time, and each one decides from the PR as it is when it starts
+    # (labels read from the API, the review state in the comment), not from the event that started it.
+    # So a push and a "re-review" label close together give the same verdict in both runs, whichever runs
+    # first and whichever GitHub counts (tests/unit/review-flow.test.ts, "race"). If the queue drops a
+    # pending run, the next run still finds the "re-review" label on the PR. With "deep-review" there is no
+    # such recovery (the label stays on the PR, and reacting to it on every push would be costly):
     # if the deep review does not show up in the comment, remove the label and apply it again.
     concurrency:
       group: review-${{ github.event.pull_request.number }}
@@ -83,7 +88,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           BASE_REF: ${{ github.base_ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EVENT_ACTION: ${{ github.event.action }}

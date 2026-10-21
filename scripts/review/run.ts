@@ -6,10 +6,12 @@
 //   --mode canary  measures the reviewer against a fake PR with planted defects (scripts/review/canary/)
 // Options: --dry-run (shows what would be sent, without calling the model) · --base <ref> · --tier <tier>
 //
-// In CI, the kind of review depends on the event:
+// In CI, the kind of review depends on the event and on the PR as it is now (live labels, state in the comment):
 //   PR marked ready / opened ready / reopened → full (or incremental, if a review already happened)
-//   label "re-review"                         → incremental since the last reviewed commit
+//   label "re-review" on the PR (any event)   → incremental since the last reviewed commit
 //   label "deep-review"                       → full, with the strongest model
+//   approval label added or removed           → full, if findings are open (they may depend on the label)
+//   commit already reviewed                   → no model call: only recomputes the verdict
 //   push after the review                     → no model call: keeps the previous verdict,
 //                                               but fails if the new commits have a secret,
 //                                               a sensitive path, or if a blocking finding is pending
@@ -24,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   REPORT_MARKER,
+  approvalsOn,
   buildPrompt,
   composeComment,
   decideKind,
@@ -148,6 +151,14 @@ async function upsertComment(existing: ExistingComment | null, body: string): Pr
   if (!response.ok) throw new Error(`could not post the comment (HTTP ${response.status})`);
 }
 
+/** PR labels now. The event payload is a snapshot from when the event happened and can miss a label applied since. */
+async function liveLabels(): Promise<string[]> {
+  const { repo, pr, headers } = githubEnv();
+  const response = await fetch(`${API}/repos/${repo}/issues/${pr}/labels?per_page=100`, { headers });
+  if (!response.ok) throw new Error(`could not read the PR labels (HTTP ${response.status})`);
+  return ((await response.json()) as Array<{ name: string }>).map((l) => l.name);
+}
+
 /** Removes the "re-review" label after using it, so it can be applied again. */
 async function removeLabel(label: string): Promise<void> {
   const { repo, pr, headers } = githubEnv();
@@ -232,7 +243,7 @@ async function main(): Promise<number> {
   // PR context
   const baseRef = mode === "ci" ? `origin/${process.env.BASE_REF || "main"}` : (values.base ?? "origin/main");
   const headSha = mode === "ci" ? (process.env.HEAD_SHA || git("rev-parse", "HEAD").trim()) : "HEAD";
-  let labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
+  let labels = mode === "ci" && !values["dry-run"] ? await liveLabels() : ((JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? []);
   let title = process.env.PR_TITLE ?? "";
   let body = process.env.PR_BODY ?? "";
   if (mode === "local") title = git("log", "-1", "--format=%s").trim();
@@ -250,7 +261,7 @@ async function main(): Promise<number> {
       : null;
   if (existing && !state && existing.body.includes("review-state")) notes.push("The state stored in the comment was invalid and was ignored.");
   const stateReachable = mode === "ci" && state !== null && isAncestor(state.sha, headSha);
-  const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "", labels };
+  const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "", labels, head: headSha };
   const decision =
     mode === "ci"
       ? decideKind(event, config, state, stateReachable)
@@ -314,8 +325,10 @@ async function main(): Promise<number> {
       .join("\n");
     // Nothing changed since the review (e.g. an unrelated label): the verdict is recomputed and the comment stays as it is.
     if (state && changed.length === 0) {
-      const verdict = reasons.length ? `❌ Red check: ${reasons.join("; ")}.` : "✅ Verdict from the last review kept.";
+      const verdict = [...notes, reasons.length ? `❌ Red check: ${reasons.join("; ")}.` : "✅ Verdict from the last review kept."].join("\n");
       console.log(verdict);
+      // "re-review" on a commit that is already reviewed (e.g. the other run of a push + label pair got there first).
+      if (mode === "ci" && !values["dry-run"] && labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);
       if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, verdict + "\n");
       return reasons.length ? 1 : 0;
     }
@@ -460,7 +473,11 @@ async function main(): Promise<number> {
   if (mode === "ci") {
     // Only advance the state when the review finished. On error, the previous state still holds,
     // but marked with the failure: the next push does not turn green until a review finishes well.
-    const newState: ReviewState | null = error ? (state ? { ...state, failure: headSha } : null) : { sha: headSha, findings: open };
+    const newState: ReviewState | null = error
+      ? state
+        ? { ...state, failure: headSha }
+        : null
+      : { sha: headSha, findings: open, approvals: approvalsOn(labels, config) };
     const banner = `> New pushes do not trigger another review. To review again (only what changed), apply the \`${config.rereviewLabel}\` label.`;
     await upsertComment(existing, composeComment(banner, markdown, newState));
     if (labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);
