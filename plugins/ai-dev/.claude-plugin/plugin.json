@@ -1,0 +1,10 @@
+{
+  "name": "ai-dev",
+  "version": "0.1.0",
+  "description": "Create a project from ai-dev-template (pinned release) and check its setup: GitHub repository, labels, main protection, secrets, CI and template version.",
+  "author": { "name": "Alexandre Simoes", "url": "https://github.com/lexsimoes" },
+  "homepage": "https://github.com/lexsimoes/ai-dev-template",
+  "repository": "https://github.com/lexsimoes/ai-dev-template",
+  "license": "MIT",
+  "keywords": ["template", "copier", "ai-review", "evals", "github"]
+}
