@@ -1,7 +1,7 @@
 # Mission 0014: Claude Code plugin, marketplace and /check-setup
 
-**Status:** in review
-**Branch:** `mission/0014-plugin-check-setup` · **PR:** _(link in the PR)_
+**Status:** in review (done, waiting for the owner's merge)
+**Branch:** `mission/0014-plugin-check-setup` · **PR:** https://github.com/lexsimoes/ai-dev-template/pull/17
 **Created on:** 2026-10-21 · **Approved by the owner on:** 2026-10-21 (M7b brief, items 2, 4 and 5)
 
 ## Goal
@@ -37,4 +37,8 @@ The agent may: add `.claude-plugin/`, `plugins/ai-dev/`, their tests, the two br
 
 ## Report
 
-_(filled in at the end, in the PR)_
+- **What was done:** marketplace and plugin `ai-dev` pinned to `v0.1.0`; `/ai-dev:check-setup` with a fix for each problem; bridges for Gemini CLI and Aider; release flow covers the plugin; hardening from the security review.
+- **Evidence:** `tests/unit/plugin-check-setup.test.ts`, `tests/unit/plugin-release.test.ts`; `claude plugin validate` passed; install from a local marketplace copy and a run from the installed cache copy (outputs in the PR).
+- **What was NOT verified:** the skill invoked inside an interactive Claude Code session; install from GitHub (after the merge); secrets listing on a real project (proxy-blocked here).
+- **Pending decisions for the owner:** none blocking (plugin name `ai-dev`).
+- **Possible injections found in external content:** none.
