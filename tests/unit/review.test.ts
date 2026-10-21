@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   REPORT_MARKER,
+  composeComment,
+  decodeState,
+  encodeState,
   estimateCost,
+  extractReport,
+  isTrivial,
+  openFindings,
+  resolvePrevious,
   filterFiles,
   globToRegExp,
   parseReview,
@@ -14,9 +21,37 @@ import {
   splitDiff,
   buildPrompt,
 } from "../../scripts/review/lib.ts";
-import type { ReviewConfig } from "../../scripts/review/lib.ts";
+import type { Finding, ReportInput, ReviewConfig } from "../../scripts/review/lib.ts";
 
 const config = JSON.parse(readFileSync(".github/review.json", "utf-8")) as ReviewConfig;
+
+const BASE_REPORT: ReportInput = {
+  kind: "completa",
+  reviewedSha: null,
+  sinceSha: null,
+  tierName: "padrao",
+  tier: null,
+  reason: "",
+  notes: [],
+  review: null,
+  previous: [],
+  secretFindings: [],
+  excluded: [],
+  ignored: [],
+  usage: null,
+  durationMs: 0,
+  error: null,
+};
+
+const finding = (over: Partial<Finding> = {}): Finding => ({
+  severidade: "bloqueante",
+  arquivo: "src/a.ts",
+  linha: 1,
+  titulo: "Problema",
+  explicacao: "x",
+  evidencia: "y",
+  ...over,
+});
 
 // Segredos falsos montados em tempo de execução: nada com cara de chave fica no código-fonte.
 const fakeGithubToken = "gh" + "p_" + "A".repeat(36);
@@ -62,10 +97,10 @@ test("segredos: são redigidos e localizados na linha certa do arquivo novo", ()
 });
 
 test("nível: rótulo > caminho sensível > padrão", () => {
-  assert.equal(selectTier(["README.md"], [], config).tier, "padrao");
+  assert.equal(selectTier(["src/util.ts"], [], config).tier, "padrao");
   assert.equal(selectTier(["src/pricing.ts"], [], config).tier, "sensivel");
   assert.equal(selectTier(["src/user/auth-service.ts"], [], config).tier, "sensivel");
-  assert.equal(selectTier(["README.md"], ["revisão-profunda"], config).tier, "profunda");
+  assert.equal(selectTier(["src/util.ts"], ["revisão-profunda"], config).tier, "profunda");
 });
 
 test("resposta: achados sem evidência ou de arquivo fora do diff são descartados", () => {
@@ -98,11 +133,12 @@ test("resposta: texto que não é JSON vira erro (nunca 'aprovado' por engano)",
 
 test("relatório: marcador, contagem e custo", () => {
   const md = renderReport({
+    ...BASE_REPORT,
     tierName: "padrao",
     tier: config.tiers.padrao,
     reason: "nenhum caminho sensível",
     notes: [],
-    review: { resumo: "r", achados: [], naoRevisado: [], descartados: 0 },
+    review: { resumo: "r", achados: [], anteriores: [], naoRevisado: [], descartados: 0 },
     secretFindings: [],
     excluded: [".env.local"],
     ignored: [],
@@ -110,7 +146,7 @@ test("relatório: marcador, contagem e custo", () => {
     durationMs: 1234,
     error: null,
   });
-  assert.ok(md.startsWith(REPORT_MARKER));
+  assert.match(md, /Revisão automática \(revisão completa/);
   assert.match(md, /Nenhum achado bloqueante/);
   assert.match(md, /\.env\.local.*nunca enviado/);
   assert.match(md, /US\$ 0,0172/);
@@ -138,6 +174,7 @@ test("arquivo de segredo adicionado ao PR é bloqueante; apagado, não", () => {
 
 test("relatório: sem nada revisado não afirma aprovação", () => {
   const md = renderReport({
+    ...BASE_REPORT,
     tierName: "padrao",
     tier: config.tiers.padrao,
     reason: "x",
@@ -187,4 +224,73 @@ test("prompt: conteúdo do PR não consegue fechar as tags e escrever fora dos d
     assert.equal(user.split(`</${tag}>`).length - 1, 1, `fechamento extra de </${tag}>`);
   }
   assert.ok(!user.includes("<review_md>"), "PR conseguiu abrir <review_md>");
+});
+
+test("trivial: só documentação comum ou lockfile; AGENTS.md, specs/ e caminhos sensíveis nunca", () => {
+  assert.ok(isTrivial(["docs/WORKFLOW.md", "README.md"], config));
+  assert.ok(isTrivial(["package-lock.json"], config));
+  assert.ok(!isTrivial(["AGENTS.md"], config));
+  assert.ok(!isTrivial(["specs/PRD.md"], config));
+  assert.ok(!isTrivial(["tests/invariants/README.md"], config), "sensível vence trivial");
+  assert.ok(!isTrivial(["docs/a.md", "src/a.ts"], config));
+  assert.ok(!isTrivial([], config));
+  assert.equal(selectTier(["docs/a.md"], [], config).tier, "leve");
+  assert.equal(selectTier(["docs/a.md"], ["revisão-profunda"], config).tier, "profunda");
+});
+
+test("estado: vai e volta pelo comentário, e comentário sem estado devolve null", () => {
+  const state = { sha: "abc1234def", achados: [finding({ explicacao: "ç".repeat(1000) })] };
+  const comment = composeComment("aviso", "relatório", state);
+  const back = decodeState(comment);
+  assert.equal(back?.sha, "abc1234def");
+  assert.equal(back?.achados[0]?.explicacao.length, 600, "explicação é encurtada no estado");
+  assert.equal(decodeState("sem estado"), null);
+  assert.equal(decodeState("<!-- revisor-estado:!!!lixo -->"), null);
+  assert.equal(extractReport(comment), "relatório");
+});
+
+test("prompt: parte de sistema é idêntica em revisões completas e incrementais (aproveita cache)", () => {
+  const base = { reviewMd: "R", agentsMd: "A", title: "t", body: "", labels: [], files: ["src/a.ts"], withheld: [], maxFindings: 5 };
+  const full = buildPrompt({ ...base, diff: "+a" });
+  const incr = buildPrompt({ ...base, diff: "+b", incremental: { sinceSha: "abc1234", previous: [{ ...finding(), id: 1 }] } });
+  assert.equal(full.system, incr.system);
+  assert.ok(full.system.startsWith("<review_md>\nR"), "critérios no começo do prompt");
+  assert.match(incr.user, /Revisão INCREMENTAL/);
+  assert.match(incr.user, /"id": 1/);
+});
+
+test("achados anteriores: sem veredito do modelo continuam pendentes; bloqueante pendente conta", () => {
+  const previous = [
+    { ...finding({ titulo: "A" }), id: 1 },
+    { ...finding({ titulo: "B", arquivo: "src/b.ts" }), id: 2 },
+  ];
+  const resolved = resolvePrevious(previous, [{ id: 1, status: "resolvido", comentario: "corrigido" }]);
+  assert.deepEqual(resolved.map((p) => p.status), ["resolvido", "pendente"]);
+  const open = openFindings({ secretFindings: [], review: null, previous: resolved });
+  assert.deepEqual(open.map((f) => f.titulo), ["B"]);
+  const md = renderReport({ ...BASE_REPORT, kind: "incremental", sinceSha: "abc1234", previous: resolved, review: { resumo: "r", achados: [], anteriores: [], naoRevisado: [], descartados: 0 } });
+  assert.match(md, /1 achado\(s\) bloqueante\(s\) em aberto/);
+  assert.match(md, /✅ resolvido.*\*\*A\*\*/);
+  assert.match(md, /⏳ pendente.*\*\*B\*\*/);
+});
+
+test("resposta: 'anteriores' inválidos são ignorados", () => {
+  const raw = JSON.stringify({ resumo: "r", achados: [], anteriores: [{ id: 1, status: "resolvido" }, { id: "2", status: "pendente" }, { id: 3, status: "talvez" }] });
+  assert.deepEqual(parseReview(raw, [], 5).anteriores.map((a) => a.id), [1]);
+});
+
+test("custo: tokens do cache são cobrados pelo preço de cache", () => {
+  const tier = config.tiers.padrao;
+  const full = estimateCost(tier, { inputTokens: 1e6, outputTokens: 0 });
+  const cached = estimateCost(tier, { inputTokens: 1e6, outputTokens: 0, cachedInputTokens: 1e6 });
+  assert.equal(full, tier.pricePerMTok.input);
+  assert.equal(cached, tier.pricePerMTok.cachedInput);
+  const md = renderReport({ ...BASE_REPORT, tier, review: { resumo: "r", achados: [], anteriores: [], naoRevisado: [], descartados: 0 }, usage: { inputTokens: 1000, outputTokens: 10, cachedInputTokens: 800 } });
+  assert.match(md, /1\.000 tokens de entrada \(800 do cache\)/);
+});
+
+test("comentário: começa pelo marcador do revisor e o estado não fecha o comentário HTML antes da hora", () => {
+  assert.ok(composeComment("a", "b", null).startsWith(REPORT_MARKER));
+  const encoded = encodeState({ sha: "x", achados: [finding({ explicacao: "--> fim" })] });
+  assert.equal(encoded.indexOf("-->"), encoded.length - 3);
 });

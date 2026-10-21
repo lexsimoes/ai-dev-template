@@ -16,7 +16,9 @@ O agente implementa, outro modelo revisa, os robôs verificam e **você decide e
  🤖 3. CÓDIGO + TESTES ─ agente implementa, faz commits e push
        │                 ⛔ invariante no caminho → PARA e te pergunta ★
        ▼
- 🤖 4. PULL REQUEST ──── agente abre o PR com a tabela requisito → evidência → status
+ 🤖 4. PULL REQUEST ──── agente abre o PR em RASCUNHO no primeiro push, trabalha nele
+       │                 e só no fim marca "Ready for review" (com a tabela
+       │                 requisito → evidência → status preenchida)
        │
        ├────────────────────────┬─────────────────────────────┐
        ▼                        ▼                             ▼
@@ -145,7 +147,22 @@ O M6 resolve de vez, dando ao agente uma identidade própria no GitHub.
 
 ## Revisor independente (check `revisao`)
 
-Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada como **um** comentário no PR que é atualizado a cada push. Quem revisa é um modelo de **outro provedor** que o agente que implementou, porque quem escreveu o texto não enxerga os próprios erros.
+Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada como **um** comentário no PR. Quem revisa é um modelo de **outro provedor** que o agente que implementou, porque quem escreveu o texto não enxerga os próprios erros.
+
+### Quando o revisor roda (e quanto custa cada vez)
+
+| Situação | O que acontece | Chama o modelo? |
+|---|---|---|
+| PR em **rascunho** (o agente ainda está trabalhando) | Nada | Não |
+| PR marcado **Ready for review** (ou aberto já pronto) | **Revisão completa** do PR inteiro | Sim, uma vez |
+| **Push** depois da revisão | Mantém o veredito anterior e avisa no comentário que há commits não revisados. Fica **vermelho** se os commits novos tiverem possível segredo, tocarem caminho sensível ou se ainda houver bloqueante em aberto | Não |
+| Rótulo **`revisar-de-novo`** (você ou o agente aplicam) | **Revisão incremental**: só o diff desde o último commit revisado, conferindo se cada achado anterior foi resolvido. O rótulo é removido sozinho, para poder ser aplicado de novo | Sim, menor |
+| Rótulo **`revisão-profunda`** (só você) | Revisão completa com o modelo mais forte (Opus) | Sim, mais cara |
+| PR **trivial** (só `.md` fora de `AGENTS.md`, `REVIEW.md`, `CLAUDE.md` e `specs/`, ou só lockfile) | Revisão **leve** (mesmo modelo, raciocínio curto) ou **nenhuma** (só os detectores de segredo), conforme `trivial.mode` em `.github/review.json` | Leve ou não |
+
+O commit revisado e os achados em aberto ficam guardados no próprio comentário do revisor, de forma invisível. É por isso que a revisão incremental sabe de onde partir. Ninguém deve editar esse comentário.
+
+Um force-push que apague o commit revisado faz a próxima revisão voltar a ser completa.
 
 ### Como funciona
 
@@ -164,6 +181,9 @@ Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada c
 
    Sem o `REVIEW_DEEP_API_KEY`, o escalonamento não acontece: o nível padrão revisa e o relatório **diz isso** explicitamente.
 4. O modelo recebe o `REVIEW.md` e o `AGENTS.md` **da branch de destino** (um PR não afrouxa a própria revisão) e responde em JSON.
+   - Esses dois arquivos vêm sempre **no começo** do prompt, e do mesmo jeito, em toda revisão.
+   - Provedores com cache de contexto, como a DeepSeek, cobram cerca de 3% do preço por esse trecho repetido.
+   - O relatório mostra quantos tokens vieram do cache.
 5. Achado sem evidência, ou que cita arquivo fora do diff, é **descartado**, e o relatório conta quantos foram descartados.
 6. Algum **bloqueante** deixa o check `revisao` vermelho. Importantes e sugestões só aparecem no comentário.
 7. Se o revisor falhar (provedor fora do ar, resposta inválida, diff grande demais), o check fica **vermelho** e o relatório diz que nada foi verificado. Erro nunca vira "aprovado".
@@ -216,7 +236,7 @@ O relatório de cada execução mostra os tokens usados e o custo estimado. Por 
 | Claude `claude-sonnet-5-5` | US$ 2 / 10 | ≈ US$ 0,07 |
 | Claude `claude-opus-5-5` | US$ 4 / 20 | ≈ US$ 0,14 |
 
-O canário custa uma chamada por mês. Os minutos do GitHub Actions seguem a tabela do CI acima (grátis em repositório público).
+Uma revisão incremental costuma custar bem menos que a completa (estimativa: cerca de US$ 0,03), porque o diff é pequeno e o começo do prompt vem do cache. O canário custa uma chamada por mês, mais uma a cada push em PRs que mudam o revisor. Os minutos do GitHub Actions seguem a tabela do CI acima (grátis em repositório público).
 
 ### Por que não "max-turns"
 

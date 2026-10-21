@@ -15,7 +15,7 @@
 
 ## Última missão
 
-- M4: revisor independente de provedor e canário do revisor.
+- M4b: economia no revisor (PR em rascunho, revisão única ao ficar pronto, `revisar-de-novo` incremental, PRs triviais, prompt estável para cache).
 
 ## Fila (próximos itens)
 
@@ -32,6 +32,9 @@
 - Modelo padrão do adaptador Anthropic: `claude-opus-5-5`. Trocar para um modelo mais barato nos evals é decisão do dono (ver `evals/README.md`, Custos).
 
 ## Riscos e avisos
+
+- O estado do revisor (commit revisado + achados em aberto) fica num comentário HTML do robô. Quem tem permissão de escrita no repositório pode editar esse comentário; a edição aparece no histórico do comentário. O `AGENTS.md` proíbe agentes de editá-lo.
+- Pushes depois da revisão não são revisados pelo modelo (decisão de economia). O check só fica vermelho se houver segredo, caminho sensível ou bloqueante pendente; o dono vê no comentário quais commits não foram revisados.
 
 - Segredos em workflows `pull_request`: qualquer pessoa com permissão de push pode, num PR da mesma origem, alterar um workflow e ler `REVIEW_API_KEY`. Mitigação atual: só o dono e os agentes dele têm push; `.github/` é CODEOWNERS. Avaliar no M6 (ambiente com aprovação para segredos).
 - `REVIEW_DEEP_API_KEY` (Anthropic) ainda não cadastrado: sem ele, os níveis `sensivel` e `profunda` caem para o padrão (o relatório avisa).

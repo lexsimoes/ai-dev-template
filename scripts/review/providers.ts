@@ -25,7 +25,12 @@ const DEFAULT_MAX_OUTPUT_TOKENS = 16000;
 interface ChatCompletion {
   model?: string;
   choices?: Array<{ message?: { content?: string | null }; finish_reason?: string }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    prompt_cache_hit_tokens?: number; // DeepSeek
+    prompt_tokens_details?: { cached_tokens?: number }; // formato OpenAI
+  };
 }
 
 async function callOpenAICompatible(
@@ -47,6 +52,7 @@ async function callOpenAICompatible(
       response_format: { type: "json_object" },
       // Modelos com raciocínio gastam parte deste limite pensando antes de responder.
       max_tokens: tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      ...tier.extraBody,
     }),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -58,7 +64,12 @@ async function callOpenAICompatible(
   const data = (await response.json()) as ChatCompletion;
   const choice = data.choices?.[0];
   const text = choice?.message?.content ?? "";
-  const usage = { inputTokens: data.usage?.prompt_tokens ?? 0, outputTokens: data.usage?.completion_tokens ?? 0 };
+  const cached = data.usage?.prompt_cache_hit_tokens ?? data.usage?.prompt_tokens_details?.cached_tokens;
+  const usage: Usage = {
+    inputTokens: data.usage?.prompt_tokens ?? 0,
+    outputTokens: data.usage?.completion_tokens ?? 0,
+    ...(cached !== undefined ? { cachedInputTokens: cached } : {}),
+  };
   if (choice?.finish_reason === "length") {
     throw new ModelCallError(
       `a resposta do modelo foi cortada no limite de ${tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS} tokens de saída (aumente maxOutputTokens em .github/review.json ou divida o PR)`,
@@ -91,7 +102,13 @@ async function callAnthropic(
     { timeout: timeoutMs },
   );
   const response = await stream.finalMessage();
-  const usage = { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens };
+  // Na Anthropic, input_tokens já exclui o que veio do cache; somamos para o total de entrada.
+  const cacheRead = response.usage.cache_read_input_tokens ?? 0;
+  const usage: Usage = {
+    inputTokens: response.usage.input_tokens + cacheRead + (response.usage.cache_creation_input_tokens ?? 0),
+    outputTokens: response.usage.output_tokens,
+    cachedInputTokens: cacheRead,
+  };
   if (response.stop_reason === "refusal") {
     throw new ModelCallError(`o modelo recusou a revisão (${response.stop_details?.category ?? "sem categoria"})`, usage);
   }

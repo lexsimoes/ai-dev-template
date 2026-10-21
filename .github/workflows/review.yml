@@ -1,6 +1,10 @@
 # Revisão independente: um modelo de IA diferente do que implementou lê o diff
 # do PR com os critérios do REVIEW.md e comenta o resultado no PR.
 # DeepSeek por padrão; Sonnet em caminhos sensíveis; Opus com o rótulo "revisão-profunda".
+#
+# Economia: rascunhos são ignorados; a revisão completa roda uma vez, quando o PR fica pronto.
+# Pushes seguintes não chamam o modelo (só mantêm ou derrubam o veredito anterior);
+# para revisar de novo, só o que mudou, aplica-se o rótulo "revisar-de-novo".
 # O nome do job (revisao) vira check obrigatório no M6.
 
 name: Revisão
@@ -12,19 +16,22 @@ on:
 permissions:
   contents: read
 
+# Em fila, sem cancelar: um push logo depois de "pronto" não pode jogar fora uma revisão já paga.
 concurrency:
   group: revisao-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   revisao:
     name: revisao
     # Só PRs prontos (não rascunhos), só deste repositório (forks não recebem segredos)
-    # e, em eventos de rótulo, só quando o rótulo for o de revisão profunda.
+    # e, em eventos de rótulo, só para "revisão-profunda" ou "revisar-de-novo".
     if: >-
       github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action != 'labeled' || github.event.label.name == 'revisão-profunda')
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'revisão-profunda' ||
+       github.event.label.name == 'revisar-de-novo')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -73,5 +80,8 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_ACTION: ${{ github.event.action }}
+          EVENT_LABEL: ${{ github.event.label.name }}
           REVIEW_SCRIPT: ${{ github.workspace }}/${{ steps.fonte.outputs.dir }}/scripts/review/run.ts
         run: node "$REVIEW_SCRIPT" --mode ci

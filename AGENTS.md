@@ -60,11 +60,12 @@ Cada regra em **Inegociáveis** do PRD tem um teste em `tests/invariants/`, exig
 
 ## 2. Fluxo git e PR
 
-- Uma missão = uma branch `missao/<NNNN>-<tema>` = um PR.
+- Uma missão = uma branch `missao/<NNNN>-<tema>` = um PR, aberto como **rascunho** (draft) no primeiro push.
+- Trabalhe com o PR em rascunho; marque **Ready for review** (`gh pr ready <n>`) só no fim, com a missão completa e `npm run check` verde.
 - Nunca faça commit ou push na `main`. Nunca faça merge.
 - Commits pequenos, no formato `tipo: o que mudou` (`feat`, `fix`, `test`, `docs`, `chore`, `refactor`).
-- Antes do PR: `npm run check` verde (e os evals, se tocou em IA).
-- O revisor automático (`REVIEW.md`) comenta em todo PR pronto. Corrija os bloqueantes; responda aos importantes (corrigido ou por que não).
+- Antes de marcar como pronto: `npm run check` verde (e os evals, se tocou em IA).
+- O revisor automático (`REVIEW.md`) revisa o PR uma vez, quando ele fica pronto. Corrija os bloqueantes, responda aos importantes (corrigido ou por que não) e aplique o rótulo `revisar-de-novo` para uma revisão incremental. Pushes sem o rótulo não são revisados. Nunca edite o comentário do revisor.
 - O PR preenche todo o template: requisito → evidência → status, checks executados, o que NÃO foi verificado, decisões pendentes.
 - Ao terminar: atualize `docs/HANDOFF.md` e o "Relatório" da missão.
 
