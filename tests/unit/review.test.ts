@@ -331,7 +331,10 @@ test("decisão por evento: push não chama o modelo; rótulo e 'pronto' revisam"
 
 test("push depois da revisão: motivos para vermelho", () => {
   const base = { state: { sha: SHA, achados: [] as Finding[] }, stateReachable: true, secretFindings: [] as Finding[], changedPaths: ["src/x.ts"], config };
-  assert.deepEqual(pushReasons(base), [], "push limpo mantém o verde");
+  const manter = { ...config, afterReviewPush: "manter-veredito" as const };
+  assert.deepEqual(pushReasons({ ...base, config: manter }), [], "com manter-veredito, push limpo mantém o verde");
+  assert.equal(config.afterReviewPush, "exigir-nova-revisao", "decisão do dono (2026-10-21)");
+  assert.match(pushReasons(base).join(), /exige nova revisão/, "padrão do template: qualquer push pede nova revisão");
   assert.match(pushReasons({ ...base, state: null }).join(), /nenhuma revisão foi concluída/);
   assert.match(pushReasons({ ...base, stateReachable: false }).join(), /force-push/);
   assert.match(pushReasons({ ...base, state: { ...base.state, falha: SHA } }).join(), /falhou/);

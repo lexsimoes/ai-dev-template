@@ -5,7 +5,7 @@
   "maxFindings": 20,
   "deepLabel": "revisão-profunda",
   "rereviewLabel": "revisar-de-novo",
-  "afterReviewPush": "manter-veredito",
+  "afterReviewPush": "exigir-nova-revisao",
   "excludePaths": [
     ".env",
     ".env.*",
@@ -74,7 +74,7 @@
       "model": "claude-sonnet-5-5",
       "apiKeyEnv": "REVIEW_DEEP_API_KEY",
       "maxOutputTokens": 64000,
-      "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.2 }
+      "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.1 }
     },
     "profunda": {
       "provider": "anthropic",
