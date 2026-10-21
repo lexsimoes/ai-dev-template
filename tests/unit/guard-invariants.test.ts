@@ -19,6 +19,8 @@ test("CODEOWNERS: a última regra que casa vence; times ficam de fora", () => {
   assert.deepEqual(ownersOf(CODEOWNERS, "tests/invariants/"), ["dono"]);
   assert.deepEqual(ownersOf(CODEOWNERS, "src/x.ts"), ["todos"]);
   assert.deepEqual(ownersOf("", "tests/invariants/"), []);
+  assert.deepEqual(ownersOf("/tests/invariants @sem-barra\n", "tests/invariants/"), ["sem-barra"], "pasta sem barra final também vale");
+  assert.deepEqual(ownersOf("/tests/inv @outro\n", "tests/invariants/"), [], "prefixo de nome não é pasta");
 });
 
 test("rótulo: vale quem o aplicou por último", () => {

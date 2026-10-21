@@ -27,7 +27,9 @@ jobs:
     timeout-minutes: 15
     # Sem cancelar: um push logo depois de "pronto" não pode jogar fora uma revisão já paga.
     # A fila guarda só uma execução pendente; se ela descartar a do rótulo "revisar-de-novo",
-    # a execução seguinte encontra o rótulo no PR e faz a revisão pedida.
+    # a execução seguinte encontra o rótulo no PR e faz a revisão pedida. Com "revisão-profunda"
+    # não há essa recuperação (o rótulo fica no PR, e reagir a ele a cada push sairia caro):
+    # se a revisão profunda não aparecer no comentário, remova e aplique o rótulo de novo.
     concurrency:
       group: revisao-${{ github.event.pull_request.number }}
       cancel-in-progress: false

@@ -60,11 +60,14 @@ export function weekStart(now: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Texto vindo de PRs (externo) pronto para uma célula de tabela: sem quebras, menções, HTML ou `|` soltos. */
+/** Texto vindo de PRs (externo) pronto para uma célula de tabela: sem quebras, menções, referências, links, HTML ou `|` soltos. */
 export function safe(text: string, max = 100): string {
   const flat = text.replace(/\s+/g, " ").trim();
   const cut = flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
-  return cut.replace(/\|/g, "\\|").replace(/</g, "&lt;").replace(/@/g, "@\u200b");
+  return cut
+    .replace(/[\\`*_[\]()|]/g, "\\$&")
+    .replace(/</g, "&lt;")
+    .replace(/[@#]/g, "$&\u200b");
 }
 
 function days(from: string, now: Date): number {

@@ -42,6 +42,7 @@ test("semana começa na segunda-feira (UTC)", () => {
 
 test("título de PR é dado: sem quebra de tabela, menção ou HTML", () => {
   assert.equal(safe("a | b\n@dono <script>"), "a \\| b @​dono &lt;script>");
+  assert.equal(safe("[clique](http://x) #12 `c`"), "\\[clique\\]\\(http://x\\) #\u200b12 \\`c\\`", "sem link nem referência clicável");
   assert.equal(safe("x".repeat(200), 10).length, 10);
 });
 

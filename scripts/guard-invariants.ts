@@ -55,7 +55,9 @@ export function ownersOf(codeowners: string, path: string): string[] {
     const [pattern = "", ...rest] = raw.replace(/#.*/, "").trim().split(/\s+/);
     if (!pattern) continue;
     const prefix = pattern.replace(/^\//, "");
-    if (pattern === "*" || target === prefix || (prefix.endsWith("/") && target.startsWith(prefix))) {
+    // "/pasta" e "/pasta/" valem para a pasta inteira.
+    const dir = prefix.endsWith("/") ? prefix : `${prefix}/`;
+    if (pattern === "*" || target === prefix || target.startsWith(dir)) {
       // Só pessoas (@login); times (@org/time) não são conferidos aqui.
       owners = rest.filter((o) => o.startsWith("@") && !o.includes("/")).map((o) => o.slice(1).toLowerCase());
     }
