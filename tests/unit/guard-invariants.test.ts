@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { lastLabeler, ownersOf } from "../../scripts/guard-invariants.ts";
+import { isLabeled, lastLabeler, ownersOf } from "../../scripts/guard-invariants.ts";
 import type { IssueEvent } from "../../scripts/guard-invariants.ts";
 
 const run = promisify(execFile);
@@ -25,6 +25,8 @@ test("rótulo: vale quem o aplicou por último", () => {
   const ev = (event: string, login: string, name = "invariante-aprovado"): IssueEvent => ({ event, label: { name }, actor: { login }, created_at: "t" });
   assert.equal(lastLabeler([ev("labeled", "dono"), ev("unlabeled", "dono"), ev("labeled", "agente")], "invariante-aprovado"), "agente");
   assert.equal(lastLabeler([ev("labeled", "dono", "outro")], "invariante-aprovado"), null);
+  assert.equal(isLabeled([ev("labeled", "dono"), ev("unlabeled", "dono")], "invariante-aprovado"), false, "removido vale, mesmo num Re-run com o payload velho");
+  assert.equal(isLabeled([ev("labeled", "dono"), ev("labeled", "dono", "outro")], "invariante-aprovado"), true);
 });
 
 let repo = "";

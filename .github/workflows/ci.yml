@@ -58,8 +58,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Instalar dependências
-        run: npm ci
       - name: Guarda (pasta intocada, nada pulado, nenhum teste a menos)
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -68,13 +66,18 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ github.token }}
         # Em PRs, roda a guarda da branch de destino: um PR não afrouxa a própria guarda.
-        # Se ela ainda não existir lá (instalação inicial), usa a do PR.
+        # Se ela ainda não existir lá (instalação inicial), usa a do PR. Roda antes de qualquer
+        # código do PR (npm ci) e só usa módulos do próprio Node.
         run: |
           GUARD=scripts/guard-invariants.ts
           if [ "$EVENT_NAME" = "pull_request" ] && git show "origin/$BASE_REF:$GUARD" > "$RUNNER_TEMP/guard-invariants.ts" 2>/dev/null; then
             GUARD="$RUNNER_TEMP/guard-invariants.ts"
           fi
           node "$GUARD"
+      # Só depois da guarda: o npm ci roda scripts do package.json do PR (postinstall etc.),
+      # que poderiam mexer no git ou no ambiente antes da decisão da guarda.
+      - name: Instalar dependências
+        run: npm ci
       - name: Testes de invariantes
         # Chamado direto (sem npm run) para que mudar o package.json não pule os testes.
         run: node --test "tests/invariants/**/*.test.ts"

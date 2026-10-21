@@ -70,7 +70,13 @@ export function lastLabeler(events: IssueEvent[], label: string): string | null 
   return applied.at(-1)?.actor?.login ?? "desconhecido";
 }
 
-/** Eventos do PR (rótulos aplicados e removidos, com autor). events null = API indisponível. */
+/** O rótulo está aplicado agora, segundo o histórico (o payload de um "Re-run" pode estar velho). */
+export function isLabeled(events: IssueEvent[], label: string): boolean {
+  const last = events.filter((e) => (e.event === "labeled" || e.event === "unlabeled") && e.label?.name === label).at(-1);
+  return last?.event === "labeled";
+}
+
+/** Eventos do PR (rótulos aplicados e removidos, com autor). events null = API indisponível ou histórico incompleto. */
 async function issueEvents(): Promise<{ events: IssueEvent[] | null; reason: string }> {
   const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_NUMBER: pr } = process.env;
   if (!token || !repo || !pr) return { events: null, reason: "sem acesso à API do GitHub neste ambiente" };
@@ -83,9 +89,10 @@ async function issueEvents(): Promise<{ events: IssueEvent[] | null; reason: str
     if (!response.ok) return { events: null, reason: `a API respondeu ${response.status}` };
     const batch = (await response.json()) as IssueEvent[];
     events.push(...batch);
-    if (batch.length < 100) break;
+    if (batch.length < 100) return { events, reason: "" };
   }
-  return { events, reason: "" };
+  // A API devolve do mais antigo para o mais novo: cortar o fim esconderia o evento mais recente.
+  return { events: null, reason: "o PR tem mais de 1.000 eventos e o histórico não foi lido inteiro" };
 }
 
 function labelHistory(events: IssueEvent[]): string[] {
@@ -139,6 +146,10 @@ async function main(): Promise<number> {
         } else {
           notes.push(`Quem aplicou o rótulo: não verificado (${reason}).`);
         }
+      } else if (!isLabeled(events, APPROVAL_LABEL)) {
+        approved = false;
+        notes.push(...labelHistory(events));
+        errors.push(`O rótulo \`${APPROVAL_LABEL}\` não está aplicado agora (foi removido depois deste evento).`);
       } else {
         notes.push(...labelHistory(events));
         const codeowners = git("ls-tree", "--name-only", baseRef, ".github/CODEOWNERS").trim()
