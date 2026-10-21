@@ -41,6 +41,7 @@ Regras que **nunca** podem quebrar. Cada uma tem um teste em `tests/invariants/`
 ## 5. Fora do escopo
 
 - [o que este projeto **não** vai fazer, para evitar que a missão cresça sozinha]
+- (template) The owner's dotfiles and global `CLAUDE.md`: they live in a separate private repository, never in the template.
 
 ## 6. Checagem de direção
 
@@ -55,3 +56,16 @@ Atualizada a cada missão, pelo agente, no PR da missão. Toda segunda-feira, o 
 | INV-002 | `npm run test:invariants` | ✅ |
 
 Legenda: ✅ feito e verificado · 🟡 parcial · ⬜ não iniciado · ❌ quebrado
+
+## 7. Template roadmap
+
+The product of this repository is the template itself. Each milestone is done when its acceptance check passes (details in `docs/HANDOFF.md`, Queue).
+
+| Milestone | Done when |
+|---|---|
+| M-EN | Every file in the repository is in English, with no behavior change: same tests passing, invariant assertions identical, canary still catching every planted defect; new check and label names required by the `protect-main` ruleset |
+| M7 | `copier copy` creates a working project from the owner's answers (no hardcoded owner), with green CI in no-AI-key mode; `copier update` brings a template change into an existing project; MIT license; traffic data exported weekly |
+| M7b | In Claude Code, `/new-project` creates and configures a repository (labels, ruleset, secrets set by the person in their own terminal) and `/check-setup` lists what is missing |
+| M7c | Discovery produces a short PRD with verifiable criteria and first invariant tests; audit of existing code produces an inferred PRD confirmed by the owner and CI in observation mode |
+| M7d | 3 to 8 Playwright tests of the critical flows run as a required check, isolated and with a fake AI provider; changing an assertion requires `test-approved`; flaky tests go to quarantine with an issue |
+| M8 | Rehearsal: new project from scratch, read-only audit of GoAgentic on a branch, install from the README alone, reviewer comparisons |
