@@ -52,4 +52,4 @@ The agent that implements a change is the same one that runs the tests. If it co
 ## Examples in this folder
 
 - `pricing.invariant.test.ts` (INV-001): more than 10,000 subtotal and coupon combinations; the total always stays between 0 and the subtotal, and coupons outside 0–100% are rejected.
-- `llm-output.invariant.test.ts` (INV-002): the customer text stays locked between delimiters in the prompt, and no model output outside the closed list is accepted, not even from a "compromised" model. The demo shop is Brazilian, so its prompt, categories and attack examples are pt-BR test data on purpose.
+- `llm-output.invariant.test.ts` (INV-002): the customer text stays locked between delimiters in the prompt, and no model output outside the closed list is accepted, not even from a "compromised" model.

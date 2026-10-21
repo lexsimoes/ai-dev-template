@@ -4,16 +4,16 @@ import { classifyMessage, parseClassification } from "../../src/ai/classify-mess
 import { createMockClient } from "../../src/ai/providers/mock.ts";
 
 test("accepts valid JSON from the model", () => {
-  const result = parseClassification('{"category": "entrega", "summary": "Pedido atrasado"}');
-  assert.deepEqual(result, { category: "entrega", summary: "Pedido atrasado", needsHuman: false });
+  const result = parseClassification('{"category": "delivery", "summary": "Late order"}');
+  assert.deepEqual(result, { category: "delivery", summary: "Late order", needsHuman: false });
 });
 
 test("accepts JSON surrounded by text", () => {
-  const result = parseClassification('Claro! {"category": "troca", "summary": "Quer trocar"} Obrigado.');
-  assert.equal(result.category, "troca");
+  const result = parseClassification('Sure! {"category": "exchange", "summary": "Wants to exchange"} Thanks.');
+  assert.equal(result.category, "exchange");
 });
 
 test("classifies with the mock provider", async () => {
-  const result = await classifyMessage("Meu boleto não foi compensado", createMockClient());
-  assert.equal(result.category, "pagamento");
+  const result = await classifyMessage("My invoice was paid but the order still says pending", createMockClient());
+  assert.equal(result.category, "payment");
 });

@@ -3,22 +3,24 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-21 · **By:** agent (M-EN)
+**Updated on:** 2026-10-21 · **By:** agent (M7, PR 1: housekeeping + sample store in English)
 
 ## Current state
 
 - Template skeleton created: rules for agents (`AGENTS.md`), sample PRD, mission template, sample invariants, sample evals, PR template.
-- Demo app: `src/pricing.ts` (coupon) and `src/ai/classify-message.ts` (LLM classifier).
+- Demo app (an online store, in English since M7 PR 1): `src/pricing.ts` (coupon) and `src/ai/classify-message.ts` (LLM classifier, categories `exchange`/`delivery`/`payment`/`other`).
 - `npm run check` passes locally; `npm run eval:mock` passes (the mock does not measure real quality).
 - Evals in CI with DeepSeek (`EVAL_API_KEY`), thresholds and golden set from `main`, comment with the cost.
 - CI on GitHub (`.github/workflows/ci.yml`): jobs `quality`, `invariants` (with the guard `scripts/guard-invariants.ts`) and `dependencies`, on every PR and push to `main`.
 - Independent reviewer (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek by default, Sonnet on a sensitive path, Opus with the `deep-review` label. Monthly canary, and when a PR that changes the reviewer becomes ready (`.github/workflows/review-canary.yml`).
-- `main` protection: ruleset `.github/rulesets/protect-main.json` imported and active (5 required checks, from Actions only; PR required; 0 approvals).
+- `main` protection: ruleset `protect-main` (`.github/rulesets/protect-main.json`) active since the M-EN merge; the old `proteger-main` was deleted after the new one was imported (5 required checks `quality`, `invariants`, `dependencies`, `review`, `evals`, from Actions only; PR required; 0 approvals). Verified in PR #11: with `quality` and `review` red, `mergeable_state` = `blocked`.
+- Labels renamed in place after the M-EN merge: `invariant-approved`, `eval-approved`, `deep-review`, `re-review`, `direction-check` (PR #11 confirmed `re-review` triggers the incremental review).
 - Weekly direction check (`.github/workflows/direction-check.yml`, `scripts/direction/`): an issue every Monday with the `direction-check` label.
 
 ## Last mission
 
-- M-EN: translated the template to English (docs, messages, check and label names), with no behavior change.
+- M7 PR 1: HANDOFF housekeeping, reviewer `maxDiffChars` back to 150000, and the sample store translated to English (prompt, tag `<customer_message>`, categories, golden set, LLM judge, mock, pricing errors), with evals before/after and the owner's `invariant-approved` (INV-002) and `eval-approved` (golden set).
+- M-EN (done, PR #10): translated the template to English (docs, messages, check and label names), with no behavior change.
 - M6: `main` protection and weekly direction check.
   - `review` and `evals` are no longer skipped on unrelated labels or on forks (a skipped required check counts as green).
   - The invariant guard runs the `main` version and only accepts the label when applied by a CODEOWNERS owner.
@@ -28,15 +30,12 @@
 
 Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet). From now on the template is written in English; the agent talks to the owner in the configured conversation language (pt-BR).
 
-1. **M-EN (now): migrate the template to English.** One translation-only PR: AGENTS.md, CLAUDE.md, docs, script messages, workflow and check names, labels, weekly issue, reviewer prompts and output, canary. Zero behavior change. New names: checks `quality`, `invariants`, `dependencies`, `review`, `evals`; labels `invariant-approved`, `eval-approved`, `deep-review`, `re-review`; ruleset `protect-main`.
-2. **M7 (engine):**
-   - Copier template asking: project name, GitHub owner (becomes CODEOWNERS and the invariant guard's approver; no hardcoded `@lexsimoes`), conversation language, reviewer provider, optional sections.
-   - No-AI-key mode: quality, invariants and dependencies run; the reviewer is off with a notice and does not block.
-   - `copier update` path to bring improvements to projects already created.
-   - MIT license and a "Getting started" README.
-   - Weekly workflow that exports GitHub traffic data (kept by GitHub for only 14 days) to a versioned file.
+1. **M-EN: done** (PR #10, merged 2026-10-21; post-merge test in PR #11).
+2. **M7 (engine)**, split by the owner into 3 PRs, each stopping for the owner's merge:
+   1. Housekeeping + sample store in English (this PR).
+   2. Copier engine: `copier.yml` (project name, GitHub owner → CODEOWNERS and the guard's owner, conversation language pt-BR/en, reviewer provider including "none", optional sections Context7 and UI/UX); no hardcoded `@lexsimoes`; 2 generated projects with CI; `copier update` brings a template change without overwriting project files (PRD, invariants, app code).
+   3. No-key mode + public release: without an AI key, `quality`, `invariants` and `dependencies` run normally and `review`/`evals` pass with a clear "disabled" notice, without reopening the "skipped check counts as green" loophole for projects that do have a key; MIT license; "Getting started" README; weekly export of GitHub traffic data to a versioned file.
    - The owner's dotfiles and global CLAUDE.md stay out of the template, in a separate private repository.
-   - Restore `maxDiffChars` in `.github/review.json` to 150000. It was raised to 450000 only so that the M-EN translation PR (about 410,000 characters of diff) can be reviewed; the reviewer reads this value from `main`, so it has to be raised before that PR is marked ready.
 3. **M7b (entry point): Claude Code plugin** (marketplace in this repository):
    - `/new-project`: empty folder → discovery; existing code → audit. Talks with the person and passes the answers to Copier (`--data`), with no terminal prompts.
    - Automatic setup: labels via `gh`; protection ruleset applied via the API (first check whether the plan allows it on a private repository, and warn); keys registered by the person with `gh secret set NAME` in their own terminal, NEVER through the conversation, with a spending-limit reminder.
@@ -56,7 +55,6 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 
 ## Pending decisions (owner)
 
-- Demo shop language: the demo app's runtime strings (classifier prompt, `<mensagem_do_cliente>` tag, categories, pricing errors), the golden set and the LLM judge prompt in `evals/run.ts` stay pt-BR after M-EN, because they are behavior (asserted by INV-002 or measured by the evals). Translating them is a separate PR with evals before/after and the owner's `invariant-approved` and `eval-approved` labels.
 - The template's `AGENTS.md` is the official version of the method (owner decision, 2026-10-21).
 - Sections 4 (Context7) and 5 (UI/UX) of `AGENTS.md` incorporate the summary of the owner's `~/.codex/AGENTS.md` sent on 2026-10-21.
 - M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
