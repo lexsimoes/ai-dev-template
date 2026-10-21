@@ -3,6 +3,9 @@
 # in data/ on the `traffic` branch, so the history is versioned and not lost. That branch holds only data;
 # `main` stays protected. Needs the TRAFFIC_TOKEN secret: a fine-grained token with "Administration: read" on
 # this repository only, because the workflow token cannot read traffic. See README.md, "Traffic export".
+# A failed run turns red AND opens an issue (missing, expired or wrong token, or any other step), so the data
+# gap does not go unnoticed; the issue closes on its own at the next good run. The issue also warns 30 days
+# before the token expires.
 
 name: Traffic export
 
@@ -25,6 +28,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write # commit the CSV files to the traffic branch
+      issues: write # open, update or close the alert issue
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,6 +52,7 @@ jobs:
         working-directory: repo
         env:
           TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+          TRAFFIC_ALERT_FILE: ${{ runner.temp }}/traffic-alert.json
         run: node "$RUNNER_TEMP/traffic/run.ts" --out data
       - name: Commit
         working-directory: repo
@@ -60,3 +65,15 @@ jobs:
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit --quiet -m "chore: traffic data up to $(date -u +%F)"
           git push --quiet origin traffic
+      - name: Alert issue (the export failed)
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRAFFIC_ALERT_FILE: ${{ runner.temp }}/traffic-alert.json
+        run: node "$RUNNER_TEMP/traffic/alert.ts" --status failure
+      - name: Alert issue (close it, or warn that the token expires soon)
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRAFFIC_ALERT_FILE: ${{ runner.temp }}/traffic-alert.json
+        run: node "$RUNNER_TEMP/traffic/alert.ts" --status success

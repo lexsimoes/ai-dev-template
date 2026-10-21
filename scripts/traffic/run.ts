@@ -4,25 +4,31 @@
 // Use in CI: node scripts/traffic/run.ts --out <folder>
 //   TRAFFIC_TOKEN: fine-grained token with "Administration: read" on this repository only (the workflow
 //   token cannot read traffic). GITHUB_REPOSITORY: owner/repo.
+//   TRAFFIC_ALERT_FILE (optional): where to write what went wrong, or that the token expires soon,
+//   for scripts/traffic/alert.ts to turn into an issue.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { PATHS_HEADER, REFERRERS_HEADER, mergeDaily, mergeSnapshot } from "./lib.ts";
+import { PATHS_HEADER, REFERRERS_HEADER, expiresSoon, failureReason, mergeDaily, mergeSnapshot, parseExpiry } from "./lib.ts";
 import type { DailyCount } from "./lib.ts";
 
 const { values } = parseArgs({ options: { out: { type: "string" } } });
 const { TRAFFIC_TOKEN: token, GITHUB_REPOSITORY: repo } = process.env;
 const api = process.env.GITHUB_API_URL || "https://api.github.com";
 
+const alertFile = process.env.TRAFFIC_ALERT_FILE;
+let expiry: Date | null = null;
+
+/** An error whose message is already the reason to show the owner. */
+class ExportError extends Error {}
+
 async function gh<T>(path: string): Promise<T> {
   const response = await fetch(`${api}/repos/${repo}/traffic/${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
   });
-  if (response.status === 401 || response.status === 403) {
-    throw new Error(`GET traffic/${path}: HTTP ${response.status}. TRAFFIC_TOKEN needs "Administration: read" on ${repo} (see README.md, "Traffic export").`);
-  }
-  if (!response.ok) throw new Error(`GET traffic/${path}: HTTP ${response.status}`);
+  if (!response.ok) throw new ExportError(`${failureReason(response.status)} (GET traffic/${path})`);
+  expiry ??= parseExpiry(response.headers.get("github-authentication-token-expiration"));
   return (await response.json()) as T;
 }
 
@@ -34,7 +40,7 @@ function update(file: string, merge: (existing: string) => string): void {
 async function main(): Promise<void> {
   if (!values.out) throw new Error("missing --out <folder>");
   if (!repo) throw new Error("missing GITHUB_REPOSITORY");
-  if (!token) throw new Error('missing TRAFFIC_TOKEN: create a fine-grained token with "Administration: read" on this repository and save it with `gh secret set TRAFFIC_TOKEN` (see README.md, "Traffic export").');
+  if (!token) throw new ExportError(`${failureReason("missing")} Create a fine-grained token with "Administration: read" on this repository and save it with \`gh secret set TRAFFIC_TOKEN\` (see README.md, "Traffic export").`);
 
   const views = await gh<{ views: DailyCount[] }>("views?per=day");
   const clones = await gh<{ clones: DailyCount[] }>("clones?per=day");
@@ -54,9 +60,16 @@ async function main(): Promise<void> {
   console.log(
     `Traffic saved (${captured}): ${views.views.length} day(s) of views, ${clones.clones.length} of clones, ${paths.length} popular page(s), ${referrers.length} referrer(s).`,
   );
+  const days = expiresSoon(expiry, new Date());
+  if (days !== null) {
+    console.log(`::warning::TRAFFIC_TOKEN expires in ${days} day(s). Regenerate it and run \`gh secret set TRAFFIC_TOKEN\`.`);
+    if (alertFile) writeFileSync(alertFile, JSON.stringify({ kind: "expiring", days }));
+  }
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
+  const reason = error instanceof ExportError ? error.message : `Unexpected error: ${error instanceof Error ? error.message : String(error)}`;
+  console.error(`::error::Traffic export failed. ${reason}`);
+  if (alertFile) writeFileSync(alertFile, JSON.stringify({ kind: "failure", reason }));
   process.exit(1);
 });
