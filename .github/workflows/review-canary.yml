@@ -13,6 +13,7 @@ on:
         description: "Caso a rodar: todos, completa, leve ou incremental"
         default: todos
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - REVIEW.md
       - AGENTS.md
@@ -26,7 +27,11 @@ permissions:
 jobs:
   canario:
     name: canario-revisor (${{ matrix.caso }})
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Em PRs: só prontos (não rascunhos) e deste repositório, como o revisor.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
