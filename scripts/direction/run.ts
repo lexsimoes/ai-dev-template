@@ -1,9 +1,9 @@
-// Checagem de direção semanal: abre (ou atualiza) uma issue com o estado do projeto para o dono revisar.
-// Sem modelo de IA e sem segredos: só a API do GitHub com o token do workflow.
+// Weekly direction check: opens (or updates) an issue with the project state for the owner to review.
+// No AI model and no secrets: only the GitHub API with the workflow token.
 //
-// Uso no CI: node scripts/direction/run.ts
-// Uso local (só imprime a issue, não publica): node scripts/direction/run.ts --dry-run
-//   (GITHUB_TOKEN e GITHUB_REPOSITORY opcionais; sem eles, as seções de PRs e execuções ficam vazias)
+// Use in CI: node scripts/direction/run.ts
+// Local use (only prints the issue, does not publish): node scripts/direction/run.ts --dry-run
+//   (GITHUB_TOKEN and GITHUB_REPOSITORY optional; without them, the PR and run sections stay empty)
 
 import { existsSync, readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
@@ -32,7 +32,7 @@ async function lastRun(workflow: string, query: string): Promise<WorkflowRun | n
 async function main(): Promise<void> {
   const now = new Date();
   const online = Boolean(token && repo);
-  if (!online && !values["dry-run"]) throw new Error("faltam GITHUB_TOKEN e GITHUB_REPOSITORY (ou use --dry-run)");
+  if (!online && !values["dry-run"]) throw new Error("missing GITHUB_TOKEN and GITHUB_REPOSITORY (or use --dry-run)");
 
   const since = now.getTime() - 7 * 86_400_000;
   const closed = online ? await gh<PullRequest[]>("/pulls?state=closed&sort=updated&direction=desc&per_page=100") : [];
@@ -51,18 +51,18 @@ async function main(): Promise<void> {
   console.log(`# ${title}\n\n${body}`);
   if (values["dry-run"]) return;
 
-  // Uma issue aberta por vez: se a anterior ainda está aberta, ela é atualizada (e ganha um comentário, que notifica o dono).
+  // One open issue at a time: if the previous one is still open, it is updated (and gets a comment, which notifies the owner).
   const issues = await gh<Array<{ number: number; body?: string | null; user?: { login?: string }; html_url: string }>>(
     `/issues?state=open&labels=${DIRECTION_LABEL}&per_page=100`,
   );
   const existing = issues.find((i) => i.user?.login === "github-actions[bot]" && i.body?.includes(DIRECTION_MARKER));
   if (existing) {
     await gh(`/issues/${existing.number}`, { method: "PATCH", body: { title, body } });
-    await gh(`/issues/${existing.number}/comments`, { method: "POST", body: { body: `Atualizada: ${title.toLowerCase()}.` } });
-    console.log(`\nIssue atualizada: ${existing.html_url}`);
+    await gh(`/issues/${existing.number}/comments`, { method: "POST", body: { body: `Updated: ${title.toLowerCase()}.` } });
+    console.log(`\nIssue updated: ${existing.html_url}`);
   } else {
     const created = await gh<{ html_url: string }>("/issues", { method: "POST", body: { title, body, labels: [DIRECTION_LABEL] } });
-    console.log(`\nIssue aberta: ${created.html_url}`);
+    console.log(`\nIssue opened: ${created.html_url}`);
   }
 }
 

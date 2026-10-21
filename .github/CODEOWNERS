@@ -1,6 +1,7 @@
-# Arquivos que exigem a aprovação do dono do projeto em qualquer PR.
-# Só tem efeito com a regra "Require review from Code Owners" ligada na proteção da main (M6).
-# O scripts/bootstrap troca @lexsimoes pelo dono do projeto novo (M7).
+# Files owned by the project owner.
+# The invariant guard accepts the `invariant-approved` label only from the owners of /tests/invariants/ listed here.
+# Code-owner review is not required by the protect-main ruleset under option A (agents use the owner's account).
+# The M7 Copier template replaces @lexsimoes with the new project's owner.
 
 /tests/invariants/   @lexsimoes
 /evals/              @lexsimoes

@@ -1,61 +1,61 @@
-# PRD: [nome do projeto]
+# PRD: [project name]
 
-> PRD = documento de requisitos do produto. Curto de propósito: se passar de 2 páginas, corte.
-> Os trechos marcados **(exemplo)** se referem ao app de demonstração do template (loja com cupom e classificador de mensagens). Troque pelos do seu projeto.
+> PRD = product requirements document. Short on purpose: if it goes past 2 pages, cut.
+> The parts marked **(example)** refer to the template's demo app (a store with coupons and a message classifier). Replace them with your project's own.
 
-**Dono:** @[seu-usuario] · **Última revisão:** [AAAA-MM-DD]
+**Owner:** @[your-username] · **Last review:** [YYYY-MM-DD]
 
-## 1. Objetivo
+## 1. Goal
 
-[Uma ou duas frases: que problema o produto resolve e para quem.]
+[One or two sentences: what problem the product solves and for whom.]
 
-(exemplo) Loja online pequena que aplica cupons de desconto corretamente e organiza as mensagens dos clientes por assunto, para responder mais rápido.
+(example) Small online store that applies discount coupons correctly and sorts customer messages by topic, to reply faster.
 
-## 2. Usuários
+## 2. Users
 
-| Quem | O que precisa |
+| Who | What they need |
 |---|---|
-| [tipo de usuário] | [necessidade principal] |
-| (exemplo) Cliente da loja | Pagar o preço certo com cupom |
-| (exemplo) Atendente | Ver as mensagens já separadas por assunto |
+| [user type] | [main need] |
+| (example) Store customer | Pay the right price with a coupon |
+| (example) Support agent | See the messages already sorted by topic |
 
-## 3. Critérios de aceite
+## 3. Acceptance criteria
 
-Cada critério precisa ser **verificável**: alguém (ou um teste) consegue dizer sim ou não.
+Each criterion must be **verifiable**: someone (or a test) can say yes or no.
 
-| ID | Critério | Como verificar |
+| ID | Criterion | How to verify |
 |---|---|---|
-| CA-01 | [critério] | [teste / comando / passo manual] |
-| CA-02 | (exemplo) Cupom de X% reduz o total em X%, arredondado ao centavo | `tests/unit/pricing.test.ts` |
-| CA-03 | (exemplo) Mensagens são classificadas em troca, entrega, pagamento ou outro com ≥ 90% de acerto | `npm run eval` (suite `classify-message`) |
+| CA-01 | [criterion] | [test / command / manual step] |
+| CA-02 | (example) An X% coupon reduces the total by X%, rounded to the cent | `tests/unit/pricing.test.ts` |
+| CA-03 | (example) Messages are classified as `troca`, `entrega`, `pagamento` or `outro` (exchange, delivery, payment or other) with ≥ 90% accuracy | `npm run eval` (suite `classify-message`) |
 
-## 4. Inegociáveis
+## 4. Non-negotiables
 
-Regras que **nunca** podem quebrar. Cada uma tem um teste em `tests/invariants/` que nenhum agente pode editar, pular ou enfraquecer. O CI exige que esses testes passem.
+Rules that can **never** break. Each one has a test in `tests/invariants/` that no agent may edit, skip or weaken. CI requires these tests to pass.
 
-| ID | Regra | Teste |
+| ID | Rule | Test |
 |---|---|---|
-| INV-001 | (exemplo) O total do pedido nunca é negativo nem maior que o subtotal; cupom fora de 0–100% é recusado | `tests/invariants/pricing.invariant.test.ts` |
-| INV-002 | (exemplo) Texto de cliente é dado, nunca instrução: fica isolado no prompt e a saída do modelo só é aceita se estiver na lista fechada | `tests/invariants/llm-output.invariant.test.ts` |
+| INV-001 | (example) The order total is never negative nor greater than the subtotal; a coupon outside 0–100% is rejected | `tests/invariants/pricing.invariant.test.ts` |
+| INV-002 | (example) Customer text is data, never instruction: it stays isolated in the prompt and the model's output is only accepted if it is in the closed list | `tests/invariants/llm-output.invariant.test.ts` |
 
-## 5. Fora do escopo
+## 5. Out of scope
 
-- [o que este projeto **não** vai fazer, para evitar que a missão cresça sozinha]
+- [what this project will **not** do, to keep the mission from growing on its own]
 - (template) The owner's dotfiles and global `CLAUDE.md`: they live in a separate private repository, never in the template.
 
-## 6. Checagem de direção
+## 6. Direction check
 
-Atualizada a cada missão, pelo agente, no PR da missão. Toda segunda-feira, o workflow `Checagem de direção` abre uma issue que confere esta tabela (os arquivos citados como evidência existem?) e pede a sua revisão. Mostra se o que existe hoje atende ao que foi pedido.
+Updated on every mission, by the agent, in the mission's PR. Every Monday, the `Direction check` workflow opens an issue that checks this table (do the files cited as evidence exist?) and asks for your review. It shows whether what exists today meets what was asked for.
 
-| Requisito | Evidência | Status |
+| Requirement | Evidence | Status |
 |---|---|---|
 | CA-01 | | ⬜ |
-| CA-02 | `tests/unit/pricing.test.ts` passando | ✅ |
-| CA-03 | Evals no CI com `deepseek-v4-pro`: 100% de acerto em 10 casos (PR #6, 2026-10-21); `.github/workflows/evals.yml` | ✅ |
+| CA-02 | `tests/unit/pricing.test.ts` passing | ✅ |
+| CA-03 | Evals in CI with `deepseek-v4-pro`: 100% accuracy on 10 cases (PR #6, 2026-10-21); `.github/workflows/evals.yml` | ✅ |
 | INV-001 | `npm run test:invariants` | ✅ |
 | INV-002 | `npm run test:invariants` | ✅ |
 
-Legenda: ✅ feito e verificado · 🟡 parcial · ⬜ não iniciado · ❌ quebrado
+Legend: ✅ done and verified · 🟡 partial · ⬜ not started · ❌ broken
 
 ## 7. Template roadmap
 

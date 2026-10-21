@@ -1,4 +1,4 @@
-// Escolhe o adaptador de LLM pela configuração (LLM_PROVIDER / LLM_MODEL).
+// Picks the LLM adapter from the config (LLM_PROVIDER / LLM_MODEL).
 
 import { createAnthropicClient } from "./providers/anthropic.ts";
 import { createMockClient } from "./providers/mock.ts";
@@ -27,6 +27,6 @@ export function createLLMClient(config: LLMConfig = {}): LLMClient {
     case "mock":
       return createMockClient();
     default:
-      throw new Error(`LLM_PROVIDER desconhecido: "${provider}". Opções: ${PROVIDERS.join(", ")}`);
+      throw new Error(`unknown LLM_PROVIDER: "${provider}". Options: ${PROVIDERS.join(", ")}`);
   }
 }

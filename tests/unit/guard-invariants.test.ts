@@ -1,4 +1,4 @@
-// Guarda dos invariantes: quem pode aprovar (CODEOWNERS) e o fluxo do CI com uma API do GitHub falsa.
+// Invariant guard: who can approve (CODEOWNERS) and the CI flow with a fake GitHub API.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -13,28 +13,28 @@ import type { IssueEvent } from "../../scripts/guard-invariants.ts";
 
 const run = promisify(execFile);
 const SCRIPT = resolve("scripts/guard-invariants.ts");
-const CODEOWNERS = "# comentário\n*  @todos\n/tests/invariants/   @Dono  @org/time\n/evals/ @outra\n";
+const CODEOWNERS = "# comment\n*  @everyone\n/tests/invariants/   @Owner  @org/team\n/evals/ @other\n";
 
-test("CODEOWNERS: a última regra que casa vence; times ficam de fora", () => {
-  assert.deepEqual(ownersOf(CODEOWNERS, "tests/invariants/"), ["dono"]);
-  assert.deepEqual(ownersOf(CODEOWNERS, "src/x.ts"), ["todos"]);
+test("CODEOWNERS: the last matching rule wins; teams are left out", () => {
+  assert.deepEqual(ownersOf(CODEOWNERS, "tests/invariants/"), ["owner"]);
+  assert.deepEqual(ownersOf(CODEOWNERS, "src/x.ts"), ["everyone"]);
   assert.deepEqual(ownersOf("", "tests/invariants/"), []);
-  assert.deepEqual(ownersOf("/tests/invariants @sem-barra\n", "tests/invariants/"), ["sem-barra"], "pasta sem barra final também vale");
-  assert.deepEqual(ownersOf("/tests/inv @outro\n", "tests/invariants/"), [], "prefixo de nome não é pasta");
+  assert.deepEqual(ownersOf("/tests/invariants @no-slash\n", "tests/invariants/"), ["no-slash"], "a folder without a trailing slash also counts");
+  assert.deepEqual(ownersOf("/tests/inv @other\n", "tests/invariants/"), [], "a name prefix is not a folder");
 });
 
-test("rótulo: vale quem o aplicou por último", () => {
-  const ev = (event: string, login: string, name = "invariante-aprovado"): IssueEvent => ({ event, label: { name }, actor: { login }, created_at: "t" });
-  assert.equal(lastLabeler([ev("labeled", "dono"), ev("unlabeled", "dono"), ev("labeled", "agente")], "invariante-aprovado"), "agente");
-  assert.equal(lastLabeler([ev("labeled", "dono", "outro")], "invariante-aprovado"), null);
-  assert.equal(isLabeled([ev("labeled", "dono"), ev("unlabeled", "dono")], "invariante-aprovado"), false, "removido vale, mesmo num Re-run com o payload velho");
-  assert.equal(isLabeled([ev("labeled", "dono"), ev("labeled", "dono", "outro")], "invariante-aprovado"), true);
+test("label: whoever applied it last counts", () => {
+  const ev = (event: string, login: string, name = "invariant-approved"): IssueEvent => ({ event, label: { name }, actor: { login }, created_at: "t" });
+  assert.equal(lastLabeler([ev("labeled", "owner"), ev("unlabeled", "owner"), ev("labeled", "agent")], "invariant-approved"), "agent");
+  assert.equal(lastLabeler([ev("labeled", "owner", "other")], "invariant-approved"), null);
+  assert.equal(isLabeled([ev("labeled", "owner"), ev("unlabeled", "owner")], "invariant-approved"), false, "removal counts, even in a Re-run with the stale payload");
+  assert.equal(isLabeled([ev("labeled", "owner"), ev("labeled", "owner", "other")], "invariant-approved"), true);
 });
 
 let repo = "";
 let server: http.Server;
 let port = 0;
-let labeler = "dono";
+let labeler = "owner";
 let apiStatus = 200;
 
 function git(...args: string[]): void {
@@ -61,7 +61,7 @@ async function guard(labels: string[]): Promise<{ code: number; out: string }> {
         PR_LABELS: JSON.stringify(labels),
         PR_NUMBER: "1",
         GITHUB_REPOSITORY: "o/r",
-        GITHUB_TOKEN: "falso",
+        GITHUB_TOKEN: "fake",
         GITHUB_API_URL: `http://127.0.0.1:${port}`,
         GITHUB_STEP_SUMMARY: "",
       },
@@ -76,11 +76,11 @@ async function guard(labels: string[]): Promise<{ code: number; out: string }> {
 before(async () => {
   server = http.createServer((_req, res) => {
     res.writeHead(apiStatus, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(apiStatus === 200 ? [{ event: "labeled", label: { name: "invariante-aprovado" }, actor: { login: labeler }, created_at: "t" }] : {}));
+    res.end(JSON.stringify(apiStatus === 200 ? [{ event: "labeled", label: { name: "invariant-approved" }, actor: { login: labeler }, created_at: "t" }] : {}));
   });
   await new Promise<void>((ok) => server.listen(0, "127.0.0.1", () => ok()));
   port = (server.address() as { port: number }).port;
-  repo = mkdtempSync(join(tmpdir(), "guarda-"));
+  repo = mkdtempSync(join(tmpdir(), "guard-"));
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
   git("config", "user.email", "t@t");
   git("config", "user.name", "t");
@@ -95,32 +95,32 @@ after(() => {
   rmSync(repo, { recursive: true, force: true });
 });
 
-test("guarda: mudança nos invariantes sem rótulo reprova", async () => {
+test("guard: a change to the invariants without the label fails", async () => {
   const r = await guard([]);
   assert.equal(r.code, 1);
-  assert.match(r.out, /sem um rótulo `invariante-aprovado` válido/);
+  assert.match(r.out, /without a valid `invariant-approved` label/);
 });
 
-test("guarda: rótulo aplicado pelo dono do CODEOWNERS aprova", async () => {
-  labeler = "Dono";
-  const r = await guard(["invariante-aprovado"]);
+test("guard: label applied by the CODEOWNERS owner passes", async () => {
+  labeler = "Owner";
+  const r = await guard(["invariant-approved"]);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /aplicado por @Dono/);
+  assert.match(r.out, /applied by @Owner/);
 });
 
-test("guarda: rótulo aplicado por quem não é dono reprova", async () => {
-  labeler = "agente-bot";
-  const r = await guard(["invariante-aprovado"]);
+test("guard: label applied by a non-owner fails", async () => {
+  labeler = "agent-bot";
+  const r = await guard(["invariant-approved"]);
   assert.equal(r.code, 1);
-  assert.match(r.out, /aplicado por @agente-bot, que não é dono/);
-  assert.match(r.out, /caiu de 2 para 1/);
-  labeler = "dono";
+  assert.match(r.out, /applied by @agent-bot, who is not an owner/);
+  assert.match(r.out, /dropped from 2 to 1/);
+  labeler = "owner";
 });
 
-test("guarda: no CI, sem conseguir conferir quem aplicou o rótulo, reprova", async () => {
+test("guard: in CI, failing to check who applied the label fails", async () => {
   apiStatus = 500;
-  const r = await guard(["invariante-aprovado"]);
+  const r = await guard(["invariant-approved"]);
   assert.equal(r.code, 1);
-  assert.match(r.out, /Não deu para conferir/);
+  assert.match(r.out, /Could not check/);
   apiStatus = 200;
 });

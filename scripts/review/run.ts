@@ -1,21 +1,21 @@
-// Revisor automático de PRs, independente de provedor.
+// Automated PR reviewer, provider-independent.
 //
-// Modos:
-//   --mode ci      no GitHub Actions: decide o tipo de revisão pelo evento, comenta e falha se houver bloqueante
-//   --mode local   na sua máquina: revisão completa da branch atual contra origin/main, impressa no terminal
-//   --mode canary  mede o revisor contra um PR fictício com defeitos plantados (scripts/review/canary/)
-// Opções: --dry-run (mostra o que seria enviado, sem chamar o modelo) · --base <ref> · --tier <nível>
+// Modes:
+//   --mode ci      on GitHub Actions: picks the kind of review from the event, comments, and fails on a blocking finding
+//   --mode local   on your machine: full review of the current branch against origin/main, printed in the terminal
+//   --mode canary  measures the reviewer against a fake PR with planted defects (scripts/review/canary/)
+// Options: --dry-run (shows what would be sent, without calling the model) · --base <ref> · --tier <tier>
 //
-// No CI, o tipo de revisão depende do evento:
-//   PR marcado como pronto / aberto pronto / reaberto → completa (ou incremental, se já houve revisão)
-//   rótulo "revisar-de-novo"                         → incremental desde o último commit revisado
-//   rótulo "revisão-profunda"                        → completa, com o modelo mais forte
-//   push depois da revisão                           → sem chamada ao modelo: mantém o veredito anterior,
-//                                                      mas falha se os commits novos tiverem segredo,
-//                                                      caminho sensível ou se houver bloqueante pendente
+// In CI, the kind of review depends on the event:
+//   PR marked ready / opened ready / reopened → full (or incremental, if a review already happened)
+//   label "re-review"                         → incremental since the last reviewed commit
+//   label "deep-review"                       → full, with the strongest model
+//   push after the review                     → no model call: keeps the previous verdict,
+//                                               but fails if the new commits have a secret,
+//                                               a sensitive path, or if a blocking finding is pending
 //
-// Critérios (REVIEW.md), regras (AGENTS.md) e configuração (.github/review.json) são lidos da pasta
-// onde este script está. No CI ela é a branch de destino: um PR não afrouxa a própria revisão.
+// Criteria (REVIEW.md), rules (AGENTS.md) and configuration (.github/review.json) are read from the folder
+// where this script lives. In CI that is the target branch: a PR cannot loosen its own review.
 
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
@@ -60,16 +60,16 @@ import type {
 import { ModelCallError, callModel } from "./providers.ts";
 
 const SOURCE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-// O GitHub Actions define GITHUB_API_URL (também aponta para GitHub Enterprise).
+// GitHub Actions sets GITHUB_API_URL (it also points to GitHub Enterprise).
 const API = process.env.GITHUB_API_URL || "https://api.github.com";
 const CANARY_DIR = join(SOURCE_DIR, "scripts", "review", "canary");
 
 interface CanaryDefect {
   id: string;
-  descricao: string;
-  arquivo: string;
-  linhas: [number, number] | null;
-  severidadeMinima: Severity;
+  description: string;
+  file: string;
+  lines: [number, number] | null;
+  minSeverity: Severity;
 }
 
 interface ExistingComment {
@@ -83,22 +83,22 @@ function readSource(path: string): string {
 
 function loadConfig(): ReviewConfig {
   const config = JSON.parse(readSource(".github/review.json")) as ReviewConfig;
-  // As variáveis do repositório trocam o provedor do nível padrão e do leve (que é o padrão com menos raciocínio).
-  for (const name of ["padrao", "leve"] as const) {
+  // The repository variables switch the provider of the standard tier and of light (standard with less reasoning).
+  for (const name of ["standard", "light"] as const) {
     if (process.env.REVIEW_API_BASE_URL) config.tiers[name].baseUrl = process.env.REVIEW_API_BASE_URL;
     if (process.env.REVIEW_MODEL) config.tiers[name].model = process.env.REVIEW_MODEL;
   }
   return config;
 }
 
-// core.quotePath=false: nomes com acento saem como estão (sem aspas nem códigos octais).
+// core.quotePath=false: names with accents come out as they are (no quotes or octal codes).
 function git(...args: string[]): string {
   return execFileSync("git", ["-c", "core.quotePath=false", ...args], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
 }
 
 /**
- * O commit revisado ainda está no histórico do PR? "Não é ancestral" (saída 1) e "commit inexistente"
- * (force-push que o apagou) dão false; qualquer outro erro do git é erro de verdade, não "force-push".
+ * Is the reviewed commit still in the PR history? "Not an ancestor" (exit 1) and "commit does not exist"
+ * (a force-push removed it) give false; any other git error is a real error, not "force-push".
  */
 function isAncestor(ancestor: string, descendant: string): boolean {
   try {
@@ -108,7 +108,7 @@ function isAncestor(ancestor: string, descendant: string): boolean {
     const err = e as { status?: number; stderr?: Buffer | string };
     const stderr = String(err.stderr ?? "");
     if (err.status === 1 || /not a valid commit|bad object|unknown revision/i.test(stderr)) return false;
-    throw new Error(`git merge-base falhou (${err.status ?? "?"}): ${stderr.trim().slice(0, 300)}`, { cause: e });
+    throw new Error(`git merge-base failed (${err.status ?? "?"}): ${stderr.trim().slice(0, 300)}`, { cause: e });
   }
 }
 
@@ -116,18 +116,18 @@ function isAncestor(ancestor: string, descendant: string): boolean {
 
 function githubEnv() {
   const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_NUMBER: pr } = process.env;
-  if (!token || !repo || !pr) throw new Error("faltam GITHUB_TOKEN, GITHUB_REPOSITORY ou PR_NUMBER");
+  if (!token || !repo || !pr) throw new Error("missing GITHUB_TOKEN, GITHUB_REPOSITORY or PR_NUMBER");
   return { repo, pr, headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } };
 }
 
 async function findComment(): Promise<ExistingComment | null> {
   const { repo, pr, headers } = githubEnv();
-  // Pagina: em PRs com muitos comentários, o do revisor pode não estar na primeira página.
+  // Paginates: on PRs with many comments, the reviewer's may not be on the first page.
   for (let page = 1; page <= 20; page++) {
     const list = await fetch(`${API}/repos/${repo}/issues/${pr}/comments?per_page=100&page=${page}`, { headers });
-    if (!list.ok) throw new Error(`não consegui listar comentários (HTTP ${list.status})`);
+    if (!list.ok) throw new Error(`could not list comments (HTTP ${list.status})`);
     const comments = (await list.json()) as Array<{ id: number; body?: string; user?: { login?: string } }>;
-    // Só vale o comentário do próprio robô do GitHub Actions.
+    // Only the comment from the GitHub Actions bot itself counts.
     const mine = comments.find((c) => c.user?.login === "github-actions[bot]" && c.body?.includes(REPORT_MARKER));
     if (mine) return { id: mine.id, body: mine.body ?? "" };
     if (comments.length < 100) return null;
@@ -145,72 +145,72 @@ async function upsertComment(existing: ExistingComment | null, body: string): Pr
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ body }),
   });
-  if (!response.ok) throw new Error(`não consegui publicar o comentário (HTTP ${response.status})`);
+  if (!response.ok) throw new Error(`could not post the comment (HTTP ${response.status})`);
 }
 
-/** Tira o rótulo "revisar-de-novo" depois de usá-lo, para poder ser aplicado de novo. */
+/** Removes the "re-review" label after using it, so it can be applied again. */
 async function removeLabel(label: string): Promise<void> {
   const { repo, pr, headers } = githubEnv();
   const response = await fetch(`${API}/repos/${repo}/issues/${pr}/labels/${encodeURIComponent(label)}`, {
     method: "DELETE",
     headers,
   });
-  if (!response.ok && response.status !== 404) console.warn(`Aviso: não consegui remover o rótulo ${label} (HTTP ${response.status}).`);
+  if (!response.ok && response.status !== 404) console.warn(`Warning: could not remove the label ${label} (HTTP ${response.status}).`);
 }
 
-// ---------- canário ----------
+// ---------- canary ----------
 
-/** Canário incremental: o achado NÃO corrigido não pode virar "resolvido"; o corrigido deve. */
-function evaluateIncrementalCanary(resolved: Array<{ id: number; status: string; titulo: string; comentario: string }>): {
+/** Incremental canary: the finding NOT fixed must not become "resolved"; the fixed one must. */
+function evaluateIncrementalCanary(resolved: Array<{ id: number; status: string; title: string; comment: string }>): {
   text: string;
   passed: boolean;
 } {
   const expected = JSON.parse(readFileSync(join(CANARY_DIR, "incremental", "expected.json"), "utf-8")) as {
-    resolvido: number[];
-    pendente: number[];
+    resolved: number[];
+    pending: number[];
   };
   const rows = resolved.map((r) => {
-    const want = expected.resolvido.includes(r.id) ? "resolvido" : expected.pendente.includes(r.id) ? "pendente" : "?";
+    const want = expected.resolved.includes(r.id) ? "resolved" : expected.pending.includes(r.id) ? "pending" : "?";
     return { r, want, ok: r.status === want };
   });
-  const passed = rows.every((x) => x.ok) && rows.length === expected.resolvido.length + expected.pendente.length;
+  const passed = rows.every((x) => x.ok) && rows.length === expected.resolved.length + expected.pending.length;
   const lines = [
-    `## 🐤 Canário incremental: ${rows.filter((x) => x.ok).length} de ${rows.length} vereditos corretos`,
+    `## 🐤 Incremental canary: ${rows.filter((x) => x.ok).length} of ${rows.length} verdicts correct`,
     "",
-    "| Achado anterior | Esperado | Veredito do modelo |",
+    "| Previous finding | Expected | Model verdict |",
     "|---|---|---|",
-    ...rows.map(({ r, want, ok }) => `| ${r.id}. ${r.titulo} | ${want} | ${ok ? "✅" : "❌"} ${r.status}: ${r.comentario} |`),
+    ...rows.map(({ r, want, ok }) => `| ${r.id}. ${r.title} | ${want} | ${ok ? "✅" : "❌"} ${r.status}: ${r.comment} |`),
   ];
   return { text: lines.join("\n"), passed };
 }
 
 function evaluateCanary(findings: Finding[]): { text: string; passed: boolean } {
   const expected = JSON.parse(readFileSync(join(CANARY_DIR, "expected.json"), "utf-8")) as CanaryDefect[];
-  const rank: Record<Severity, number> = { bloqueante: 0, importante: 1, sugestao: 2 };
+  const rank: Record<Severity, number> = { blocking: 0, important: 1, suggestion: 2 };
   const rows = expected.map((d) => {
     const hit = findings.find(
       (f) =>
-        f.arquivo === d.arquivo &&
-        rank[f.severidade] <= rank[d.severidadeMinima] &&
-        (d.linhas === null || f.linha === null || (f.linha >= d.linhas[0] - 3 && f.linha <= d.linhas[1] + 3)),
+        f.file === d.file &&
+        rank[f.severity] <= rank[d.minSeverity] &&
+        (d.lines === null || f.line === null || (f.line >= d.lines[0] - 3 && f.line <= d.lines[1] + 3)),
     );
     return { d, hit };
   });
   const found = rows.filter((r) => r.hit).length;
   const lines = [
-    `## 🐤 Canário do revisor: ${found} de ${expected.length} defeitos plantados encontrados`,
+    `## 🐤 Review canary: ${found} of ${expected.length} planted defects found`,
     "",
-    "| Defeito plantado | Esperado | Resultado |",
+    "| Planted defect | Expected | Result |",
     "|---|---|---|",
     ...rows.map(
       ({ d, hit }) =>
-        `| ${d.descricao} (\`${d.arquivo}\`) | ${d.severidadeMinima} ou pior | ${hit ? `✅ ${hit.severidade}: ${hit.titulo}` : "❌ não encontrado"} |`,
+        `| ${d.description} (\`${d.file}\`) | ${d.minSeverity} or worse | ${hit ? `✅ ${hit.severity}: ${hit.title}` : "❌ not found"} |`,
     ),
   ];
   return { text: lines.join("\n"), passed: found === expected.length };
 }
 
-// ---------- execução ----------
+// ---------- run ----------
 
 async function main(): Promise<number> {
   const { values } = parseArgs({
@@ -219,17 +219,17 @@ async function main(): Promise<number> {
       "dry-run": { type: "boolean", default: false },
       base: { type: "string" },
       tier: { type: "string" },
-      canary: { type: "string", default: "completa" },
+      canary: { type: "string", default: "full" },
     },
   });
   const mode = values.mode ?? "local";
-  if (!["ci", "local", "canary"].includes(mode)) throw new Error(`modo desconhecido: ${mode}`);
+  if (!["ci", "local", "canary"].includes(mode)) throw new Error(`unknown mode: ${mode}`);
 
   const started = Date.now();
   const config = loadConfig();
   const notes: string[] = [];
 
-  // Contexto do PR
+  // PR context
   const baseRef = mode === "ci" ? `origin/${process.env.BASE_REF || "main"}` : (values.base ?? "origin/main");
   const headSha = mode === "ci" ? (process.env.HEAD_SHA || git("rev-parse", "HEAD").trim()) : "HEAD";
   let labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
@@ -237,29 +237,29 @@ async function main(): Promise<number> {
   let body = process.env.PR_BODY ?? "";
   if (mode === "local") title = git("log", "-1", "--format=%s").trim();
 
-  const canaryCase = values.canary ?? "completa";
-  if (mode === "canary" && !["completa", "leve", "incremental"].includes(canaryCase)) throw new Error(`caso de canário desconhecido: ${canaryCase}`);
+  const canaryCase = values.canary ?? "full";
+  if (mode === "canary" && !["full", "light", "incremental"].includes(canaryCase)) throw new Error(`unknown canary case: ${canaryCase}`);
   const incrementalCanary = mode === "canary" && canaryCase === "incremental";
 
   const existing = mode === "ci" && !values["dry-run"] ? await findComment() : null;
-  // Canário incremental: estado fictício com os achados "anteriores" do caso.
+  // Incremental canary: fake state with the case's "previous" findings.
   const state: ReviewState | null = incrementalCanary
-    ? { sha: "0".repeat(40), achados: JSON.parse(readFileSync(join(CANARY_DIR, "incremental", "anteriores.json"), "utf-8")) as Finding[] }
+    ? { sha: "0".repeat(40), findings: JSON.parse(readFileSync(join(CANARY_DIR, "incremental", "previous.json"), "utf-8")) as Finding[] }
     : existing
       ? decodeState(existing.body)
       : null;
-  if (existing && !state && existing.body.includes("revisor-estado")) notes.push("O estado guardado no comentário era inválido e foi ignorado.");
+  if (existing && !state && existing.body.includes("review-state")) notes.push("The state stored in the comment was invalid and was ignored.");
   const stateReachable = mode === "ci" && state !== null && isAncestor(state.sha, headSha);
   const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "", labels };
   const decision =
     mode === "ci"
       ? decideKind(event, config, state, stateReachable)
-      : { kind: (incrementalCanary ? "incremental" : "completa") as ReviewKind, note: null };
+      : { kind: (incrementalCanary ? "incremental" : "full") as ReviewKind, note: null };
   const kind = decision.kind;
   if (decision.note) notes.push(decision.note);
 
-  // Diff a analisar: o PR inteiro, ou só o que mudou desde a última revisão.
-  // Os detectores de segredo sempre olham o PR inteiro: um segredo só some quando sai do PR.
+  // Diff to analyze: the whole PR, or only what changed since the last review.
+  // The secret detectors always look at the whole PR: a secret only goes away when it leaves the PR.
   let diff: string;
   let fullDiff: string;
   let prPaths: string[];
@@ -268,21 +268,21 @@ async function main(): Promise<number> {
     title = pr.title;
     body = pr.body;
     labels = pr.labels ?? [];
-    // O segredo falso é gerado na hora: nenhum valor parecido com chave fica gravado no repositório.
-    const fake = ["canario", "nao", "e", "real", Date.now().toString(36), "x".repeat(12)].join("-");
+    // The fake secret is generated on the spot: no key-like value is stored in the repository.
+    const fake = ["canary", "not", "a", "real", Date.now().toString(36), "x".repeat(12)].join("-");
     diff = incrementalCanary
       ? readFileSync(join(CANARY_DIR, "incremental", "incremental.diff"), "utf-8")
-      : readFileSync(join(CANARY_DIR, "canary.diff"), "utf-8").replaceAll("{{SEGREDO_FALSO}}", fake);
+      : readFileSync(join(CANARY_DIR, "canary.diff"), "utf-8").replaceAll("{{FAKE_SECRET}}", fake);
     fullDiff = diff;
     prPaths = splitDiff(diff).map((f) => f.path);
   } else {
     prPaths = git("diff", "--name-only", "-z", `${baseRef}...${headSha}`).split("\0").filter(Boolean);
     fullDiff = git("diff", "--no-color", "-U5", `${baseRef}...${headSha}`);
-    const incrementalBase = (kind === "incremental" || kind === "sem-revisao") && state && stateReachable ? state.sha : null;
+    const incrementalBase = (kind === "incremental" || kind === "no-review") && state && stateReachable ? state.sha : null;
     diff = incrementalBase ? git("diff", "--no-color", "-U5", incrementalBase, headSha) : fullDiff;
   }
 
-  // Só arquivos do PR: um merge da main na branch não infla o diff incremental.
+  // Only PR files: merging main into the branch does not inflate the incremental diff.
   const prPathSet = new Set(prPaths);
   const allFiles = splitDiff(diff).filter((f) => prPathSet.has(f.path) || mode === "canary");
   const filtered = filterFiles(allFiles, config);
@@ -296,25 +296,25 @@ async function main(): Promise<number> {
     ...fullHits.filter((h) => h.added).map((h) => secretFinding(h.path, h.line)),
   ];
   const contextHits = redacted.flatMap((r) => r.hits).filter((h) => !h.added).length;
-  if (contextHits > 0) notes.push(`${contextHits} possível(is) segredo(s) em linhas já existentes foram redigidos antes do envio.`);
+  if (contextHits > 0) notes.push(`${contextHits} possible secret(s) in existing lines were redacted before sending.`);
 
-  // ----- push depois da revisão: nenhuma chamada ao modelo -----
-  if (kind === "sem-revisao") {
+  // ----- push after the review: no model call -----
+  if (kind === "no-review") {
     const changed = allFiles.map((f) => f.path);
     const reasons = pushReasons({ state, stateReachable, secretFindings, changedPaths: changed, config });
-    const since = state ? ` desde \`${state.sha.slice(0, 7)}\`` : "";
+    const since = state ? ` since \`${state.sha.slice(0, 7)}\`` : "";
     const banner = [
-      `> ⏩ **Commits novos${since} não foram revisados pelo modelo** (push depois da revisão: \`${headSha.slice(0, 7)}\`).`,
-      changed.length ? `> Arquivos alterados: ${changed.map((p) => `\`${p}\``).join(", ")}` : "",
+      `> ⏩ **New commits${since} were not reviewed by the model** (push after the review: \`${headSha.slice(0, 7)}\`).`,
+      changed.length ? `> Changed files: ${changed.map((p) => `\`${p}\``).join(", ")}` : "",
       reasons.length
-        ? `> ❌ Check vermelho: ${reasons.join("; ")}. Corrija se for o caso e aplique o rótulo \`${config.rereviewLabel}\` para uma nova revisão.`
-        : `> ✅ Check verde: veredito anterior mantido. **O verde não cobre estes commits**: para revisá-los, aplique o rótulo \`${config.rereviewLabel}\`.`,
+        ? `> ❌ Red check: ${reasons.join("; ")}. Fix it if needed and apply the \`${config.rereviewLabel}\` label for a new review.`
+        : `> ✅ Green check: previous verdict kept. **Green does not cover these commits**: to review them, apply the \`${config.rereviewLabel}\` label.`,
     ]
       .filter(Boolean)
       .join("\n");
-    // Nada mudou desde a revisão (ex.: um rótulo alheio): o veredito é recalculado e o comentário fica como está.
+    // Nothing changed since the review (e.g. an unrelated label): the verdict is recomputed and the comment stays as it is.
     if (state && changed.length === 0) {
-      const verdict = reasons.length ? `❌ Check vermelho: ${reasons.join("; ")}.` : "✅ Veredito da última revisão mantido.";
+      const verdict = reasons.length ? `❌ Red check: ${reasons.join("; ")}.` : "✅ Verdict from the last review kept.";
       console.log(verdict);
       if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, verdict + "\n");
       return reasons.length ? 1 : 0;
@@ -326,40 +326,40 @@ async function main(): Promise<number> {
     return reasons.length ? 1 : 0;
   }
 
-  // ----- nível -----
+  // ----- tier -----
   const selected = values.tier
-    ? { tier: values.tier as TierName, reason: "nível escolhido por --tier" }
+    ? { tier: values.tier as TierName, reason: "tier chosen by --tier" }
     : mode === "canary"
-      ? canaryCase === "leve"
-        ? { tier: "leve" as TierName, reason: "canário do nível leve" }
-        : { tier: "padrao" as TierName, reason: `canário (${canaryCase}) mede o nível padrão` }
+      ? canaryCase === "light"
+        ? { tier: "light" as TierName, reason: "light tier canary" }
+        : { tier: "standard" as TierName, reason: `canary (${canaryCase}) measures the standard tier` }
       : selectTier(prPaths, labels, config);
   let tierName = selected.tier;
   let tier = config.tiers[tierName];
-  if (!tier) throw new Error(`nível desconhecido: ${tierName}`);
-  if ((tierName === "sensivel" || tierName === "profunda") && !process.env[tier.apiKeyEnv]) {
+  if (!tier) throw new Error(`unknown tier: ${tierName}`);
+  if ((tierName === "sensitive" || tierName === "deep") && !process.env[tier.apiKeyEnv]) {
     notes.push(
-      `Escalonamento para \`${tier.model}\` (${selected.reason}) **não executado**: o segredo \`${tier.apiKeyEnv}\` não está configurado. Revisado pelo nível padrão.`,
+      `Escalation to \`${tier.model}\` (${selected.reason}) **not run**: the secret \`${tier.apiKeyEnv}\` is not configured. Reviewed by the standard tier.`,
     );
-    tierName = "padrao";
-    tier = config.tiers.padrao;
+    tierName = "standard";
+    tier = config.tiers.standard;
   }
   const dispensed = mode === "ci" && isDispensed(kind, tierName, config);
-  const finalKind: ReviewKind = dispensed ? "dispensada" : kind;
+  const finalKind: ReviewKind = dispensed ? "waived" : kind;
 
-  // ----- achados anteriores (revisão incremental) -----
-  // Achados de detector não entram: o detector roda de novo no PR inteiro e os reporta enquanto existirem.
-  // Arquivo renomeado desde a última revisão: o achado passa para o caminho novo (renomear não fecha achado).
+  // ----- previous findings (incremental review) -----
+  // Detector findings are left out: the detector runs again on the whole PR and reports them while they exist.
+  // File renamed since the last review: the finding moves to the new path (renaming does not close a finding).
   const renames =
     finalKind === "incremental" && state && mode !== "canary"
       ? parseRenames(git("diff", "--name-status", "-z", "-M", state.sha, headSha))
       : {};
   const previous: PreviousFinding[] =
     finalKind === "incremental"
-      ? retargetRenamed((state?.achados ?? []).filter((a) => a.origem !== "detector"), renames).map((a, i) => ({ ...a, id: i + 1 }))
+      ? retargetRenamed((state?.findings ?? []).filter((a) => a.origin !== "detector"), renames).map((a, i) => ({ ...a, id: i + 1 }))
       : [];
   const changedNow = new Set(included.map((f) => f.path));
-  const toCheck = previous.filter((p) => p.arquivo === "PR" || changedNow.has(p.arquivo));
+  const toCheck = previous.filter((p) => p.file === "PR" || changedNow.has(p.file));
 
   const diffText = included.map((f) => f.text).join("\n");
   const prompt = buildPrompt({
@@ -378,34 +378,34 @@ async function main(): Promise<number> {
   if (values["dry-run"]) {
     console.log(
       [
-        `Modo: ${mode} (dry-run, nenhuma chamada ao modelo) · tipo: ${finalKind}`,
-        `Nível: ${tierName} (${selected.reason}) · modelo: ${tier.model}`,
-        ...notes.map((n) => `Nota: ${n}`),
-        `Arquivos enviados (${included.length}): ${included.map((f) => f.path).join(", ") || "nenhum"}`,
-        `Nunca enviados (segredo): ${filtered.excluded.join(", ") || "nenhum"}`,
-        `Ignorados (configuração): ${filtered.ignored.join(", ") || "nenhum"}`,
-        `Possíveis segredos em linhas adicionadas: ${secretFindings.length}`,
-        `Tamanho do diff: ${diffText.length} de ${config.maxDiffChars} caracteres permitidos`,
-        `Prompt: ${prompt.system.length} caracteres de sistema (fixos, aproveitam cache) + ${prompt.user.length} do PR`,
+        `Mode: ${mode} (dry-run, no model call) · kind: ${finalKind}`,
+        `Tier: ${tierName} (${selected.reason}) · model: ${tier.model}`,
+        ...notes.map((n) => `Note: ${n}`),
+        `Files sent (${included.length}): ${included.map((f) => f.path).join(", ") || "none"}`,
+        `Never sent (secret): ${filtered.excluded.join(", ") || "none"}`,
+        `Ignored (configuration): ${filtered.ignored.join(", ") || "none"}`,
+        `Possible secrets in added lines: ${secretFindings.length}`,
+        `Diff size: ${diffText.length} of ${config.maxDiffChars} characters allowed`,
+        `Prompt: ${prompt.system.length} system characters (fixed, cache-friendly) + ${prompt.user.length} from the PR`,
       ].join("\n"),
     );
     return 0;
   }
 
-  // ----- chamada ao modelo -----
+  // ----- model call -----
   let review: ParsedReview | null = null;
   let usage: Usage | null = null;
   let error: string | null = null;
   const apiKey = process.env[tier.apiKeyEnv];
-  const needsModel = finalKind !== "dispensada" && (included.length > 0 || toCheck.length > 0);
-  if (finalKind === "dispensada") {
-    notes.push('PR trivial com `trivial.mode = "nenhuma"`: só os detectores de segredo rodaram.');
+  const needsModel = finalKind !== "waived" && (included.length > 0 || toCheck.length > 0);
+  if (finalKind === "waived") {
+    notes.push('Trivial PR with `trivial.mode = "none"`: only the secret detectors ran.');
   } else if (!needsModel) {
-    notes.push("Nenhum arquivo revisável no diff.");
+    notes.push("No reviewable file in the diff.");
   } else if (diffText.length > config.maxDiffChars) {
-    error = `o diff tem ${diffText.length} caracteres, acima do limite de ${config.maxDiffChars}. Divida o PR em partes menores.`;
+    error = `the diff has ${diffText.length} characters, above the limit of ${config.maxDiffChars}. Split the PR into smaller parts.`;
   } else if (!apiKey) {
-    error = `o segredo \`${tier.apiKeyEnv}\` não está disponível neste ambiente.`;
+    error = `the secret \`${tier.apiKeyEnv}\` is not available in this environment.`;
   } else {
     try {
       const reply = await callModel(tier, apiKey, prompt, config.timeoutMs);
@@ -418,7 +418,7 @@ async function main(): Promise<number> {
   }
 
   const checkedIds = new Set(toCheck.map((p) => p.id));
-  const resolved = resolvePrevious(previous, (review?.anteriores ?? []).filter((s) => checkedIds.has(s.id)), {
+  const resolved = resolvePrevious(previous, (review?.previous ?? []).filter((s) => checkedIds.has(s.id)), {
     deletedPaths: deletedFiles(splitDiff(diff)),
     prPaths: mode === "canary" ? undefined : prPaths,
     changedPaths: [...changedNow],
@@ -442,7 +442,7 @@ async function main(): Promise<number> {
   };
   let markdown = renderReport(report);
   const open = openFindings(report);
-  const blocking = open.filter((f) => f.severidade === "bloqueante").length;
+  const blocking = open.filter((f) => f.severity === "blocking").length;
 
   let exitCode = error || blocking > 0 ? 1 : 0;
   if (incrementalCanary) {
@@ -450,7 +450,7 @@ async function main(): Promise<number> {
     markdown = `${canary.text}\n\n${markdown}`;
     exitCode = error || !canary.passed ? 1 : 0;
   } else if (mode === "canary") {
-    const canary = evaluateCanary([...secretFindings, ...(review?.achados ?? [])]);
+    const canary = evaluateCanary([...secretFindings, ...(review?.findings ?? [])]);
     markdown = `${canary.text}\n\n${markdown}`;
     exitCode = error || !canary.passed ? 1 : 0;
   }
@@ -458,10 +458,10 @@ async function main(): Promise<number> {
   console.log(markdown);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown + "\n");
   if (mode === "ci") {
-    // Só avança o estado quando a revisão terminou. Em erro, o estado anterior continua valendo,
-    // mas marcado com a falha: o próximo push não fica verde até uma revisão terminar bem.
-    const newState: ReviewState | null = error ? (state ? { ...state, falha: headSha } : null) : { sha: headSha, achados: open };
-    const banner = `> Pushes novos não disparam outra revisão. Para revisar de novo (só o que mudou), aplique o rótulo \`${config.rereviewLabel}\`.`;
+    // Only advance the state when the review finished. On error, the previous state still holds,
+    // but marked with the failure: the next push does not turn green until a review finishes well.
+    const newState: ReviewState | null = error ? (state ? { ...state, failure: headSha } : null) : { sha: headSha, findings: open };
+    const banner = `> New pushes do not trigger another review. To review again (only what changed), apply the \`${config.rereviewLabel}\` label.`;
     await upsertComment(existing, composeComment(banner, markdown, newState));
     if (labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);
   }
@@ -471,7 +471,7 @@ async function main(): Promise<number> {
 main().then(
   (code) => process.exit(code),
   (e: unknown) => {
-    console.error(`Revisor: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`Reviewer: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   },
 );

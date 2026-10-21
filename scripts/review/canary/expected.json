@@ -1,8 +1,8 @@
 [
-  { "id": "invariante-pulado", "descricao": "Teste de invariante desligado com .skip", "arquivo": "tests/invariants/pricing.invariant.test.ts", "linhas": [45, 45], "severidadeMinima": "bloqueante" },
-  { "id": "erro-disfarcado", "descricao": "catch que devolve total 0 (pedido grátis) em vez de falhar", "arquivo": "src/pricing.ts", "linhas": [39, 45], "severidadeMinima": "bloqueante" },
-  { "id": "conteudo-externo-instrucao", "descricao": "Comando vindo do e-mail do cliente executado com execSync", "arquivo": "src/support/auto-reply.ts", "linhas": [6, 9], "severidadeMinima": "bloqueante" },
-  { "id": "segredo", "descricao": "Chave escrita no código (detector determinístico)", "arquivo": "src/config.ts", "linhas": [2, 2], "severidadeMinima": "bloqueante" },
-  { "id": "verificado-sem-evidencia", "descricao": "Descrição marca ✅ \"testado em produção\" sem evidência", "arquivo": "PR", "linhas": null, "severidadeMinima": "importante" },
-  { "id": "ux-stack-trace", "descricao": "Stack trace mostrado ao cliente", "arquivo": "src/server/errors.ts", "linhas": [6, 6], "severidadeMinima": "importante" }
+  { "id": "skipped-invariant", "description": "Invariant test turned off with .skip", "file": "tests/invariants/pricing.invariant.test.ts", "lines": [45, 45], "minSeverity": "blocking" },
+  { "id": "disguised-error", "description": "catch that returns total 0 (free order) instead of failing", "file": "src/pricing.ts", "lines": [39, 45], "minSeverity": "blocking" },
+  { "id": "external-content-as-instruction", "description": "Command from the customer's email run with execSync", "file": "src/support/auto-reply.ts", "lines": [6, 9], "minSeverity": "blocking" },
+  { "id": "secret", "description": "Key written in the code (deterministic detector)", "file": "src/config.ts", "lines": [2, 2], "minSeverity": "blocking" },
+  { "id": "verified-without-evidence", "description": "Description marks ✅ \"tested in production\" without evidence", "file": "PR", "lines": null, "minSeverity": "important" },
+  { "id": "ux-stack-trace", "description": "Stack trace shown to the customer", "file": "src/server/errors.ts", "lines": [6, 6], "minSeverity": "important" }
 ]

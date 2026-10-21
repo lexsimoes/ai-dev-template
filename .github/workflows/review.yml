@@ -1,13 +1,13 @@
-# Revisão independente: um modelo de IA diferente do que implementou lê o diff
-# do PR com os critérios do REVIEW.md e comenta o resultado no PR.
-# DeepSeek por padrão; Sonnet em caminhos sensíveis; Opus com o rótulo "revisão-profunda".
+# Independent review: an AI model different from the one that implemented reads the PR's diff
+# with the criteria in REVIEW.md and comments the result on the PR.
+# DeepSeek by default; Sonnet on sensitive paths; Opus with the "deep-review" label.
 #
-# Economia: rascunhos são ignorados; a revisão completa roda uma vez, quando o PR fica pronto.
-# Pushes seguintes não chamam o modelo (só mantêm ou derrubam o veredito anterior);
-# para revisar de novo, só o que mudou, aplica-se o rótulo "revisar-de-novo".
-# O nome do job (revisao) vira check obrigatório no M6.
+# Savings: drafts are ignored; the full review runs once, when the PR becomes ready.
+# Later pushes do not call the model (they only keep or drop the previous verdict);
+# to review again, only what changed, apply the "re-review" label.
+# The job name (review) becomes a required check in M6.
 
-name: Revisão
+name: Review
 
 on:
   pull_request:
@@ -17,62 +17,62 @@ permissions:
   contents: read
 
 jobs:
-  revisao:
-    name: revisao
-    # Só PRs prontos (rascunhos não podem ser mesclados; ao ficar pronto, o PR é revisado).
-    # Os demais eventos (inclusive rótulos alheios) rodam sem chamar o modelo e recalculam o veredito:
-    # este check é obrigatório na main, e um job pulado contaria como verde.
+  review:
+    name: review
+    # Only ready PRs (drafts cannot be merged; when it becomes ready, the PR is reviewed).
+    # The other events (including unrelated labels) run without calling the model and recompute the verdict:
+    # this check is required on main, and a skipped job would count as green.
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Sem cancelar: um push logo depois de "pronto" não pode jogar fora uma revisão já paga.
-    # A fila guarda só uma execução pendente; se ela descartar a do rótulo "revisar-de-novo",
-    # a execução seguinte encontra o rótulo no PR e faz a revisão pedida. Com "revisão-profunda"
-    # não há essa recuperação (o rótulo fica no PR, e reagir a ele a cada push sairia caro):
-    # se a revisão profunda não aparecer no comentário, remova e aplique o rótulo de novo.
+    # No cancelling: a push right after "ready" must not throw away a review already paid for.
+    # The queue keeps only one pending run; if it drops the "re-review" label's run,
+    # the next run finds the label on the PR and runs the requested review. With "deep-review"
+    # there is no such recovery (the label stays on the PR, and reacting to it on every push would be costly):
+    # if the deep review does not show up in the comment, remove the label and apply it again.
     concurrency:
-      group: revisao-${{ github.event.pull_request.number }}
+      group: review-${{ github.event.pull_request.number }}
       cancel-in-progress: false
     permissions:
       contents: read
-      pull-requests: write # publicar o relatório como comentário no PR
+      pull-requests: write # post the report as a comment on the PR
     steps:
-      - name: PR de fork
-        # Forks não recebem segredos: o revisor não roda e o check fica vermelho, nunca verde por omissão.
+      - name: Fork PR
+        # Forks do not get secrets: the reviewer does not run and the check turns red, never green by omission.
         if: github.event.pull_request.head.repo.full_name != github.repository
         run: |
-          echo "::error::PR vindo de fork: a revisão automática não roda (sem acesso aos segredos). Revise o diff à mão; para mesclar, traga as mudanças para uma branch deste repositório."
+          echo "::error::PR from a fork: the automated review does not run (no access to secrets). Review the diff by hand; to merge, bring the changes to a branch of this repository."
           exit 1
-      - name: Código do PR (só para calcular o diff)
+      - name: PR code (only to compute the diff)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: pr
           fetch-depth: 0
           persist-credentials: false
-      - name: Revisor da branch de destino (o PR não altera a própria revisão)
+      - name: Reviewer from the target branch (the PR does not change its own review)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: base
           ref: ${{ github.base_ref }}
           persist-credentials: false
-      - name: Escolher a versão do revisor
-        id: fonte
+      - name: Choose the reviewer version
+        id: source
         run: |
           if [ -f base/scripts/review/run.ts ]; then
             echo "dir=base" >> "$GITHUB_OUTPUT"
           else
             echo "dir=pr" >> "$GITHUB_OUTPUT"
-            echo "::warning::O revisor ainda não existe na branch de destino; usando a versão deste PR (instalação inicial)."
+            echo "::warning::The reviewer does not exist on the target branch yet; using this PR's version (initial setup)."
           fi
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: ${{ steps.fonte.outputs.dir }}/.nvmrc
+          node-version-file: ${{ steps.source.outputs.dir }}/.nvmrc
           cache: npm
-          cache-dependency-path: ${{ steps.fonte.outputs.dir }}/package-lock.json
-      - name: Instalar o revisor
-        working-directory: ${{ steps.fonte.outputs.dir }}
+          cache-dependency-path: ${{ steps.source.outputs.dir }}/package-lock.json
+      - name: Install the reviewer
+        working-directory: ${{ steps.source.outputs.dir }}
         run: npm ci
-      - name: Revisar
+      - name: Review
         working-directory: pr
         env:
           REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
@@ -88,5 +88,5 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EVENT_ACTION: ${{ github.event.action }}
           EVENT_LABEL: ${{ github.event.label.name }}
-          REVIEW_SCRIPT: ${{ github.workspace }}/${{ steps.fonte.outputs.dir }}/scripts/review/run.ts
+          REVIEW_SCRIPT: ${{ github.workspace }}/${{ steps.source.outputs.dir }}/scripts/review/run.ts
         run: node "$REVIEW_SCRIPT" --mode ci

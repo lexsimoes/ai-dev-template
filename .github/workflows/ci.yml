@@ -1,28 +1,28 @@
-# CI de qualidade: roda em todo PR e em todo push na main.
-# Os nomes dos jobs (qualidade, invariantes, dependencias) são usados como
-# checks obrigatórios na proteção da main (M6). Não renomeie sem atualizar lá.
+# Quality CI: runs on every PR and on every push to main.
+# The job names (quality, invariants, dependencies) are used as
+# required checks in the main protection (M6). Do not rename them without updating it there.
 
 name: CI
 
 on:
   pull_request:
-    # labeled/unlabeled: reavalia a guarda quando o dono aplica o rótulo invariante-aprovado.
+    # labeled/unlabeled: re-evaluates the guard when the owner applies the invariant-approved label.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
     branches: [main]
 
-# Permissão mínima: os jobs só leem o código.
+# Minimum permission: the jobs only read the code.
 permissions:
   contents: read
 
-# Um push novo no mesmo PR cancela a execução anterior (economiza minutos).
+# A new push to the same PR cancels the previous run (saves minutes).
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  qualidade:
-    name: qualidade
+  quality:
+    name: quality
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -33,57 +33,57 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Instalar dependências
+      - name: Install dependencies
         run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Tipos
+      - name: Types
         run: npm run typecheck
-      - name: Testes unitários
+      - name: Unit tests
         run: npm test
 
-  invariantes:
-    name: invariantes
+  invariants:
+    name: invariants
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: read # conferir quem aplicou o rótulo invariante-aprovado
+      pull-requests: read # check who applied the invariant-approved label
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0 # histórico completo para comparar com a branch de destino
+          fetch-depth: 0 # full history to compare with the target branch
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Guarda (pasta intocada, nada pulado, nenhum teste a menos)
+      - name: Guard (folder untouched, nothing skipped, no test missing)
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ github.token }}
-        # Em PRs, roda a guarda da branch de destino: um PR não afrouxa a própria guarda.
-        # Se ela ainda não existir lá (instalação inicial), usa a do PR. Roda antes de qualquer
-        # código do PR (npm ci) e só usa módulos do próprio Node.
+        # In PRs, runs the guard from the target branch: a PR cannot loosen its own guard.
+        # If it does not exist there yet (initial setup), uses the PR's guard. Runs before any
+        # PR code (npm ci) and only uses Node's built-in modules.
         run: |
           GUARD=scripts/guard-invariants.ts
           if [ "$EVENT_NAME" = "pull_request" ] && git show "origin/$BASE_REF:$GUARD" > "$RUNNER_TEMP/guard-invariants.ts" 2>/dev/null; then
             GUARD="$RUNNER_TEMP/guard-invariants.ts"
           fi
           node "$GUARD"
-      # Só depois da guarda: o npm ci roda scripts do package.json do PR (postinstall etc.),
-      # que poderiam mexer no git ou no ambiente antes da decisão da guarda.
-      - name: Instalar dependências
+      # Only after the guard: npm ci runs scripts from the PR's package.json (postinstall etc.),
+      # which could tamper with git or the environment before the guard decides.
+      - name: Install dependencies
         run: npm ci
-      - name: Testes de invariantes
-        # Chamado direto (sem npm run) para que mudar o package.json não pule os testes.
+      - name: Invariant tests
+        # Called directly (no npm run) so that changing package.json does not skip the tests.
         run: node --test "tests/invariants/**/*.test.ts"
 
-  dependencias:
-    name: dependencias
+  dependencies:
+    name: dependencies
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # Olha só as dependências que este PR adiciona ou muda (o diff), não o projeto inteiro.
+      # Looks only at the dependencies this PR adds or changes (the diff), not the whole project.
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high

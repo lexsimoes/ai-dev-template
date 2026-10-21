@@ -1,10 +1,10 @@
-// Exemplo de regra de negócio protegida por invariante (INV-001).
-// Valores sempre em centavos (inteiros) para evitar erro de arredondamento.
+// Example of a business rule protected by an invariant (INV-001).
+// Values are always in cents (integers) to avoid rounding errors.
 
 export interface Coupon {
   code: string;
   percentOff: number;
-  /** Data ISO (AAAA-MM-DD). Depois desse dia o cupom não vale. */
+  /** ISO date (YYYY-MM-DD). After this day the coupon is no longer valid. */
   expiresAt?: string;
 }
 
@@ -18,8 +18,8 @@ export function isCouponActive(coupon: Coupon, now: Date): boolean {
 }
 
 /**
- * Aplica um cupom ao subtotal e devolve o total em centavos.
- * Entradas inválidas geram erro; nunca devolvemos um total "estranho".
+ * Applies a coupon to the subtotal and returns the total in cents.
+ * Invalid inputs throw an error; we never return a "weird" total.
  */
 export function applyCoupon(subtotalCents: number, coupon: Coupon | null, now: Date = new Date()): number {
   if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {

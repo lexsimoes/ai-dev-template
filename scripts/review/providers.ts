@@ -1,6 +1,6 @@
-// Chamada ao modelo do revisor. Dois formatos cobrem a maioria dos provedores:
+// Reviewer model call. Two formats cover most providers:
 // - "openai-compatible": DeepSeek, OpenAI, OpenRouter, Groq, Ollama… (POST {baseUrl}/chat/completions)
-// - "anthropic": Claude, pelo SDK oficial.
+// - "anthropic": Claude, through the official SDK.
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { Tier, Usage } from "./lib.ts";
@@ -11,7 +11,7 @@ export interface ModelReply {
   model: string;
 }
 
-/** Falha depois que o modelo já foi cobrado: carrega o uso para o relatório mostrar o custo. */
+/** Failure after the model was already billed: carries the usage so the report can show the cost. */
 export class ModelCallError extends Error {
   usage: Usage | null;
   constructor(message: string, usage: Usage | null) {
@@ -29,7 +29,7 @@ interface ChatCompletion {
     prompt_tokens?: number;
     completion_tokens?: number;
     prompt_cache_hit_tokens?: number; // DeepSeek
-    prompt_tokens_details?: { cached_tokens?: number }; // formato OpenAI
+    prompt_tokens_details?: { cached_tokens?: number }; // OpenAI format
   };
 }
 
@@ -39,7 +39,7 @@ async function callOpenAICompatible(
   prompt: { system: string; user: string },
   timeoutMs: number,
 ): Promise<ModelReply> {
-  if (!tier.baseUrl) throw new Error("nível sem baseUrl configurada");
+  if (!tier.baseUrl) throw new Error("tier without a configured baseUrl");
   const response = await fetch(`${tier.baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -50,16 +50,16 @@ async function callOpenAICompatible(
         { role: "user", content: prompt.user },
       ],
       response_format: { type: "json_object" },
-      // Modelos com raciocínio gastam parte deste limite pensando antes de responder.
+      // Reasoning models spend part of this limit thinking before they answer.
       max_tokens: tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       ...tier.extraBody,
     }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
-    // Só o status e o início da mensagem: nunca ecoar cabeçalhos (que contêm a chave).
+    // Only the status and the start of the message: never echo headers (they contain the key).
     const detail = (await response.text()).slice(0, 300);
-    throw new Error(`o provedor respondeu HTTP ${response.status}: ${detail}`);
+    throw new Error(`the provider answered HTTP ${response.status}: ${detail}`);
   }
   const data = (await response.json()) as ChatCompletion;
   const choice = data.choices?.[0];
@@ -72,11 +72,11 @@ async function callOpenAICompatible(
   };
   if (choice?.finish_reason === "length") {
     throw new ModelCallError(
-      `a resposta do modelo foi cortada no limite de ${tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS} tokens de saída (aumente maxOutputTokens em .github/review.json ou divida o PR)`,
+      `the model's reply was cut off at the limit of ${tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS} output tokens (raise maxOutputTokens in .github/review.json or split the PR)`,
       usage,
     );
   }
-  if (!text.trim()) throw new ModelCallError(`resposta vazia do modelo (finish_reason: ${choice?.finish_reason ?? "?"})`, usage);
+  if (!text.trim()) throw new ModelCallError(`empty reply from the model (finish_reason: ${choice?.finish_reason ?? "?"})`, usage);
   return { text, model: data.model ?? tier.model, usage };
 }
 
@@ -87,7 +87,7 @@ async function callAnthropic(
   timeoutMs: number,
 ): Promise<ModelReply> {
   const client = new Anthropic({ apiKey, maxRetries: 1 });
-  // Streaming: o SDK exige para limites de saída grandes (evita timeout da conexão).
+  // Streaming: the SDK requires it for large output limits (avoids a connection timeout).
   const stream = client.beta.messages.stream(
     {
       model: tier.model,
@@ -95,14 +95,14 @@ async function callAnthropic(
       system: prompt.system,
       messages: [{ role: "user", content: prompt.user }],
       output_config: { effort: "high" },
-      // Se o modelo recusar por filtro de segurança, a API tenta outro modelo recomendado.
+      // If the model refuses due to a safety filter, the API tries another recommended model.
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
     },
     { timeout: timeoutMs },
   );
   const response = await stream.finalMessage();
-  // Na Anthropic, input_tokens já exclui o que veio do cache; somamos para o total de entrada.
+  // At Anthropic, input_tokens already excludes what came from the cache; we add it up for the total input.
   const cacheRead = response.usage.cache_read_input_tokens ?? 0;
   const usage: Usage = {
     inputTokens: response.usage.input_tokens + cacheRead + (response.usage.cache_creation_input_tokens ?? 0),
@@ -110,10 +110,10 @@ async function callAnthropic(
     cachedInputTokens: cacheRead,
   };
   if (response.stop_reason === "refusal") {
-    throw new ModelCallError(`o modelo recusou a revisão (${response.stop_details?.category ?? "sem categoria"})`, usage);
+    throw new ModelCallError(`the model refused the review (${response.stop_details?.category ?? "no category"})`, usage);
   }
   if (response.stop_reason === "max_tokens") {
-    throw new ModelCallError("a resposta do modelo foi cortada no limite de tokens de saída", usage);
+    throw new ModelCallError("the model's reply was cut off at the output token limit", usage);
   }
   const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
   return { text, model: response.model, usage };

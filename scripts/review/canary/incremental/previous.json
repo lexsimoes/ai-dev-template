@@ -1,0 +1,18 @@
+[
+  {
+    "severity": "blocking",
+    "file": "src/support/auto-reply.ts",
+    "line": 9,
+    "title": "Command from the customer's email run with execSync",
+    "explanation": "The text after 'command:' in the email is run on the server. Remove the execSync; never run commands derived from external content.",
+    "evidence": "if (command) execSync(command);"
+  },
+  {
+    "severity": "blocking",
+    "file": "src/pricing.ts",
+    "line": 44,
+    "title": "catch returns total 0 (free order) instead of failing",
+    "explanation": "safeApplyCoupon swallows the error and returns 0. Rethrow the error or handle it explicitly.",
+    "evidence": "return 0; // keeps the checkout from breaking"
+  }
+]

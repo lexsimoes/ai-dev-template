@@ -1,7 +1,7 @@
-# Evals no CI: quando um PR pronto (não rascunho) toca em arquivos de IA (aiPaths em evals/config.json),
-# roda o golden set com o modelo real, compara com a branch de destino rodada agora com o mesmo modelo,
-# comenta a tabela no PR e falha abaixo dos limites, em queda, ou com golden set enfraquecido.
-# Chave: segredo EVAL_API_KEY (projeto de testes com limite de gasto), nunca a de produção nem a do revisor.
+# Evals in CI: when a ready PR (not a draft) touches AI files (aiPaths in evals/config.json),
+# runs the golden set with the real model, compares it with the target branch run now with the same model,
+# posts the table on the PR and fails below the thresholds, on a drop, or with a weakened golden set.
+# Key: secret EVAL_API_KEY (test project with a spending limit), never the production key or the reviewer's key.
 
 name: Evals
 
@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 
-# Um push ou rótulo novo cancela a rodada anterior e roda de novo (cada rodada custa menos de US$ 0,01).
+# A new push or label cancels the previous run and runs again (each run costs less than $0.01).
 concurrency:
   group: evals-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -20,37 +20,37 @@ concurrency:
 jobs:
   evals:
     name: evals
-    # Só PRs prontos. O job roda em todo evento, inclusive rótulos: este check é obrigatório na main,
-    # e um job pulado contaria como verde por cima de um vermelho anterior.
+    # Ready PRs only. The job runs on every event, labels included: this check is required on main,
+    # and a skipped job would count as green over an earlier red.
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
-      pull-requests: write # publicar a tabela no PR
+      pull-requests: write # post the table on the PR
     env:
-      # Provedor dos evals: variáveis do repositório, com DeepSeek como padrão.
+      # Evals provider: repository variables, with DeepSeek as the default.
       LLM_PROVIDER: ${{ vars.EVAL_PROVIDER || 'openai-compatible' }}
       LLM_BASE_URL: ${{ vars.EVAL_BASE_URL || 'https://api.deepseek.com' }}
       LLM_MODEL: ${{ vars.EVAL_MODEL || 'deepseek-v4-pro' }}
-      # Deve ser a mesma configuração do app em produção. "none" desliga o raciocínio da DeepSeek:
-      # num classificador curto, o raciocínio gastaria o limite de saída antes da resposta.
+      # Must be the same config as the app in production. "none" turns off DeepSeek's reasoning:
+      # in a short classifier, reasoning would use up the output limit before the answer.
       LLM_EXTRA_BODY: ${{ vars.EVAL_EXTRA_BODY || '{"reasoning_effort":"none"}' }}
       EVAL_JUDGE: ${{ vars.EVAL_JUDGE || '0' }}
     steps:
-      - name: PR de fork
-        # Forks não recebem segredos: os evals não rodam e o check fica vermelho, nunca verde por omissão.
+      - name: Fork PR
+        # Forks do not get secrets: the evals do not run and the check stays red, never green by omission.
         if: github.event.pull_request.head.repo.full_name != github.repository
         run: |
-          echo "::error::PR vindo de fork: os evals não rodam (sem acesso aos segredos). Para mesclar, traga as mudanças para uma branch deste repositório."
+          echo "::error::PR from a fork: the evals do not run (no access to secrets). To merge, bring the changes to a branch in this repository."
           exit 1
-      - name: Código do PR
+      - name: PR code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: pr
           fetch-depth: 0
           persist-credentials: false
-      - name: Branch de destino (régua confiável e linha de base)
+      - name: Target branch (trusted thresholds and baseline)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: base
@@ -63,8 +63,8 @@ jobs:
           cache-dependency-path: |
             pr/package-lock.json
             base/package-lock.json
-      - name: O PR toca em IA?
-        id: ia
+      - name: Does the PR touch AI?
+        id: ai
         working-directory: pr
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -72,36 +72,36 @@ jobs:
           CONFIG=../base/evals/config.json
           [ -f "$CONFIG" ] || CONFIG=evals/config.json
           node evals/touches-ai.ts --base "origin/$BASE_REF" --config "$CONFIG"
-      - name: Conferir o segredo
-        if: steps.ia.outputs.tocou == 'true'
+      - name: Check the secret
+        if: steps.ai.outputs.touched == 'true'
         env:
           EVAL_API_KEY: ${{ secrets.EVAL_API_KEY }}
         run: |
           if [ -z "$EVAL_API_KEY" ] && [ "$LLM_PROVIDER" != "mock" ]; then
-            echo "::error::O segredo EVAL_API_KEY não está cadastrado (Settings → Secrets and variables → Actions)."
+            echo "::error::The EVAL_API_KEY secret is not set (Settings → Secrets and variables → Actions)."
             exit 1
           fi
-      - name: Instalar
-        if: steps.ia.outputs.tocou == 'true'
+      - name: Install
+        if: steps.ai.outputs.touched == 'true'
         run: |
           (cd pr && npm ci)
           (cd base && npm ci)
-      - name: Evals da branch de destino (linha de base)
-        if: steps.ia.outputs.tocou == 'true'
-        # Segue mesmo se falhar, para o passo seguinte comentar o motivo no PR. A linha de base é exigida:
-        # sem ela (ex.: API fora do ar), o passo seguinte reprova. Rode o job de novo quando a API voltar.
+      - name: Target branch evals (baseline)
+        if: steps.ai.outputs.touched == 'true'
+        # Continues even if it fails, so the next step posts the reason on the PR. The baseline is required:
+        # without it (e.g. API down), the next step fails. Run the job again when the API is back.
         continue-on-error: true
         working-directory: base
         env:
           LLM_API_KEY: ${{ secrets.EVAL_API_KEY }}
           GITHUB_STEP_SUMMARY: ""
-        run: node evals/run.ts --out ../resultados-base
-      - name: Evals do PR
-        if: steps.ia.outputs.tocou == 'true'
+        run: node evals/run.ts --out ../results-base
+      - name: PR evals
+        if: steps.ai.outputs.touched == 'true'
         working-directory: pr
         env:
           LLM_API_KEY: ${{ secrets.EVAL_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-        run: node evals/run.ts --base-dir ../base --baseline ../resultados-base --require-baseline --out ../resultados-pr --pr-comment
+        run: node evals/run.ts --base-dir ../base --baseline ../results-base --require-baseline --out ../results-pr --pr-comment
