@@ -16,7 +16,7 @@ import { createLLMClient } from "../src/ai/llm.ts";
 import type { LLMClient } from "../src/ai/llm.ts";
 import { TARGETS } from "./targets.ts";
 import type { TargetOutput } from "./targets.ts";
-import { EVAL_COMMENT_MARKER, estimateCost, goldenChanges, priceFor, protectedSuites, renderEvalComment, trustedConfig } from "./lib.ts";
+import { EVAL_COMMENT_MARKER, estimateCost, goldenChanges, priceFor, protectedSuites, renderDisabledComment, renderEvalComment, trustedConfig } from "./lib.ts";
 import type { EvalConfig, GoldenCase, Suite, TokenUsage } from "./lib.ts";
 
 const GOLDEN_APPROVAL_LABEL = "eval-approved";
@@ -216,6 +216,35 @@ function toMarkdown(results: SuiteResult[], baselines: Map<string, SuiteResult>)
   return lines.join("\n");
 }
 
+/** Protected golden set: deleting or changing existing cases requires the owner's label. Returns the failures. */
+function goldenGuard(baseDir: string, baseConfig: EvalConfig, prConfig: EvalConfig, labels: string[], notes: string[]): string[] {
+  const goldenFailures: string[] = [];
+  for (const suite of protectedSuites(baseConfig, prConfig)) {
+    const basePath = join(baseDir, suite.baseGolden);
+    if (!existsSync(basePath)) continue;
+    const baseCases = loadGolden(basePath);
+    let msg: string | null = null;
+    if (suite.prGolden === null) {
+      msg = `Suite \`${suite.name}\` removed from \`evals/config.json\`.`;
+    } else {
+      const prCases = existsSync(suite.prGolden) ? loadGolden(suite.prGolden) : [];
+      const { removed, changed } = goldenChanges(baseCases, prCases);
+      if (removed.length + changed.length > 0) {
+        msg = `Suite \`${suite.name}\`: golden set cases ${[
+          removed.length ? `deleted (${removed.join(", ")})` : "",
+          changed.length ? `changed (${changed.join(", ")})` : "",
+        ]
+          .filter(Boolean)
+          .join(" and ")}.`;
+      }
+    }
+    if (!msg) continue;
+    if (labels.includes(GOLDEN_APPROVAL_LABEL)) notes.push(`${msg} Approved by the \`${GOLDEN_APPROVAL_LABEL}\` label.`);
+    else goldenFailures.push(`${msg} This weakens the eval: only the owner approves it, with the \`${GOLDEN_APPROVAL_LABEL}\` label.`);
+  }
+  return goldenFailures;
+}
+
 async function main(): Promise<number> {
   const { values } = parseArgs({
     options: {
@@ -238,6 +267,18 @@ async function main(): Promise<number> {
   const trusted = baseDir ? trustedConfig(prConfig, baseConfig) : { config: prConfig, notes: [] as string[] };
   const config = trusted.config;
   const notes = [...trusted.notes];
+  const labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
+  const goldenFailures = baseDir && baseConfig ? goldenGuard(baseDir, baseConfig, prConfig, labels, notes) : [];
+
+  // No-key mode, switched on in the TARGET branch's config (a PR cannot turn its own evals off): no model runs,
+  // only the golden set guard. Without the switch, a missing key fails as usual.
+  if (baseConfig?.disabled) {
+    const comment = renderDisabledComment(baseConfig.disabled, goldenFailures, notes);
+    console.log(comment);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, comment + "\n");
+    if (values["pr-comment"]) await upsertPrComment(comment);
+    return goldenFailures.length ? 1 : 0;
+  }
 
   // Empty counts as missing: a workflow that passes an undefined variable gives "".
   const envMax = process.env.EVAL_MAX_CALLS?.trim() || undefined;
@@ -268,35 +309,6 @@ async function main(): Promise<number> {
 
   const suites = config.suites.filter((s) => !values.suite || s.name === values.suite);
   if (suites.length === 0) throw new Error(`No suite found${values.suite ? `: ${values.suite}` : ""}`);
-
-  // Protected golden set: deleting or changing existing cases requires the owner's label.
-  const labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
-  const goldenFailures: string[] = [];
-  if (baseDir && baseConfig) {
-    for (const suite of protectedSuites(baseConfig, prConfig)) {
-      const basePath = join(baseDir, suite.baseGolden);
-      if (!existsSync(basePath)) continue;
-      const baseCases = loadGolden(basePath);
-      let msg: string | null = null;
-      if (suite.prGolden === null) {
-        msg = `Suite \`${suite.name}\` removed from \`evals/config.json\`.`;
-      } else {
-        const prCases = existsSync(suite.prGolden) ? loadGolden(suite.prGolden) : [];
-        const { removed, changed } = goldenChanges(baseCases, prCases);
-        if (removed.length + changed.length > 0) {
-          msg = `Suite \`${suite.name}\`: golden set cases ${[
-            removed.length ? `deleted (${removed.join(", ")})` : "",
-            changed.length ? `changed (${changed.join(", ")})` : "",
-          ]
-            .filter(Boolean)
-            .join(" and ")}.`;
-        }
-      }
-      if (!msg) continue;
-      if (labels.includes(GOLDEN_APPROVAL_LABEL)) notes.push(`${msg} Approved by the \`${GOLDEN_APPROVAL_LABEL}\` label.`);
-      else goldenFailures.push(`${msg} This weakens the eval: only the owner approves it, with the \`${GOLDEN_APPROVAL_LABEL}\` label.`);
-    }
-  }
 
   const baselines = new Map<string, SuiteResult>();
   const results: SuiteResult[] = [];

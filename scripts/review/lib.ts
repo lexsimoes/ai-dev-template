@@ -20,11 +20,15 @@ export interface Tier {
 }
 
 export interface ReviewConfig {
+  /** No-key mode: the reviewer does not call a model; only the secret detectors run. The text says why. */
+  disabled?: string;
   maxDiffChars: number;
   timeoutMs: number;
   maxFindings: number;
   deepLabel: string;
   rereviewLabel: string;
+  /** Labels that approve something the review checks (e.g. `invariant-approved`): adding or removing one re-runs the review. */
+  approvalLabels?: string[];
   excludePaths: string[];
   allowPaths: string[];
   ignorePaths: string[];
@@ -183,6 +187,24 @@ export function secretPathFindings(files: DiffFile[], excluded: string[]): Findi
     }));
 }
 
+/**
+ * A PR that turns an automated check off (`disabled` in its config) for every later PR. Read from the target
+ * branch, the switch never applies to the PR that adds it; this finding makes sure the owner sees it before the merge.
+ */
+export function switchOffFindings(configs: Array<{ file: string; check: string; base: { disabled?: unknown } | null; pr: { disabled?: unknown } | null }>): Finding[] {
+  return configs
+    .filter((c) => !c.base?.disabled && c.pr?.disabled)
+    .map((c) => ({
+      origin: "detector" as const,
+      severity: "important" as const,
+      file: c.file,
+      line: null,
+      title: `This PR turns the ${c.check} off`,
+      explanation: `After the merge, \`disabled\` in \`${c.file}\` turns the ${c.check} check into a notice for every later PR (no AI model runs). Only the owner decides this. If this repository has an AI key, remove the field instead.`,
+      evidence: `"disabled" added to ${c.file}`,
+    }));
+}
+
 // ---------- reviewer tier ----------
 
 /** Trivial PR: only low-risk files (e.g. plain docs or lockfile), nothing sensitive. */
@@ -218,6 +240,8 @@ export interface ReviewState {
   findings: Finding[];
   /** Commit where the last review attempt failed (cleared when a review finishes well). */
   failure?: string;
+  /** Approval labels (config.approvalLabels) on the PR at the last review, sorted. */
+  approvals?: string[];
 }
 
 // Only the state that ENDS the comment counts: a forged marker in the middle of the text is ignored.
@@ -229,6 +253,7 @@ export function encodeState(state: ReviewState): string {
     sha: state.sha,
     findings: state.findings.map((a) => ({ ...a, explanation: a.explanation.slice(0, 600), evidence: a.evidence.slice(0, 300) })),
     ...(state.failure ? { failure: state.failure } : {}),
+    ...(state.approvals ? { approvals: state.approvals } : {}),
   };
   return `<!-- review-state:${Buffer.from(JSON.stringify(compact), "utf-8").toString("base64")} -->`;
 }
@@ -260,7 +285,13 @@ export function decodeState(commentBody: string): ReviewState | null {
     if (typeof raw.sha !== "string" || !SHA_RE.test(raw.sha)) return null;
     if (!Array.isArray(raw.findings) || !raw.findings.every(isFinding)) return null;
     if (raw.failure !== undefined && (typeof raw.failure !== "string" || !SHA_RE.test(raw.failure))) return null;
-    return { sha: raw.sha, findings: raw.findings, ...(raw.failure ? { failure: raw.failure as string } : {}) };
+    if (raw.approvals !== undefined && !(Array.isArray(raw.approvals) && raw.approvals.every((l) => typeof l === "string"))) return null;
+    return {
+      sha: raw.sha,
+      findings: raw.findings,
+      ...(raw.failure ? { failure: raw.failure as string } : {}),
+      ...(raw.approvals ? { approvals: raw.approvals as string[] } : {}),
+    };
   } catch {
     return null;
   }
@@ -271,26 +302,59 @@ export function decodeState(commentBody: string): ReviewState | null {
 export interface ReviewEvent {
   action: string;
   label: string;
-  /** PR labels at the time of the event. */
+  /** PR labels when the run starts, read from the GitHub API (the event payload can be out of date). */
   labels: string[];
+  /** PR commit this run checks. */
+  head: string;
 }
 
-/** Which kind of review to run for this GitHub event. `stateReachable`: the reviewed commit is still in the PR history. */
+/** Approval labels on the PR, sorted (recorded in the state, to notice when they change). */
+export function approvalsOn(labels: string[], config: ReviewConfig): string[] {
+  return (config.approvalLabels ?? []).filter((l) => labels.includes(l)).sort();
+}
+
+/**
+ * Which kind of review to run. `stateReachable`: the reviewed commit is still in the PR history.
+ *
+ * The decision comes from the PR as it is now (live labels, state in the comment), not from the event alone.
+ * A push and a `re-review` label close together start two runs, and either one may run first; GitHub counts
+ * the run whose check suite is newest, which is not always the one that ran last. Deciding from the current
+ * state, both runs give the same verdict in either order: the first finds the label and reviews, the second
+ * finds the commit already reviewed and only recomputes the verdict (no model call). Tested in review-flow.test.ts.
+ */
 export function decideKind(
   event: ReviewEvent,
   config: ReviewConfig,
   state: ReviewState | null,
   stateReachable: boolean,
 ): { kind: ReviewKind; note: string | null } {
+  if (event.action === "labeled" && event.label === config.deepLabel) return { kind: "full", note: null };
+
+  // Findings can depend on an approval label (e.g. "invariant changed without `invariant-approved`"). An incremental
+  // review only rechecks findings in changed files, so they would stay pending forever: review the whole PR again
+  // when findings are open, or when a label the last review counted on was removed.
+  const approvals = approvalsOn(event.labels, config);
+  const approvalEvent = ["labeled", "unlabeled"].includes(event.action) && (config.approvalLabels ?? []).includes(event.label);
+  const approvalsChanged = state?.approvals ? approvals.join() !== state.approvals.join() : approvalEvent;
+  const approvalRemoved = state?.approvals ? state.approvals.some((l) => !approvals.includes(l)) : approvalEvent && event.action === "unlabeled";
+  if (state && approvalsChanged && (approvalRemoved || state.findings.some((f) => f.origin !== "detector"))) {
+    const shown = (list: string[]) => (list.length ? list.map((l) => `\`${l}\``).join(", ") : "none");
+    return {
+      kind: "full",
+      note: `Approval labels changed since the last review (${state.approvals ? `${shown(state.approvals)} → ` : ""}${shown(approvals)}): full review, because open findings may depend on them.`,
+    };
+  }
+
   // Push or a label unrelated to the reviewer: only recompute the verdict, without calling the model. The job
   // cannot be skipped, because a skipped required check counts as green and would hide an earlier red.
-  // If the "re-review" label is still on the PR, run the requested review: the GitHub queue keeps only
-  // one pending run and may have dropped the label's run.
-  const reviewLabel = event.label === config.deepLabel || event.label === config.rereviewLabel;
-  const passive = event.action === "synchronize" || (event.action === "labeled" && !reviewLabel);
-  if (passive && !event.labels.includes(config.rereviewLabel)) return { kind: "no-review", note: null };
-  if (event.action === "labeled" && event.label === config.deepLabel) return { kind: "full", note: null };
-  if (state && stateReachable) return { kind: "incremental", note: null };
+  const requested = event.labels.includes(config.rereviewLabel) || ["opened", "reopened", "ready_for_review"].includes(event.action);
+  if (!requested) return { kind: "no-review", note: null };
+  if (state && stateReachable) {
+    if (state.sha === event.head && !state.failure) {
+      return { kind: "no-review", note: `Commit \`${event.head.slice(0, 7)}\` was already reviewed: verdict recomputed, no model call.` };
+    }
+    return { kind: "incremental", note: null };
+  }
   if (state) {
     return {
       kind: "full",

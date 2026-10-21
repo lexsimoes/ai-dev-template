@@ -27,7 +27,7 @@ import {
   splitDiff,
   buildPrompt,
 } from "../../scripts/review/lib.ts";
-import type { Finding, ReportInput, ReviewConfig } from "../../scripts/review/lib.ts";
+import type { Finding, ReportInput, ReviewConfig, ReviewState } from "../../scripts/review/lib.ts";
 import { assertUsableTiers, testConfig } from "./review-test-config.ts";
 
 const config: ReviewConfig = testConfig();
@@ -320,21 +320,47 @@ test("state: SHA or finding out of format is rejected (nothing becomes a git arg
   assert.equal(decodeState(forge({ sha: SHA, findings: [{ severity: "catastrophic" }] })), null);
   assert.equal(decodeState(forge({ sha: SHA, findings: [], failure: "--x" })), null);
   assert.deepEqual(decodeState(forge({ sha: SHA, findings: [finding()], failure: SHA })), { sha: SHA, findings: [finding()], failure: SHA });
+  assert.equal(decodeState(forge({ sha: SHA, findings: [], approvals: [1] })), null);
+  assert.deepEqual(decodeState(forge({ sha: SHA, findings: [], approvals: ["eval-approved"] })), { sha: SHA, findings: [], approvals: ["eval-approved"] });
 });
 
 test("decision per event: push does not call the model; label and 'ready' review", () => {
-  const st = { sha: SHA, findings: [] };
-  const k = (action: string, label = "", state: typeof st | null = st, reachable = true, labels: string[] = []) =>
-    decideKind({ action, label, labels }, config, state, reachable).kind;
+  const st: ReviewState = { sha: SHA, findings: [] };
+  const NEW = "c".repeat(40);
+  const k = (action: string, label = "", state: ReviewState | null = st, reachable = true, labels: string[] = [], head = NEW) =>
+    decideKind({ action, label, labels, head }, config, state, reachable).kind;
   assert.equal(k("synchronize"), "no-review");
   assert.equal(k("ready_for_review", "", null), "full");
   assert.equal(k("ready_for_review"), "incremental");
-  assert.equal(k("labeled", "re-review"), "incremental");
-  assert.equal(k("labeled", "re-review", st, false), "full", "force-push goes back to full");
+  assert.equal(k("labeled", "re-review", st, true, ["re-review"]), "incremental");
+  assert.equal(k("labeled", "re-review", st, false, ["re-review"]), "full", "force-push goes back to full");
   assert.equal(k("labeled", "deep-review"), "full");
-  assert.equal(k("synchronize", "", st, true, ["re-review"]), "incremental", "push with the label still on the PR recovers the requested review");
+  assert.equal(k("synchronize", "", st, true, ["re-review"]), "incremental", "push with the label on the PR runs the requested review");
   assert.equal(k("labeled", "eval-approved"), "no-review", "an unrelated label only recomputes the verdict");
-  assert.equal(k("labeled", "eval-approved", st, true, ["re-review"]), "incremental", "an unrelated label does not swallow the requested review");
+  assert.equal(k("labeled", "other", st, true, ["re-review"]), "incremental", "an unrelated label does not swallow the requested review");
+  assert.equal(k("labeled", "re-review", st, true, []), "no-review", "the label is no longer on the PR: another run already used it");
+  assert.equal(k("labeled", "re-review", st, true, ["re-review"], SHA), "no-review", "this commit was already reviewed: no model call");
+  assert.equal(k("ready_for_review", "", st, true, [], SHA), "no-review", "ready again with nothing new: no model call");
+  assert.equal(k("labeled", "re-review", { ...st, failure: SHA }, true, ["re-review"], SHA), "incremental", "the last attempt failed: review again");
+});
+
+test("decision per event: an approval label re-runs the review only when findings are open", () => {
+  const open = { sha: SHA, findings: [finding()], approvals: [] as string[] };
+  const k = (action: string, label: string, labels: string[], state: ReviewState = open) =>
+    decideKind({ action, label, labels, head: SHA }, config, state, true);
+  assert.equal(k("labeled", "invariant-approved", ["invariant-approved"]).kind, "full");
+  assert.match(k("labeled", "invariant-approved", ["invariant-approved"]).note ?? "", /none → `invariant-approved`/);
+  assert.equal(k("unlabeled", "invariant-approved", [], { ...open, approvals: ["invariant-approved"] }).kind, "full", "removing it also counts");
+  assert.equal(k("synchronize", "", ["eval-approved"]).kind, "full", "a run that missed the label event still notices the change");
+  assert.equal(k("labeled", "invariant-approved", ["invariant-approved"], { ...open, findings: [] }).kind, "no-review", "nothing open: nothing to recheck");
+  const detectorOnly = { ...open, findings: [finding({ origin: "detector" })] };
+  assert.equal(k("labeled", "invariant-approved", ["invariant-approved"], detectorOnly).kind, "no-review", "a secret does not depend on labels");
+  assert.equal(k("labeled", "invariant-approved", ["invariant-approved"], { ...open, approvals: ["invariant-approved"] }).kind, "no-review", "same labels as the last review");
+  assert.equal(k("labeled", "invariant-approved", ["invariant-approved"], { sha: SHA, findings: [finding()] }).kind, "full", "state from before this field: the label event decides");
+  assert.equal(k("synchronize", "", ["invariant-approved"], { sha: SHA, findings: [finding()] }).kind, "no-review");
+  const approved = { sha: SHA, findings: [] as Finding[], approvals: ["invariant-approved"] };
+  assert.equal(k("unlabeled", "invariant-approved", [], approved).kind, "full", "nothing open, but the last review counted on the removed label");
+  assert.equal(k("labeled", "eval-approved", ["eval-approved", "invariant-approved"], approved).kind, "no-review", "adding one with nothing open costs nothing");
 });
 
 test("push after the review: reasons for red", () => {

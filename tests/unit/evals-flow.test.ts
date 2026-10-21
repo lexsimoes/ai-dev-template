@@ -4,9 +4,9 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
@@ -29,6 +29,11 @@ before(() => {
   base = mkdtempSync(join(tmpdir(), "evals-base-"));
   out = mkdtempSync(join(tmpdir(), "evals-out-"));
   cpSync("evals", join(base, "evals"), { recursive: true });
+  // A project created without an AI key has the evals off ("disabled"); these tests measure the flow with them on.
+  const cfgPath = join(base, "evals/config.json");
+  const cfg = JSON.parse(readFileSync(cfgPath, "utf-8")) as { disabled?: string };
+  delete cfg.disabled;
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
 });
 after(() => {
   rmSync(base, { recursive: true, force: true });
@@ -109,4 +114,80 @@ test("evals: with --require-baseline, a target-branch suite without a baseline f
   );
   assert.equal(exigida.code, 1);
   assert.match(exigida.out, /no baseline/);
+});
+
+test("evals no-key mode: switched on in the target branch, no model runs and the golden set guard still does", async () => {
+  const cfgPath = join(base, "evals/config.json");
+  const original = readFileSync(cfgPath, "utf-8");
+  const golden = join(base, "evals/golden/classify-message.jsonl");
+  const originalGolden = readFileSync(golden, "utf-8");
+  writeFileSync(cfgPath, JSON.stringify({ ...(JSON.parse(original) as object), disabled: "no AI key in this test" }));
+  // A real provider with no key: any model call would fail the run.
+  const noKey = { LLM_API_KEY: "", ANTHROPIC_API_KEY: "" };
+  const realProvider = ["evals/run.ts", "--provider", "openai-compatible", "--base-dir", base, "--out", out];
+  const go = (env: Record<string, string>) =>
+    run("node", realProvider, { env: { ...process.env, GITHUB_STEP_SUMMARY: "", PR_LABELS: "[]", ...noKey, ...env } }).then(
+      (r) => ({ code: 0, out: r.stdout }),
+      (e: { code?: number; stdout?: string }) => ({ code: e.code ?? 1, out: e.stdout ?? "" }),
+    );
+  try {
+    const off = await go({});
+    assert.equal(off.code, 0, off.out);
+    assert.match(off.out, /Evals ⏸️ off in this repository/);
+    assert.match(off.out, /no AI key in this test/);
+
+    writeFileSync(golden, originalGolden + JSON.stringify({ id: "base-only", input: "x", expected: { category: "other" } }) + "\n");
+    const weakened = await go({});
+    assert.equal(weakened.code, 1, "deleting a golden case still needs the owner's label");
+    assert.match(weakened.out, /deleted \(base-only\)/);
+    assert.match(weakened.out, /blocked: golden set weakened/);
+    assert.match(weakened.out, /To turn this check green/);
+    assert.match(weakened.out, /restore the golden set cases/);
+    assert.match(weakened.out, /owner\*\* applies the `eval-approved` label/);
+    assert.equal((await go({ PR_LABELS: '["eval-approved"]' })).code, 0);
+  } finally {
+    writeFileSync(cfgPath, original);
+    writeFileSync(golden, originalGolden);
+  }
+});
+
+test("evals no-key mode is never inferred: the switch only in the PR, or no switch, and a missing key fails", async () => {
+  const pr = mkdtempSync(join(tmpdir(), "evals-pr-"));
+  try {
+    cpSync("evals", join(pr, "evals"), { recursive: true });
+    for (const d of ["src", "scripts"]) cpSync(d, join(pr, d), { recursive: true });
+    symlinkSync(resolve("node_modules"), join(pr, "node_modules"), "dir");
+    const cfgPath = join(pr, "evals/config.json");
+    writeFileSync(cfgPath, JSON.stringify({ ...(JSON.parse(readFileSync(cfgPath, "utf-8")) as object), disabled: "set by the PR itself" }));
+    const r = await run("node", ["evals/run.ts", "--provider", "openai-compatible", "--base-dir", base, "--out", out], {
+      cwd: pr,
+      env: { ...process.env, GITHUB_STEP_SUMMARY: "", PR_LABELS: "[]", LLM_API_KEY: "", LLM_BASE_URL: "http://127.0.0.1:9", LLM_MODEL: "m" },
+    }).then(
+      () => ({ code: 0, out: "" }),
+      (e: { code?: number; stdout?: string; stderr?: string }) => ({ code: e.code ?? 1, out: `${e.stdout ?? ""}${e.stderr ?? ""}` }),
+    );
+    assert.notEqual(r.code, 0, "the PR's own switch is ignored, and without a key the run fails");
+    assert.doesNotMatch(r.out, /off in this repository/);
+    assert.match(r.out, /LLM_API_KEY/, r.out);
+  } finally {
+    rmSync(pr, { recursive: true, force: true });
+  }
+});
+
+test("touches-ai: reports the no-key switch to the workflow", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "touches-"));
+  try {
+    const output = join(dir, "out");
+    const cfg = join(dir, "config.json");
+    writeFileSync(cfg, JSON.stringify({ aiPaths: ["**"], disabled: "x" }));
+    writeFileSync(output, "");
+    await run("node", ["evals/touches-ai.ts", "--base", "HEAD", "--config", cfg], { env: { ...process.env, GITHUB_OUTPUT: output } });
+    assert.match(readFileSync(output, "utf-8"), /^disabled=true$/m);
+    writeFileSync(cfg, JSON.stringify({ aiPaths: ["**"] }));
+    writeFileSync(output, "");
+    await run("node", ["evals/touches-ai.ts", "--base", "HEAD", "--config", cfg], { env: { ...process.env, GITHUB_OUTPUT: output } });
+    assert.match(readFileSync(output, "utf-8"), /^disabled=false$/m);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

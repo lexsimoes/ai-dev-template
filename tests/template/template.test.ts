@@ -91,9 +91,10 @@ test("twins: rendering with this repository's answers gives back its own files",
     github_owner: templateOwner(),
     conversation_language: language,
     reviewer_provider: "deepseek",
+    evals_with_model: "true",
     optional_sections: '["library-docs", "ui-ux"]',
   });
-  for (const f of ["AGENTS.md", ".github/review.json"]) {
+  for (const f of ["AGENTS.md", ".github/review.json", "evals/config.json"]) {
     assert.equal(readFileSync(join(dest, f), "utf-8"), readFileSync(join(ROOT, f), "utf-8"), `${f}.jinja is out of sync with ${f}`);
   }
   const rules = (p: string) => readFileSync(p, "utf-8").split("\n").filter((l) => l && !l.startsWith("#"));
@@ -114,11 +115,14 @@ const PROJECTS = [
     name: "a",
     answers: { project_name: "Acme Store", github_owner: "acme-owner", conversation_language: "en", reviewer_provider: "none", optional_sections: "[]" },
     sections: { docs: false, ui: false },
+    // evals_with_model not answered: its default follows the reviewer (none → no key → evals off).
+    evals: false,
   },
   {
     name: "b",
     answers: { project_name: "Loja Teste", github_owner: "maria-dev", conversation_language: "pt-BR", reviewer_provider: "anthropic", optional_sections: '["ui-ux"]' },
     sections: { docs: false, ui: true },
+    evals: true,
   },
 ];
 
@@ -142,13 +146,20 @@ for (const p of PROJECTS) {
     else assert.equal(review.disabled, undefined);
     if (p.answers.reviewer_provider === "anthropic") assert.ok(Object.values(review.tiers).every((t) => t.provider === "anthropic"));
     assertUsableTiers(review.tiers as never);
+    const evals = JSON.parse(readFileSync(join(dest, "evals/config.json"), "utf-8")) as { disabled?: string };
+    assert.equal(Boolean(evals.disabled), !p.evals, "evals off exactly when the project has no eval key");
 
     assert.match(readFileSync(join(dest, "package.json"), "utf-8"), new RegExp(`"name": "${p.answers.project_name.toLowerCase().replace(" ", "-")}"`));
     assert.match(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), new RegExp(`^# PRD: ${p.answers.project_name}$`, "m"));
     assert.doesNotMatch(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), /Template roadmap/);
     assert.ok(existsSync(join(dest, ".copier-answers.yml")));
-    for (const f of ["copier.yml", "tests/template/template.test.ts", ".github/workflows/template.yml"]) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
+    const templateOnly = ["copier.yml", "tests/template/template.test.ts", ".github/workflows/template.yml", "LICENSE", ".github/workflows/traffic.yml", "scripts/traffic", "tests/unit/traffic.test.ts"];
+    for (const f of templateOnly) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
     assert.deepEqual(filesUnder(dest).filter((f) => f.endsWith(".jinja")), [], "no .jinja file left");
+    const notice = readFileSync(join(dest, "THIRD_PARTY_NOTICES.md"), "utf-8");
+    assert.match(notice, /Built with ai-dev-template, © Alexandre Simoes\./);
+    assert.ok(notice.includes(readFileSync(join(ROOT, "LICENSE"), "utf-8")), "the template's full MIT notice, as in LICENSE");
+    assert.match(notice, /does not set the license of this project/);
 
     runProjectChecks(dest);
   });
@@ -176,12 +187,15 @@ test("copier update: brings template changes, keeps project files", () => {
   edit(proj, "specs/PRD.md", "\nProject-only line.\n");
   edit(proj, "src/pricing.ts", "\n// project-only comment\n");
   edit(proj, "tests/invariants/README.md", "\nProject-only invariant note.\n");
-  git(proj, "commit", "-qam", "project work");
+  writeFileSync(join(proj, "LICENSE"), "Proprietary. All rights reserved.\n");
+  git(proj, "add", "-A");
+  git(proj, "commit", "-qm", "project work");
 
   // The template changes a template file and the starter versions of project files.
   edit(tpl, "REVIEW.md", "\nTemplate improvement line.\n");
   edit(tpl, "specs/PRD.md.jinja", "\nTemplate-only PRD line.\n");
   edit(tpl, "src/pricing.ts", "\n// template-only comment\n");
+  edit(tpl, "THIRD_PARTY_NOTICES.md.jinja", "\nTemplate notice update.\n");
   git(tpl, "commit", "-qam", "template v2");
   const v2 = git(tpl, "rev-parse", "--short", "HEAD").trim();
 
@@ -194,5 +208,8 @@ test("copier update: brings template changes, keeps project files", () => {
   assert.match(read("src/pricing.ts"), /project-only comment/, "app code kept");
   assert.doesNotMatch(read("src/pricing.ts"), /template-only comment/, "app code not overwritten");
   assert.match(read("tests/invariants/README.md"), /Project-only invariant note\./, "invariants kept");
+  assert.match(read("THIRD_PARTY_NOTICES.md"), /Template notice update\./, "the license notice is kept and follows the template");
+  assert.match(read("THIRD_PARTY_NOTICES.md"), /Permission is hereby granted/);
+  assert.equal(read("LICENSE"), "Proprietary. All rights reserved.\n", "the project's own license is never touched");
   assert.match(read(".copier-answers.yml"), new RegExp(`_commit: ${v2}`), "answers file points at the new template commit");
 });

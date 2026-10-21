@@ -6,10 +6,12 @@
 //   --mode canary  measures the reviewer against a fake PR with planted defects (scripts/review/canary/)
 // Options: --dry-run (shows what would be sent, without calling the model) · --base <ref> · --tier <tier>
 //
-// In CI, the kind of review depends on the event:
+// In CI, the kind of review depends on the event and on the PR as it is now (live labels, state in the comment):
 //   PR marked ready / opened ready / reopened → full (or incremental, if a review already happened)
-//   label "re-review"                         → incremental since the last reviewed commit
+//   label "re-review" on the PR (any event)   → incremental since the last reviewed commit
 //   label "deep-review"                       → full, with the strongest model
+//   approval label added or removed           → full, if findings are open (they may depend on the label)
+//   commit already reviewed                   → no model call: only recomputes the verdict
 //   push after the review                     → no model call: keeps the previous verdict,
 //                                               but fails if the new commits have a secret,
 //                                               a sensitive path, or if a blocking finding is pending
@@ -24,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   REPORT_MARKER,
+  approvalsOn,
   buildPrompt,
   composeComment,
   decideKind,
@@ -44,6 +47,7 @@ import {
   secretPathFindings,
   selectTier,
   splitDiff,
+  switchOffFindings,
 } from "./lib.ts";
 import type {
   Finding,
@@ -89,6 +93,23 @@ function loadConfig(): ReviewConfig {
     if (process.env.REVIEW_MODEL) config.tiers[name].model = process.env.REVIEW_MODEL;
   }
   return config;
+}
+
+/** A JSON config as it is in the PR's commit, or null if it is missing or invalid. */
+function readPrJson(path: string, sha: string): { disabled?: unknown } | null {
+  try {
+    return JSON.parse(execFileSync("git", ["show", `${sha}:${path}`], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] })) as { disabled?: unknown };
+  } catch {
+    return null;
+  }
+}
+
+function readSourceJson(path: string): { disabled?: unknown } | null {
+  try {
+    return JSON.parse(readSource(path)) as { disabled?: unknown };
+  } catch {
+    return null;
+  }
 }
 
 // core.quotePath=false: names with accents come out as they are (no quotes or octal codes).
@@ -146,6 +167,14 @@ async function upsertComment(existing: ExistingComment | null, body: string): Pr
     body: JSON.stringify({ body }),
   });
   if (!response.ok) throw new Error(`could not post the comment (HTTP ${response.status})`);
+}
+
+/** PR labels now. The event payload is a snapshot from when the event happened and can miss a label applied since. */
+async function liveLabels(): Promise<string[]> {
+  const { repo, pr, headers } = githubEnv();
+  const response = await fetch(`${API}/repos/${repo}/issues/${pr}/labels?per_page=100`, { headers });
+  if (!response.ok) throw new Error(`could not read the PR labels (HTTP ${response.status})`);
+  return ((await response.json()) as Array<{ name: string }>).map((l) => l.name);
 }
 
 /** Removes the "re-review" label after using it, so it can be applied again. */
@@ -228,11 +257,15 @@ async function main(): Promise<number> {
   const started = Date.now();
   const config = loadConfig();
   const notes: string[] = [];
+  if (mode === "canary" && config.disabled) {
+    console.log(`Canary skipped: the automated review is off in this repository (${config.disabled}).`);
+    return 0;
+  }
 
   // PR context
   const baseRef = mode === "ci" ? `origin/${process.env.BASE_REF || "main"}` : (values.base ?? "origin/main");
   const headSha = mode === "ci" ? (process.env.HEAD_SHA || git("rev-parse", "HEAD").trim()) : "HEAD";
-  let labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
+  let labels = mode === "ci" && !values["dry-run"] ? await liveLabels() : ((JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? []);
   let title = process.env.PR_TITLE ?? "";
   let body = process.env.PR_BODY ?? "";
   if (mode === "local") title = git("log", "-1", "--format=%s").trim();
@@ -250,7 +283,7 @@ async function main(): Promise<number> {
       : null;
   if (existing && !state && existing.body.includes("review-state")) notes.push("The state stored in the comment was invalid and was ignored.");
   const stateReachable = mode === "ci" && state !== null && isAncestor(state.sha, headSha);
-  const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "", labels };
+  const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "", labels, head: headSha };
   const decision =
     mode === "ci"
       ? decideKind(event, config, state, stateReachable)
@@ -295,8 +328,50 @@ async function main(): Promise<number> {
     ...secretPathFindings(fullFiles, fullFiltered.excluded),
     ...fullHits.filter((h) => h.added).map((h) => secretFinding(h.path, h.line)),
   ];
+  const switchOff =
+    mode === "canary"
+      ? []
+      : switchOffFindings([
+          { file: ".github/review.json", check: "automated review", base: config, pr: readPrJson(".github/review.json", headSha) },
+          { file: "evals/config.json", check: "evals", base: readSourceJson("evals/config.json"), pr: readPrJson("evals/config.json", headSha) },
+        ]);
   const contextHits = redacted.flatMap((r) => r.hits).filter((h) => !h.added).length;
   if (contextHits > 0) notes.push(`${contextHits} possible secret(s) in existing lines were redacted before sending.`);
+
+  // ----- no-key mode: the review is off; only the deterministic detectors run -----
+  // The switch is read from the target branch: a PR cannot turn its own review off. Without the switch,
+  // a missing key is an error (red), never a silent green.
+  if (config.disabled && mode === "ci") {
+    const detected = [...secretFindings, ...switchOff];
+    const blocking = secretFindings.length;
+    // Red with the review off reads like a contradiction: the banner says what is blocking and how to fix it.
+    const banner = blocking
+      ? [
+          `> ❌ **Blocked: ${blocking} possible secret(s) in this PR.** The AI review is off in this repository (${config.disabled}), but the secret detectors always run: they need no key.`,
+          "> **To turn this check green:**",
+          "> 1. Remove each value or file listed below from the PR and push again (the check runs again on its own).",
+          "> 2. Treat any real key that was pushed as leaked, even after removing it: revoke it and create a new one at the provider.",
+          "> 3. False positive? Read the value from an environment variable (e.g. `process.env.API_KEY`) instead of writing it in the code; in `.env.example`, leave the value empty (`API_KEY=`).",
+        ].join("\n")
+      : [
+          `> ⏸️ **Automated review is off in this repository** (no AI model ran): ${config.disabled}`,
+          "> Only the secret detectors ran. To turn the review on, see `docs/WORKFLOW.md` (\"No-key mode\").",
+        ].join("\n");
+    const report = detected.length
+      ? ["### Detectors", "", ...detected.map((f) => `- ${f.severity === "blocking" ? "🔴" : "🟠"} \`${f.file}${f.line ? `:${f.line}` : ""}\`: **${f.title}**. ${f.explanation}`)].join("\n")
+      : "No secret found in the PR.";
+    const verdict = blocking
+      ? `❌ Red check: ${blocking} possible secret(s) in the PR (the secret detectors run even with the AI review off). Fix: see the steps at the top of this comment.`
+      : "✅ Green check: review off, no secret found.";
+    console.log(`${banner}\n\n${report}\n\n${verdict}`);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${banner}\n\n${report}\n\n${verdict}\n`);
+    if (!values["dry-run"]) {
+      await upsertComment(existing, composeComment(banner, `${report}\n\n${verdict}`, state));
+      // Same as a review: the label is used up, so applying it again starts a new run.
+      if (labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);
+    }
+    return blocking ? 1 : 0;
+  }
 
   // ----- push after the review: no model call -----
   if (kind === "no-review") {
@@ -314,8 +389,10 @@ async function main(): Promise<number> {
       .join("\n");
     // Nothing changed since the review (e.g. an unrelated label): the verdict is recomputed and the comment stays as it is.
     if (state && changed.length === 0) {
-      const verdict = reasons.length ? `❌ Red check: ${reasons.join("; ")}.` : "✅ Verdict from the last review kept.";
+      const verdict = [...notes, reasons.length ? `❌ Red check: ${reasons.join("; ")}.` : "✅ Verdict from the last review kept."].join("\n");
       console.log(verdict);
+      // "re-review" on a commit that is already reviewed (e.g. the other run of a push + label pair got there first).
+      if (mode === "ci" && !values["dry-run"] && labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);
       if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, verdict + "\n");
       return reasons.length ? 1 : 0;
     }
@@ -433,7 +510,7 @@ async function main(): Promise<number> {
     notes,
     review,
     previous: resolved,
-    secretFindings,
+    secretFindings: [...secretFindings, ...switchOff],
     excluded: filtered.excluded,
     ignored: filtered.ignored,
     usage,
@@ -460,7 +537,11 @@ async function main(): Promise<number> {
   if (mode === "ci") {
     // Only advance the state when the review finished. On error, the previous state still holds,
     // but marked with the failure: the next push does not turn green until a review finishes well.
-    const newState: ReviewState | null = error ? (state ? { ...state, failure: headSha } : null) : { sha: headSha, findings: open };
+    const newState: ReviewState | null = error
+      ? state
+        ? { ...state, failure: headSha }
+        : null
+      : { sha: headSha, findings: open, approvals: approvalsOn(labels, config) };
     const banner = `> New pushes do not trigger another review. To review again (only what changed), apply the \`${config.rereviewLabel}\` label.`;
     await upsertComment(existing, composeComment(banner, markdown, newState));
     if (labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);

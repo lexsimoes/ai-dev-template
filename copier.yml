@@ -45,8 +45,15 @@ reviewer_provider:
   choices:
     DeepSeek by default, Claude on sensitive paths (secrets REVIEW_API_KEY and REVIEW_DEEP_API_KEY): deepseek
     Claude only (secret REVIEW_API_KEY with an Anthropic key): anthropic
-    "None (no AI key): the reviewer will stay off once the no-key mode ships (M7 PR 3); until then the review check needs a key": none
+    "None (no AI key): the review check passes with an 'off' notice; only the secret detectors run": none
   default: deepseek
+
+evals_with_model:
+  type: bool
+  help: >-
+    Run the evals with a real AI model in CI? Needs the EVAL_API_KEY secret (a separate key with a spending limit).
+    If not, the evals check passes with an 'off' notice and only the golden set guard runs.
+  default: "{{ reviewer_provider != 'none' }}"
 
 optional_sections:
   type: str
@@ -70,6 +77,10 @@ _exclude:
   - node_modules
   - tests/template
   - .github/workflows/template.yml
+  - LICENSE
+  - .github/workflows/traffic.yml
+  - scripts/traffic
+  - tests/unit/traffic.test.ts
 
 # Project-owned files: created once, never overwritten by `copier update` (recreated only if deleted).
 _skip_if_exists:
