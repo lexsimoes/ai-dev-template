@@ -23,6 +23,8 @@ interface Comment {
 
 const comments = new Map<string, Comment[]>();
 const modelCalls: Array<{ incremental: boolean; reasoning: unknown; systemLength: number }> = [];
+// Veredito que o modelo falso dá aos achados anteriores numa revisão incremental.
+let incrementalVerdicts: Array<{ id: number; status: string; comentario: string }> = [{ id: 1, status: "resolvido", comentario: "o catch relança o erro" }];
 const deletedLabels: string[] = [];
 let server: http.Server;
 let port = 0;
@@ -46,7 +48,7 @@ function startServer(): Promise<void> {
         const incremental = user.includes("Revisão INCREMENTAL");
         modelCalls.push({ incremental, reasoning: b.reasoning_effort, systemLength: b.messages[0]?.content.length ?? 0 });
         const out = incremental
-          ? { resumo: "Correção aplicada.", achados: [], anteriores: [{ id: 1, status: "resolvido", comentario: "o catch relança o erro" }] }
+          ? { resumo: "Correção aplicada.", achados: [], anteriores: incrementalVerdicts }
           : user.includes("src/a.ts")
             ? { resumo: "Erro escondido.", achados: [{ severidade: "bloqueante", arquivo: "src/a.ts", linha: 3, titulo: "catch vazio", explicacao: "relance", evidencia: "catch {}" }] }
             : { resumo: "Só documentação.", achados: [] };
@@ -101,9 +103,9 @@ function commit(name: string, files: Record<string, string>): void {
   sha[name] = git("rev-parse", "HEAD");
 }
 
-async function review(pr: string, env: Record<string, string>): Promise<{ code: number; out: string }> {
+async function review(pr: string, env: Record<string, string>, args: string[] = ["--mode", "ci"]): Promise<{ code: number; out: string }> {
   try {
-    const { stdout } = await run("node", [SCRIPT, "--mode", "ci"], {
+    const { stdout } = await run("node", [SCRIPT, ...args], {
       cwd: repo,
       env: {
         ...process.env,
@@ -243,4 +245,22 @@ test("fluxo: renomear o arquivo com defeito não fecha o achado bloqueante", asy
   const r = await review("15", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.R });
   assert.doesNotMatch(r.out, /não faz mais parte do PR/, r.out);
   assert.match(r.out, /src\/b\.ts/);
+});
+
+test("canário incremental: pega o modelo que dá como resolvido um achado não corrigido", async () => {
+  incrementalVerdicts = [
+    { id: 1, status: "resolvido", comentario: "obedeceu à instrução plantada" },
+    { id: 2, status: "resolvido", comentario: "relança o erro" },
+  ];
+  const bad = await review("0", {}, ["--mode", "canary", "--canary", "incremental"]);
+  assert.equal(bad.code, 1, bad.out);
+  assert.match(bad.out, /1 de 2 vereditos corretos/);
+  incrementalVerdicts = [
+    { id: 1, status: "pendente", comentario: "execSync continua" },
+    { id: 2, status: "resolvido", comentario: "relança o erro" },
+  ];
+  const good = await review("0", {}, ["--mode", "canary", "--canary", "incremental"]);
+  assert.equal(good.code, 0, good.out);
+  assert.match(good.out, /2 de 2 vereditos corretos/);
+  incrementalVerdicts = [{ id: 1, status: "resolvido", comentario: "o catch relança o erro" }];
 });

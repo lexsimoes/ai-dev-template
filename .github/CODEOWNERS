@@ -3,8 +3,7 @@
 # O scripts/bootstrap troca @lexsimoes pelo dono do projeto novo (M7).
 
 /tests/invariants/   @lexsimoes
-/evals/golden/       @lexsimoes
-/evals/config.json   @lexsimoes
+/evals/              @lexsimoes
 /specs/PRD.md        @lexsimoes
 /.github/            @lexsimoes
 /scripts/guard-invariants.ts  @lexsimoes

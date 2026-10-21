@@ -96,12 +96,19 @@ function git(...args: string[]): string {
   return execFileSync("git", ["-c", "core.quotePath=false", ...args], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
 }
 
+/**
+ * O commit revisado ainda está no histórico do PR? "Não é ancestral" (saída 1) e "commit inexistente"
+ * (force-push que o apagou) dão false; qualquer outro erro do git é erro de verdade, não "force-push".
+ */
 function isAncestor(ancestor: string, descendant: string): boolean {
   try {
-    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], { stdio: "ignore" });
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], { stdio: ["ignore", "ignore", "pipe"] });
     return true;
-  } catch {
-    return false;
+  } catch (e) {
+    const err = e as { status?: number; stderr?: Buffer | string };
+    const stderr = String(err.stderr ?? "");
+    if (err.status === 1 || /not a valid commit|bad object|unknown revision/i.test(stderr)) return false;
+    throw new Error(`git merge-base falhou (${err.status ?? "?"}): ${stderr.trim().slice(0, 300)}`, { cause: e });
   }
 }
 
@@ -153,6 +160,30 @@ async function removeLabel(label: string): Promise<void> {
 
 // ---------- canário ----------
 
+/** Canário incremental: o achado NÃO corrigido não pode virar "resolvido"; o corrigido deve. */
+function evaluateIncrementalCanary(resolved: Array<{ id: number; status: string; titulo: string; comentario: string }>): {
+  text: string;
+  passed: boolean;
+} {
+  const expected = JSON.parse(readFileSync(join(CANARY_DIR, "incremental", "expected.json"), "utf-8")) as {
+    resolvido: number[];
+    pendente: number[];
+  };
+  const rows = resolved.map((r) => {
+    const want = expected.resolvido.includes(r.id) ? "resolvido" : expected.pendente.includes(r.id) ? "pendente" : "?";
+    return { r, want, ok: r.status === want };
+  });
+  const passed = rows.every((x) => x.ok) && rows.length === expected.resolvido.length + expected.pendente.length;
+  const lines = [
+    `## 🐤 Canário incremental: ${rows.filter((x) => x.ok).length} de ${rows.length} vereditos corretos`,
+    "",
+    "| Achado anterior | Esperado | Veredito do modelo |",
+    "|---|---|---|",
+    ...rows.map(({ r, want, ok }) => `| ${r.id}. ${r.titulo} | ${want} | ${ok ? "✅" : "❌"} ${r.status}: ${r.comentario} |`),
+  ];
+  return { text: lines.join("\n"), passed };
+}
+
 function evaluateCanary(findings: Finding[]): { text: string; passed: boolean } {
   const expected = JSON.parse(readFileSync(join(CANARY_DIR, "expected.json"), "utf-8")) as CanaryDefect[];
   const rank: Record<Severity, number> = { bloqueante: 0, importante: 1, sugestao: 2 };
@@ -188,6 +219,7 @@ async function main(): Promise<number> {
       "dry-run": { type: "boolean", default: false },
       base: { type: "string" },
       tier: { type: "string" },
+      canary: { type: "string", default: "completa" },
     },
   });
   const mode = values.mode ?? "local";
@@ -205,12 +237,24 @@ async function main(): Promise<number> {
   let body = process.env.PR_BODY ?? "";
   if (mode === "local") title = git("log", "-1", "--format=%s").trim();
 
+  const canaryCase = values.canary ?? "completa";
+  if (mode === "canary" && !["completa", "leve", "incremental"].includes(canaryCase)) throw new Error(`caso de canário desconhecido: ${canaryCase}`);
+  const incrementalCanary = mode === "canary" && canaryCase === "incremental";
+
   const existing = mode === "ci" && !values["dry-run"] ? await findComment() : null;
-  const state = existing ? decodeState(existing.body) : null;
+  // Canário incremental: estado fictício com os achados "anteriores" do caso.
+  const state: ReviewState | null = incrementalCanary
+    ? { sha: "0".repeat(40), achados: JSON.parse(readFileSync(join(CANARY_DIR, "incremental", "anteriores.json"), "utf-8")) as Finding[] }
+    : existing
+      ? decodeState(existing.body)
+      : null;
   if (existing && !state && existing.body.includes("revisor-estado")) notes.push("O estado guardado no comentário era inválido e foi ignorado.");
-  const stateReachable = state !== null && isAncestor(state.sha, headSha);
+  const stateReachable = mode === "ci" && state !== null && isAncestor(state.sha, headSha);
   const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "", labels };
-  const decision = mode === "ci" ? decideKind(event, config, state, stateReachable) : { kind: "completa" as ReviewKind, note: null };
+  const decision =
+    mode === "ci"
+      ? decideKind(event, config, state, stateReachable)
+      : { kind: (incrementalCanary ? "incremental" : "completa") as ReviewKind, note: null };
   const kind = decision.kind;
   if (decision.note) notes.push(decision.note);
 
@@ -226,7 +270,9 @@ async function main(): Promise<number> {
     labels = pr.labels ?? [];
     // O segredo falso é gerado na hora: nenhum valor parecido com chave fica gravado no repositório.
     const fake = ["canario", "nao", "e", "real", Date.now().toString(36), "x".repeat(12)].join("-");
-    diff = readFileSync(join(CANARY_DIR, "canary.diff"), "utf-8").replaceAll("{{SEGREDO_FALSO}}", fake);
+    diff = incrementalCanary
+      ? readFileSync(join(CANARY_DIR, "incremental", "incremental.diff"), "utf-8")
+      : readFileSync(join(CANARY_DIR, "canary.diff"), "utf-8").replaceAll("{{SEGREDO_FALSO}}", fake);
     fullDiff = diff;
     prPaths = splitDiff(diff).map((f) => f.path);
   } else {
@@ -277,7 +323,9 @@ async function main(): Promise<number> {
   const selected = values.tier
     ? { tier: values.tier as TierName, reason: "nível escolhido por --tier" }
     : mode === "canary"
-      ? { tier: "padrao" as TierName, reason: "canário mede o nível padrão" }
+      ? canaryCase === "leve"
+        ? { tier: "leve" as TierName, reason: "canário do nível leve" }
+        : { tier: "padrao" as TierName, reason: `canário (${canaryCase}) mede o nível padrão` }
       : selectTier(prPaths, labels, config);
   let tierName = selected.tier;
   let tier = config.tiers[tierName];
@@ -390,7 +438,11 @@ async function main(): Promise<number> {
   const blocking = open.filter((f) => f.severidade === "bloqueante").length;
 
   let exitCode = error || blocking > 0 ? 1 : 0;
-  if (mode === "canary") {
+  if (incrementalCanary) {
+    const canary = evaluateIncrementalCanary(resolved);
+    markdown = `${canary.text}\n\n${markdown}`;
+    exitCode = error || !canary.passed ? 1 : 0;
+  } else if (mode === "canary") {
     const canary = evaluateCanary([...secretFindings, ...(review?.achados ?? [])]);
     markdown = `${canary.text}\n\n${markdown}`;
     exitCode = error || !canary.passed ? 1 : 0;

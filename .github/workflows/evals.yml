@@ -1,0 +1,101 @@
+# Evals no CI: quando um PR pronto (não rascunho) toca em arquivos de IA (aiPaths em evals/config.json),
+# roda o golden set com o modelo real, compara com a branch de destino rodada agora com o mesmo modelo,
+# comenta a tabela no PR e falha abaixo dos limites, em queda, ou com golden set enfraquecido.
+# Chave: segredo EVAL_API_KEY (projeto de testes com limite de gasto), nunca a de produção nem a do revisor.
+
+name: Evals
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    name: evals
+    # Rótulos: só o eval-aprovado (dono) reavalia; os demais não gastam chamadas.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'eval-aprovado')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write # publicar a tabela no PR
+    env:
+      # Provedor dos evals: variáveis do repositório, com DeepSeek como padrão.
+      LLM_PROVIDER: ${{ vars.EVAL_PROVIDER || 'openai-compatible' }}
+      LLM_BASE_URL: ${{ vars.EVAL_BASE_URL || 'https://api.deepseek.com' }}
+      LLM_MODEL: ${{ vars.EVAL_MODEL || 'deepseek-v4-pro' }}
+      # Deve ser a mesma configuração do app em produção. "none" desliga o raciocínio da DeepSeek:
+      # num classificador curto, o raciocínio gastaria o limite de saída antes da resposta.
+      LLM_EXTRA_BODY: ${{ vars.EVAL_EXTRA_BODY || '{"reasoning_effort":"none"}' }}
+      EVAL_JUDGE: ${{ vars.EVAL_JUDGE || '0' }}
+    steps:
+      - name: Código do PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Branch de destino (régua confiável e linha de base)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: base
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: pr/.nvmrc
+          cache: npm
+          cache-dependency-path: |
+            pr/package-lock.json
+            base/package-lock.json
+      - name: O PR toca em IA?
+        id: ia
+        working-directory: pr
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          CONFIG=../base/evals/config.json
+          [ -f "$CONFIG" ] || CONFIG=evals/config.json
+          node evals/touches-ai.ts --base "origin/$BASE_REF" --config "$CONFIG"
+      - name: Conferir o segredo
+        if: steps.ia.outputs.tocou == 'true'
+        env:
+          EVAL_API_KEY: ${{ secrets.EVAL_API_KEY }}
+        run: |
+          if [ -z "$EVAL_API_KEY" ] && [ "$LLM_PROVIDER" != "mock" ]; then
+            echo "::error::O segredo EVAL_API_KEY não está cadastrado (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+      - name: Instalar
+        if: steps.ia.outputs.tocou == 'true'
+        run: |
+          (cd pr && npm ci)
+          (cd base && npm ci)
+      - name: Evals da branch de destino (linha de base)
+        if: steps.ia.outputs.tocou == 'true'
+        # Pode falhar (ex.: a main ainda não tem o provedor ou a suite): aí não há comparação.
+        continue-on-error: true
+        working-directory: base
+        env:
+          LLM_API_KEY: ${{ secrets.EVAL_API_KEY }}
+          GITHUB_STEP_SUMMARY: ""
+        run: node evals/run.ts --out ../resultados-base
+      - name: Evals do PR
+        if: steps.ia.outputs.tocou == 'true'
+        working-directory: pr
+        env:
+          LLM_API_KEY: ${{ secrets.EVAL_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: node evals/run.ts --base-dir ../base --baseline ../resultados-base --out ../resultados-pr --pr-comment

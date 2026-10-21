@@ -1,6 +1,38 @@
 {
-  "$comment": "Limites dos evals. Mude só com aprovação do dono do projeto (é como mexer num invariante).",
+  "$comment": "Limites dos evals. Mude só com aprovação do dono do projeto (é como mexer num invariante). No CI, limites e teto valem os da branch de destino.",
   "maxCalls": 60,
+  "aiPaths": [
+    "src/ai/**",
+    "evals/**",
+    "**/*prompt*",
+    "**/*llm*"
+  ],
+  "pricing": {
+    "deepseek-v4-pro": {
+      "input": 1.32,
+      "output": 3.96
+    },
+    "deepseek-flash": {
+      "input": 0.3,
+      "output": 1.2
+    },
+    "claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0
+    },
+    "claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0
+    },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5
+    },
+    "mock": {
+      "input": 0,
+      "output": 0
+    }
+  },
   "suites": [
     {
       "name": "classify-message",

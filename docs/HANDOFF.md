@@ -3,29 +3,26 @@
 > Este arquivo é a "passagem de turno": qualquer agente (ou você, daqui a um mês) lê aqui primeiro para saber onde as coisas estão.
 > O agente atualiza ao fim de **cada** missão.
 
-**Atualizado em:** 2026-10-21 · **Por:** agente (M4 do template)
+**Atualizado em:** 2026-10-21 · **Por:** agente (M5 do template)
 
 ## Estado atual
 
 - Esqueleto do template criado: regras para agentes (`AGENTS.md`), PRD modelo, modelo de missão, invariantes de exemplo, evals de exemplo, modelo de PR.
 - App de demonstração: `src/pricing.ts` (cupom) e `src/ai/classify-message.ts` (classificador com LLM).
 - `npm run check` passa localmente; `npm run eval:mock` passa (mock não mede qualidade real).
+- Evals no CI com DeepSeek (`EVAL_API_KEY`), régua e golden set da `main`, comentário com custo.
 - CI no GitHub (`.github/workflows/ci.yml`): jobs `qualidade`, `invariantes` (com a guarda `scripts/guard-invariants.ts`) e `dependencias`, em todo PR e push na `main`.
 - Revisor independente (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek por padrão, Sonnet em caminho sensível, Opus com o rótulo `revisão-profunda`. Canário mensal (`.github/workflows/review-canary.yml`).
 
 ## Última missão
 
-- M4b: economia no revisor (PR em rascunho, revisão única ao ficar pronto, `revisar-de-novo` incremental, PRs triviais, prompt estável para cache).
+- M5: evals no CI (`.github/workflows/evals.yml`), adaptador `openai-compatible` no app, canário do revisor com casos incremental e leve.
 
 ## Fila (próximos itens)
 
-1. M5: evals no CI.
-   - Evals com modelo real usam o segredo `EVAL_API_KEY` (chave DeepSeek separada, com limite de gasto, cadastrada pelo dono). Nunca a chave do revisor nem a de produção.
-   - Sugestões pendentes da revisão do PR #5: `isAncestor` distinguir erro do git de "não é ancestral"; conferir se rótulos irrelevantes ocupam a vaga pendente da fila de `review.yml` (se sim, incluir o rótulo no `group`).
-   - Canário do revisor (lacuna aceita pelo dono até o M5): caso de "resolvido" falso na revisão incremental (achado plantado NÃO corrigido) e caso no nível leve.
-2. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes`, `dependencias` e `revisao` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
-3. M7: bootstrap e Template repository.
-4. M8: ensaio completo com projeto de demonstração.
+1. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes`, `dependencias`, `revisao` e `evals` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
+2. M7: bootstrap e Template repository.
+3. M8: ensaio completo com projeto de demonstração.
 
 ## Decisões pendentes (do dono)
 
