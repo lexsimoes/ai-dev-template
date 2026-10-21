@@ -16,13 +16,30 @@ O agente que implementa uma mudança é o mesmo que roda os testes. Se ele pudes
 
 ## Camadas de proteção
 
-| Camada | O que faz | Onde |
-|---|---|---|
-| Regra escrita | Proíbe e manda parar e perguntar | `AGENTS.md`, seção 1.2 |
-| Trava local | Claude Code recusa editar esta pasta | `.claude/settings.json` |
-| Dono obrigatório | PR que toca aqui exige a aprovação do dono | `.github/CODEOWNERS` + proteção da `main` (M6) |
-| Robô | Job separado e obrigatório no CI; falha se a pasta mudar sem autorização ou se houver `.skip` | `.github/workflows/` (M3) |
-| Revisor | Mudança aqui = achado **bloqueante** | `REVIEW.md` (M4) |
+| Camada | Vale para | O que faz | Onde |
+|---|---|---|---|
+| Regra escrita | Qualquer agente | Proíbe e manda parar e perguntar | `AGENTS.md`, seção 1.2 |
+| Trava local | **Só o Claude Code** | Recusa gravar nesta pasta | `.claude/settings.json` |
+| Robô | Qualquer agente ou pessoa | Job separado e obrigatório no CI; falha se a pasta mudar sem autorização ou se houver `.skip` | `.github/workflows/` (M3) |
+| Dono obrigatório | Qualquer agente ou pessoa | PR que toca aqui exige a aprovação do dono | `.github/CODEOWNERS` + proteção da `main` (M6) |
+| Revisor | Qualquer PR | Mudança aqui = achado **bloqueante** | `REVIEW.md` (M4) |
+
+**Codex, Cursor e outros agentes não leem `.claude/settings.json`.** Para eles, a proteção é o `AGENTS.md` (regra) mais o job obrigatório do CI (M3), que barra o PR mesmo que o agente desobedeça.
+
+### Detalhes da trava local (Claude Code)
+
+- A regra `Edit(...)` cobre **todas** as ferramentas de edição do Claude Code: Edit, Write, NotebookEdit e gravação por redirecionamento no Bash (`> arquivo`). Regras `Write(...)` ou `MultiEdit(...)` com caminho são aceitas, mas **nunca consultadas**, e geram aviso ao iniciar ([documentação](https://code.claude.com/docs/en/permissions)). Por isso o arquivo só usa `Edit`.
+- Testado em 2026-10-21 numa sessão nova do Claude Code 2.1.306 (cópia descartável do repositório):
+  - Write em `tests/invariants/` → bloqueado;
+  - Edit em `.claude/settings.json` → bloqueado;
+  - Write em `.github/CODEOWNERS` → bloqueado;
+  - `echo x > tests/invariants/…` → bloqueado (o mesmo comando fora da pasta passou);
+  - leitura de `.env.local` → bloqueada; leitura de `.env.example` → permitida.
+- Limites:
+  - a trava só vale em sessões **iniciadas dentro do repositório**, porque as configurações são carregadas no início da sessão;
+  - ela não pega um script (Node, Python) que grave arquivos por conta própria.
+
+  Por isso a garantia final é o CI.
 
 ## Como criar ou mudar um invariante (só o dono)
 

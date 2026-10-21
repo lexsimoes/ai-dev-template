@@ -19,7 +19,7 @@
 ## Fila (próximos itens)
 
 1. M3: CI de qualidade (lint, tipos, testes, invariantes como job obrigatório, auditoria de dependências).
-2. M4: revisão independente com Claude (`REVIEW.md`, `claude-code-action`).
+2. M4: revisão independente (`REVIEW.md`). **Nota do dono:** o revisor é independente de provedor, com DeepSeek como padrão e escalonamento para outro modelo quando o PR tocar caminhos sensíveis. No M4, atualizar o `docs/WORKFLOW.md` (diagrama e texto) para refletir isso, em vez de "Claude (outro modelo)".
 3. M5: evals no CI.
 4. M6: proteção da `main` e checagem de direção semanal.
 5. M7: bootstrap e Template repository.
@@ -34,7 +34,7 @@
 
 ## Riscos e avisos
 
-- A trava de `.claude/settings.json` é de "melhor esforço": impede as ferramentas de edição do Claude Code, mas não um script que grave arquivos por conta própria. A trava que vale de verdade é o CI + CODEOWNERS (M3/M6).
+- A trava de `.claude/settings.json` vale **só para o Claude Code**, e só em sessões iniciadas dentro do repositório. Ela bloqueia Edit, Write e redirecionamento no Bash (testado em 2026-10-21), mas não um script que grave arquivos por conta própria. Para o Codex e outros agentes valem o `AGENTS.md` e o job obrigatório do CI (M3). A garantia final é o CI + CODEOWNERS (M3/M6).
 
 ## Como retomar
 
