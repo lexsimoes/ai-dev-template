@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-As regras deste projeto estão no `AGENTS.md`, que vale para qualquer agente. O Claude Code importa o arquivo abaixo:
+This project's rules are in `AGENTS.md`, which applies to any agent. Claude Code imports the file below:
 
 @AGENTS.md
 
-## Notas específicas do Claude Code
+## Claude Code specific notes
 
-- `.claude/settings.json` bloqueia edição em `tests/invariants/`. Se o bloqueio aparecer, ele é intencional: **pare e pergunte ao dono** (AGENTS.md, seção 1.2). Não tente contornar com Bash ou scripts.
-- Revisão de segurança depois de mudanças em autenticação, dados de usuário, pagamentos ou entrada externa: `/security-review`.
+- `.claude/settings.json` blocks edits in `tests/invariants/`. If the block shows up, it is intentional: **stop and ask the owner** (AGENTS.md, section 1.2). Do not try to get around it with Bash or scripts.
+- Security review after changes to authentication, user data, payments or external input: `/security-review`.

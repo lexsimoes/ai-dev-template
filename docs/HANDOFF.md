@@ -1,29 +1,30 @@
-# HANDOFF: estado atual do projeto
+# HANDOFF: current state of the project
 
-> Este arquivo é a "passagem de turno": qualquer agente (ou você, daqui a um mês) lê aqui primeiro para saber onde as coisas estão.
-> O agente atualiza ao fim de **cada** missão.
+> This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
+> The agent updates it at the end of **every** mission.
 
-**Atualizado em:** 2026-10-21 · **Por:** agente (roadmap after M6)
+**Updated on:** 2026-10-21 · **By:** agent (M-EN)
 
-## Estado atual
+## Current state
 
-- Esqueleto do template criado: regras para agentes (`AGENTS.md`), PRD modelo, modelo de missão, invariantes de exemplo, evals de exemplo, modelo de PR.
-- App de demonstração: `src/pricing.ts` (cupom) e `src/ai/classify-message.ts` (classificador com LLM).
-- `npm run check` passa localmente; `npm run eval:mock` passa (mock não mede qualidade real).
-- Evals no CI com DeepSeek (`EVAL_API_KEY`), régua e golden set da `main`, comentário com custo.
-- CI no GitHub (`.github/workflows/ci.yml`): jobs `qualidade`, `invariantes` (com a guarda `scripts/guard-invariants.ts`) e `dependencias`, em todo PR e push na `main`.
-- Revisor independente (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek por padrão, Sonnet em caminho sensível, Opus com o rótulo `revisão-profunda`. Canário mensal e ao ficar pronto um PR que muda o revisor (`.github/workflows/review-canary.yml`).
-- Proteção da `main`: regra `.github/rulesets/proteger-main.json` importada e ativa (5 checks obrigatórios, só do Actions; PR obrigatório; 0 aprovações).
-- Checagem de direção semanal (`.github/workflows/direction-check.yml`, `scripts/direction/`): issue toda segunda-feira com o rótulo `checagem-de-direcao`.
+- Template skeleton created: rules for agents (`AGENTS.md`), sample PRD, mission template, sample invariants, sample evals, PR template.
+- Demo app: `src/pricing.ts` (coupon) and `src/ai/classify-message.ts` (LLM classifier).
+- `npm run check` passes locally; `npm run eval:mock` passes (the mock does not measure real quality).
+- Evals in CI with DeepSeek (`EVAL_API_KEY`), thresholds and golden set from `main`, comment with the cost.
+- CI on GitHub (`.github/workflows/ci.yml`): jobs `quality`, `invariants` (with the guard `scripts/guard-invariants.ts`) and `dependencies`, on every PR and push to `main`.
+- Independent reviewer (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek by default, Sonnet on a sensitive path, Opus with the `deep-review` label. Monthly canary, and when a PR that changes the reviewer becomes ready (`.github/workflows/review-canary.yml`).
+- `main` protection: ruleset `.github/rulesets/protect-main.json` imported and active (5 required checks, from Actions only; PR required; 0 approvals).
+- Weekly direction check (`.github/workflows/direction-check.yml`, `scripts/direction/`): an issue every Monday with the `direction-check` label.
 
-## Última missão
+## Last mission
 
-- M6: proteção da `main` e checagem de direção semanal.
-  - `revisao` e `evals` não são mais pulados em rótulos alheios nem em forks (um check obrigatório pulado conta como verde).
-  - Guarda dos invariantes roda a versão da `main` e só aceita o rótulo aplicado por dono do CODEOWNERS.
-  - Decisões do dono aplicadas: linha de base dos evals obrigatória; canário só quando o PR fica pronto (e no mensal).
+- M-EN: translated the template to English (docs, messages, check and label names), with no behavior change.
+- M6: `main` protection and weekly direction check.
+  - `review` and `evals` are no longer skipped on unrelated labels or on forks (a skipped required check counts as green).
+  - The invariant guard runs the `main` version and only accepts the label when applied by a CODEOWNERS owner.
+  - Owner decisions applied: evals baseline required; canary only when the PR becomes ready (and in the monthly run).
 
-## Fila (próximos itens)
+## Queue (next items)
 
 Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet). From now on the template is written in English; the agent talks to the owner in the configured conversation language (pt-BR).
 
@@ -53,45 +54,45 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - Breaker and newcomer modes only on request.
 6. **M8 (rehearsal):** a new project from scratch; an audit of an existing owner project (GoAgentic, read-only, on a branch); someone (or the newcomer agent) installing from the README alone; the reviewer comparisons already planned; a PR that weakens an invariant and is blocked; a real check that an unrelated label does not turn a red required check green (done on 2026-10-21 in PR #8 with a green check; repeat with a red one).
 
-## Decisões pendentes (do dono)
+## Pending decisions (owner)
 
-- O `AGENTS.md` do template é a versão oficial do método (decisão do dono, 2026-10-21).
-- Seções 4 (Context7) e 5 (UI/UX) do `AGENTS.md` incorporam o resumo do `~/.codex/AGENTS.md` do dono enviado em 2026-10-21.
-- M7: gerar `~/.codex/AGENTS.md` e `~/.claude/CLAUDE.md` globais a partir do template, versionados num repositório de dotfiles; seções opcionais (`<!-- opcional:... -->`) ligadas pelo tipo de projeto.
-- `tests/invariants/README.md`, linha "Dono obrigatório": diz que a proteção da `main` exige a aprovação do dono, o que não vale na opção A (0 aprovações). A pasta é protegida: só o dono atualiza, com o rótulo `invariante-aprovado`.
-- Modelo padrão do adaptador Anthropic: `claude-opus-5-5`. Trocar para um modelo mais barato nos evals é decisão do dono (ver `evals/README.md`, Custos).
+- The template's `AGENTS.md` is the official version of the method (owner decision, 2026-10-21).
+- Sections 4 (Context7) and 5 (UI/UX) of `AGENTS.md` incorporate the summary of the owner's `~/.codex/AGENTS.md` sent on 2026-10-21.
+- M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
+- `tests/invariants/README.md`, line "Dono obrigatório" (owner required): it says the `main` protection requires the owner's approval, which does not hold under option A (0 approvals). The folder is protected: only the owner updates it, with the `invariant-approved` label.
+- Default model of the Anthropic adapter: `claude-opus-5-5`. Switching to a cheaper model in the evals is the owner's decision (see `evals/README.md`, Costs).
 
-## Decisões tomadas (dono, 2026-10-21)
+## Decisions made (owner, 2026-10-21)
 
 - Agent identity: option A (agents keep using the owner's account).
 - Language: the template is 100% English from now on; the conversation language is a setting (currently pt-BR), not the language of the files.
 - Entry point: Claude Code. Codex, Cursor, Antigravity and others are implementers only and need only AGENTS.md.
 - `"Bash(gh pr merge:*)"` added to the `deny` list of `.claude/settings.json` by the owner (commit `dd37036`).
-- Ruleset `proteger-main` imported and active; a red required check blocks the merge (verified in PR #8: `mergeable_state` = `blocked`).
+- Ruleset `protect-main` imported and active; a red required check blocks the merge (verified in PR #8: `mergeable_state` = `blocked`).
 
-- Linha de base dos evals obrigatória: se a rodada da `main` falhar, o check `evals` fica vermelho.
-- Canário do revisor em PRs só quando o PR fica pronto (e no mensal).
+- Evals baseline required: if the `main` run fails, the `evals` check turns red.
+- Reviewer canary on PRs only when the PR becomes ready (and in the monthly run).
 
-- Revisor padrão: `deepseek-v4-pro` (sem trocar para flash).
-- `afterReviewPush: "exigir-nova-revisao"` desde já: push depois da revisão fica vermelho até `revisar-de-novo`.
-- `trivial.mode: "leve"`.
-- Modo `@claude` em comentários (`claude-code-action`): descartado por agora.
+- Default reviewer: `deepseek-v4-pro` (no switch to flash).
+- `afterReviewPush: "require-re-review"` starting now: a push after the review stays red until `re-review`.
+- `trivial.mode: "light"`.
+- `@claude` mode in comments (`claude-code-action`): dropped for now.
 
-## Riscos e avisos
+## Risks and warnings
 
-- O estado do revisor (commit revisado + achados em aberto) fica num comentário HTML do robô. Quem tem permissão de escrita no repositório pode editar esse comentário; a edição aparece no histórico do comentário. O `AGENTS.md` proíbe agentes de editá-lo.
-- Pushes depois da revisão não são revisados pelo modelo (decisão de economia). Com `exigir-nova-revisao`, o check fica vermelho até o rótulo `revisar-de-novo`, então nenhum commit chega ao merge sem revisão.
+- The reviewer's state (reviewed commit + open findings) lives in an HTML comment by the bot. Anyone with write permission on the repository can edit that comment; the edit shows up in the comment's history. `AGENTS.md` forbids agents from editing it.
+- Pushes after the review are not reviewed by the model (a cost-saving decision). With `require-re-review`, the check stays red until the `re-review` label, so no commit reaches the merge without a review.
 
-- Segredos em workflows `pull_request`: qualquer pessoa com permissão de push pode, num PR da mesma origem, alterar um workflow e ler `REVIEW_API_KEY`. Mitigação: só o dono e os agentes dele têm push; o revisor trata `.github/` como sensível; cada chave tem limite de gasto no provedor (confirme o da `REVIEW_API_KEY` e da `REVIEW_DEEP_API_KEY`). Ambiente com aprovação manual para segredos foi avaliado no M6 e não recomendado para dev solo (um clique por revisão e por eval).
-- `REVIEW_DEEP_API_KEY` (Anthropic) está cadastrado: as revisões do PR #6 rodaram no nível `sensivel` com `claude-sonnet-5-5`. Sem ele, os níveis `sensivel` e `profunda` caem para o padrão (o relatório avisa).
-- Rótulo `invariante-aprovado` não fica preso a um commit: depois que o dono aplica, pushes seguintes que mexam em `tests/invariants/` continuam aprovados enquanto o rótulo estiver no PR. Na opção A (agente = dono) isso não muda nada; na opção B, remover o rótulo a cada push que toque a pasta seria o próximo passo (revisão de segurança do M6, confiança 7/10).
-- A proteção do golden set e a régua dos evals rodam no `evals/run.ts` **do PR** (que testa o código do PR). Um PR que altere esse arquivo pode afrouxá-las; o revisor trata `evals/` como caminho sensível. Rodar o executor da `main` contra o código do PR é melhoria possível (anterior ao M6).
-- `isAncestor` (revisor): o ramo "falha real do git → erro" não tem teste; o de "commit apagado por force-push → false" tem.
+- Secrets in `pull_request` workflows: anyone with push permission can, in a PR from the same repository, change a workflow and read `REVIEW_API_KEY`. Mitigation: only the owner and the owner's agents have push access; the reviewer treats `.github/` as sensitive; each key has a spending limit at the provider (confirm the one for `REVIEW_API_KEY` and `REVIEW_DEEP_API_KEY`). An environment with manual approval for secrets was evaluated in M6 and not recommended for a solo developer (one click per review and per eval).
+- `REVIEW_DEEP_API_KEY` (Anthropic) is registered: the reviews of PR #6 ran at the `sensitive` tier with `claude-sonnet-5-5`. Without it, the `sensitive` and `deep` tiers fall back to the standard one (the report warns about it).
+- The `invariant-approved` label is not tied to a commit: after the owner applies it, later pushes that touch `tests/invariants/` stay approved while the label is on the PR. Under option A (agent = owner) this changes nothing; under option B, removing the label on every push that touches the folder would be the next step (M6 security review, confidence 7/10).
+- The golden set protection and the evals thresholds run in the **PR's** `evals/run.ts` (which tests the PR's code). A PR that changes that file can loosen them; the reviewer treats `evals/` as a sensitive path. Running the `main` runner against the PR's code is a possible improvement (predates M6).
+- `isAncestor` (reviewer): the "real git failure → error" branch has no test; the "commit deleted by force-push → false" one does.
 
-- A trava de `.claude/settings.json` vale **só para o Claude Code**, e só em sessões iniciadas dentro do repositório. Ela bloqueia Edit, Write e redirecionamento no Bash (testado em 2026-10-21), mas não um script que grave arquivos por conta própria. Para o Codex e outros agentes valem o `AGENTS.md` e o job obrigatório do CI (M3). A garantia final é o CI com os checks obrigatórios da regra de proteção (M6).
+- The `.claude/settings.json` lock applies **only to Claude Code**, and only in sessions started inside the repository. It blocks Edit, Write and Bash redirection (tested on 2026-10-21), but not a script that writes files on its own. For Codex and other agents, `AGENTS.md` and the required CI job (M3) apply. The final guarantee is CI with the required checks of the protection ruleset (M6).
 
-## Como retomar
+## How to resume
 
 1. `npm ci`
 2. `npm run check`
-3. Ler a próxima missão em `docs/missions/` ou o item 1 da fila acima.
+3. Read the next mission in `docs/missions/` or item 1 of the queue above.

@@ -1,353 +1,353 @@
-# WORKFLOW: como trabalhar com este template
+# WORKFLOW: how to work with this template
 
-O agente implementa, outro modelo revisa, os robôs verificam e **você decide e aprova**.
+The agent implements, another model reviews, the robots verify, and **you decide and approve**.
 
-## Mapa do fluxo
+## Flow map
 
 ```
- ★ = VOCÊ decide          🤖 = robô/agente          ⛔ = parada obrigatória
+ ★ = YOU decide           🤖 = robot/agent          ⛔ = mandatory stop
 
- ★ 1. MISSÃO ─────────── você escreve ou aprova docs/missions/NNNN-tema.md
-       │                 (objetivo, autorização, critérios de aceite)
+ ★ 1. MISSION ────────── you write or approve docs/missions/NNNN-topic.md
+       │                 (goal, authorization, acceptance criteria)
        ▼
- 🤖 2. BRANCH ────────── agente cria missao/NNNN-tema a partir da main
+ 🤖 2. BRANCH ────────── agent creates mission/NNNN-topic from main
        │
        ▼
- 🤖 3. CÓDIGO + TESTES ─ agente implementa, faz commits e push
-       │                 ⛔ invariante no caminho → PARA e te pergunta ★
+ 🤖 3. CODE + TESTS ──── agent implements, commits and pushes
+       │                 ⛔ invariant in the way → STOPS and asks you ★
        ▼
- 🤖 4. PULL REQUEST ──── agente abre o PR em RASCUNHO no primeiro push, trabalha nele
-       │                 e só no fim marca "Ready for review" (com a tabela
-       │                 requisito → evidência → status preenchida)
+ 🤖 4. PULL REQUEST ──── agent opens the PR as a DRAFT on the first push, works on it
+       │                 and only at the end marks it "Ready for review" (with the
+       │                 requirement → evidence → status table filled in)
        │
        ├────────────────────────┬─────────────────────────────┐
        ▼                        ▼                             ▼
- 🤖 5a. CI                 🤖 5b. REVISÃO               🤖 5c. PREVIEW (ex.: Vercel)
-     lint · tipos · testes     revisor independente         um endereço só deste PR,
-     invariantes (obrig.)      (outro provedor/modelo)      criado ANTES do merge
-     auditoria de deps         DeepSeek → Sonnet em         para você clicar e testar
-     evals (se tocou em IA)    caminho sensível → Opus
-                               com "revisão-profunda"
-                               bloqueante/importante/sugestão
+ 🤖 5a. CI                 🤖 5b. REVIEW                🤖 5c. PREVIEW (e.g. Vercel)
+     lint · types · tests      independent reviewer         an address just for this PR,
+     invariants (required)     (another provider/model)     created BEFORE the merge
+     dependency audit          DeepSeek → Sonnet on         for you to click and test
+     evals (if AI changed)     sensitive path → Opus
+                               with "deep-review"
+                               blocking/important/suggestion
        │                        │                             │
        └────────────┬───────────┴─────────────────────────────┘
                     ▼
-          vermelho ou bloqueante?
-            │ sim              │ não
+          red or blocking?
+            │ yes              │ no
             ▼                  ▼
- 🤖 6. CORREÇÃO          ★ 7. SUA APROVAÇÃO
-     agente corrige na       você lê o resumo, o que NÃO foi verificado,
-     mesma branch e          as decisões pendentes, testa o Preview
-     volta ao passo 5        e clica Approve
+ 🤖 6. FIX               ★ 7. YOUR APPROVAL
+     agent fixes on the      you read the summary, what was NOT verified,
+     same branch and         the pending decisions, test the Preview
+     goes back to step 5     and click Approve
                                │
                                ▼
-                         ★ 8. MERGE na main (protegida)
+                         ★ 8. MERGE into main (protected)
                                │
                                ▼
-                         🤖 9. DEPLOY EM PRODUCTION (automático no merge)
+                         🤖 9. DEPLOY TO PRODUCTION (automatic on merge)
 
-   ⚠️  Aprovar o merge = aprovar o deploy de Production.
-       Não existe um segundo portão depois do merge: o portão é o passo 7.
+   ⚠️  Approving the merge = approving the Production deploy.
+       There is no second gate after the merge: the gate is step 7.
 
- 🤖 toda semana: issue "Checagem de direção" compara o PRD com o que foi entregue → você lê ★
+ 🤖 every week: "Direction check" issue compares the PRD with what was delivered → you read it ★
 ```
 
-## Onde você entra
+## Where you come in
 
-| Momento | O que você faz | Quanto tempo |
+| Moment | What you do | How long |
 |---|---|---|
-| Antes | Escreve o PRD, os inegociáveis e cada missão (o que conta como "pronto") | 10–30 min por missão |
-| Durante | Responde quando o agente para (invariante, produto, segurança, segredo) | Pontual |
-| No PR | Lê o resumo e a revisão, **testa o Preview** e aprova ou pede mudança | 5–15 min |
-| Merge | Clica em merge, sabendo que isso **publica em Production** | 1 min |
-| Semanal | Lê a issue "Checagem de direção" | 5 min |
+| Before | Write the PRD, the non-negotiables and each mission (what counts as "done") | 10–30 min per mission |
+| During | Answer when the agent stops (invariant, product, security, secret) | As needed |
+| On the PR | Read the summary and the review, **test the Preview**, and approve or ask for changes | 5–15 min |
+| Merge | Click merge, knowing that this **publishes to Production** | 1 min |
+| Weekly | Read the "Direction check" issue | 5 min |
 
-## Passo a passo de uma missão
+## A mission, step by step
 
-1. **Escreva a missão.** Copie `docs/missions/_TEMPLATE.md` para `docs/missions/NNNN-tema.md`, preencha objetivo, autorização e aceite, e marque `Status: aprovada`.
-2. **Chame o agente.** Exemplo de pedido: *"Execute a missão `docs/missions/0003-cupom-no-checkout.md` seguindo o AGENTS.md."*
-3. **Responda às paradas.** Se o agente perguntar, decida. Se a decisão mudar a regra do negócio, atualize o PRD.
-4. **Leia o PR**, nesta ordem:
-   1. a tabela requisito → evidência → status (tem algum 🟡, ⬜ ou ❌?);
-   2. "O que NÃO foi verificado" e "Decisões pendentes";
-   3. os checks no fim da página (todos verdes?);
-   4. os comentários do revisor (algum **bloqueante**?);
-   5. o **Preview**: clique e teste o que mudou, como usuário.
-5. **Aprove e faça o merge** só se tudo acima estiver ok. Lembre: isso publica em Production.
-6. **Confira o HANDOFF.** O agente deve ter atualizado `docs/HANDOFF.md` com o estado e a próxima missão.
+1. **Write the mission.** Copy `docs/missions/_TEMPLATE.md` to `docs/missions/NNNN-topic.md`, fill in the goal, authorization and acceptance, and set `Status: approved`.
+2. **Call the agent.** Example request: *"Run the mission `docs/missions/0003-checkout-coupon.md` following AGENTS.md."*
+3. **Answer the stops.** If the agent asks, decide. If the decision changes the business rule, update the PRD.
+4. **Read the PR**, in this order:
+   1. the requirement → evidence → status table (any 🟡, ⬜ or ❌?);
+   2. "What was NOT verified" and "Pending decisions";
+   3. the checks at the bottom of the page (all green?);
+   4. the reviewer's comments (any **blocking** ones?);
+   5. the **Preview**: click it and test what changed, as a user.
+5. **Approve and merge** only if everything above is ok. Remember: this publishes to Production.
+6. **Check the HANDOFF.** The agent should have updated `docs/HANDOFF.md` with the state and the next mission.
 
-## Pedir correção
+## Asking for a fix
 
-- Comente no PR o que está errado (ou aponte um achado do revisor) e peça ao agente: *"corrija o achado X do PR #N na mesma branch"*.
-- O agente corrige **na mesma branch**; o CI e a revisão rodam de novo sozinhos.
-- Feedback de cliente, issue ou e-mail vira uma **missão nova**, nunca uma correção direta (`AGENTS.md`, seção 1.5).
+- Comment on the PR what is wrong (or point to a reviewer finding) and ask the agent: *"fix finding X of PR #N on the same branch"*.
+- The agent fixes it **on the same branch**; CI and the review run again on their own.
+- Feedback from a customer, an issue or an e-mail becomes a **new mission**, never a direct fix (`AGENTS.md`, section 1.5).
 
-## Comandos locais
+## Local commands
 
-| Comando | O que faz |
+| Command | What it does |
 |---|---|
-| `npm ci` | Instala as dependências exatamente como no `package-lock.json` |
-| `npm run check` | Lint + tipos + testes + invariantes (o mesmo que o CI roda) |
-| `npm run test:invariants` | Só os inegociáveis |
-| `npm run guard:invariants` | A guarda dos invariantes contra a `main` (pasta intocada, nada pulado) |
-| `npm run eval:mock` | Evals sem custo (testa só o encanamento) |
-| `npm run eval` | Evals com o provedor de `LLM_PROVIDER` |
-| `npm run review:dry-run` | Mostra o que o revisor enviaria (arquivos, segredos redigidos, nível, tamanho) sem chamar modelo nenhum |
-| `npm run review:local` | Revisa a sua branch contra a `main` com o modelo real (precisa do `.env.local`) |
-| `npm run review:canary` | Roda o canário do revisor com o modelo real (precisa do `.env.local`) |
+| `npm ci` | Installs the dependencies exactly as in `package-lock.json` |
+| `npm run check` | Lint + types + tests + invariants (the same as CI runs) |
+| `npm run test:invariants` | Only the non-negotiables |
+| `npm run guard:invariants` | The invariant guard against `main` (folder untouched, nothing skipped) |
+| `npm run eval:mock` | Evals at no cost (tests only the plumbing) |
+| `npm run eval` | Evals with the provider from `LLM_PROVIDER` |
+| `npm run review:dry-run` | Shows what the reviewer would send (files, redacted secrets, tier, size) without calling any model |
+| `npm run review:local` | Reviews your branch against `main` with the real model (needs `.env.local`) |
+| `npm run review:canary` | Runs the review canary with the real model (needs `.env.local`) |
 
-## CI: os robôs de cada PR
+## CI: the robots on each PR
 
-O arquivo `.github/workflows/ci.yml` roda sozinho em todo PR (inclusive rascunhos) e em todo push na `main`. São 3 jobs independentes, cada um numa máquina própria:
+The file `.github/workflows/ci.yml` runs on its own on every PR (drafts included) and on every push to `main`. There are 3 independent jobs, each on its own machine:
 
-| Check | O que verifica | Falha quando |
+| Check | What it verifies | Fails when |
 |---|---|---|
-| `qualidade` | Instala com `npm ci`, roda lint, tipos e testes unitários | Código fora do padrão, erro de tipo ou teste quebrado |
-| `invariantes` | Roda a guarda (`scripts/guard-invariants.ts`) e os testes de `tests/invariants/` | Um inegociável quebrou, um teste dele foi pulado, ou a pasta mudou sem o rótulo `invariante-aprovado` |
-| `dependencias` | Confere **só as dependências que o PR adiciona ou muda** | Alguma tem vulnerabilidade conhecida de gravidade alta ou crítica |
+| `quality` | Installs with `npm ci`, runs lint, types and unit tests | Code out of standard, type error or broken test |
+| `invariants` | Runs the guard (`scripts/guard-invariants.ts`) and the tests in `tests/invariants/` | A non-negotiable broke, one of its tests was skipped, or the folder changed without the `invariant-approved` label |
+| `dependencies` | Checks **only the dependencies the PR adds or changes** | One of them has a known vulnerability of high or critical severity |
 
-Os três, mais `revisao` e `evals`, são **checks obrigatórios** quando a regra de proteção da `main` está ligada (veja "Proteção da `main`"): com qualquer um vermelho, o botão de merge trava.
+These three, plus `review` and `evals`, are **required checks** when the `main` protection rule is on (see "Protecting `main`"): with any of them red, the merge button is locked.
 
-### Como ler um check vermelho
+### How to read a red check
 
-1. No fim da página do PR, na caixa de checks, procure o ❌ e clique em **Details** ao lado dele.
-2. Abre a página do job, com a lista de **steps** à esquerda. O step com ❌ é onde parou; os seguintes nem rodam.
-3. Clique no step vermelho para abrir o **log** (o texto que a máquina escreveu). Leia de baixo para cima: a causa costuma estar nas últimas 20 linhas.
-4. Procure estas palavras:
-   - `not ok`: teste que falhou, com o nome dele (ex.: `INV-001b`);
-   - `error`: lint ou tipos;
-   - `❌ Guarda dos invariantes`: a guarda explica o motivo em português.
-5. Atalho: a aba **Summary** do job mostra o resumo da guarda dos invariantes sem precisar abrir o log.
+1. At the bottom of the PR page, in the checks box, look for the ❌ and click **Details** next to it.
+2. The job page opens, with the list of **steps** on the left. The step with ❌ is where it stopped; the following ones do not even run.
+3. Click the red step to open the **log** (the text the machine wrote). Read it from the bottom up: the cause is usually in the last 20 lines.
+4. Look for these words:
+   - `not ok`: a test that failed, with its name (e.g. `INV-001b`);
+   - `error`: lint or types;
+   - `❌ Invariant guard`: the guard explains the reason in plain English.
+5. Shortcut: the job's **Summary** tab shows the invariant guard summary without opening the log.
 
-Depois, peça ao agente: *"o check X falhou com esta mensagem: …, corrija na mesma branch"*. Se o vermelho for em `invariantes`, o agente **não** pode mexer no teste: ou corrige o código, ou para e te pergunta (`AGENTS.md`, seção 1.2).
+Then ask the agent: *"check X failed with this message: …, fix it on the same branch"*. If the red is in `invariants`, the agent **cannot** touch the test: it either fixes the code, or stops and asks you (`AGENTS.md`, section 1.2).
 
-### Rótulo `invariante-aprovado`
+### Label `invariant-approved`
 
-Quando **você** decide mudar uma regra inegociável:
-1. Abra o PR.
-2. Na coluna da direita, em **Labels**, aplique `invariante-aprovado`.
-3. A guarda roda de novo e aceita a mudança na pasta.
+When **you** decide to change a non-negotiable rule:
+1. Open the PR.
+2. In the right column, under **Labels**, apply `invariant-approved`.
+3. The guard runs again and accepts the change in the folder.
 
-Mesmo com o rótulo, testes pulados (`.skip`, `.todo`, `.only`) **nunca** passam.
+Even with the label, skipped tests (`.skip`, `.todo`, `.only`) **never** pass.
 
-A guarda só aceita o rótulo se quem o aplicou **por último** é dono de `tests/invariants/` no `.github/CODEOWNERS` da `main`. Ela também mostra no **Summary** do job todo o histórico do rótulo: quem aplicou, quem removeu e quando. Se o robô do Actions ou uma conta de agente aplicar o rótulo, o check fica vermelho. A guarda que roda é sempre a da `main`, então um PR não consegue afrouxá-la.
+The guard only accepts the label if whoever applied it **last** is an owner of `tests/invariants/` in the `.github/CODEOWNERS` of `main`. It also shows the label's full history in the job's **Summary**: who applied it, who removed it, and when. If the Actions bot or an agent account applies the label, the check turns red. The guard that runs is always the one from `main`, so a PR cannot loosen it.
 
-Limite: se o agente trabalha com a **sua** conta do GitHub (o padrão hoje), para o GitHub ele **é** você, e a guarda não tem como distinguir. Aí valem o `AGENTS.md`, que proíbe agentes de mexer no rótulo, e o histórico no Summary. Para fechar de vez, veja "Identidade dos agentes" mais abaixo.
+Limit: if the agent works with **your** GitHub account (the default today), to GitHub it **is** you, and the guard has no way to tell you apart. Then what applies is `AGENTS.md`, which forbids agents from touching the label, and the history in the Summary. To close this for good, see "Agent identity" below.
 
-### Custos do CI
+### CI costs
 
-- **Repositório público** (como este template): os runners padrão do GitHub são **grátis**.
-- **Repositório privado:**
-  - o plano Free inclui 2.000 minutos por mês, e o Pro, 3.000;
-  - passando disso, o Linux padrão custa US$ 0,006 por minuto.
-- Cada PR usa 3 jobs de cerca de 1 minuto cada. Pushes seguidos no mesmo PR cancelam a execução anterior, para não gastar minutos à toa.
-- A checagem de direção semanal usa menos de 1 minuto por semana.
+- **Public repository** (like this template): GitHub's standard runners are **free**.
+- **Private repository:**
+  - the Free plan includes 2,000 minutes per month, and Pro, 3,000;
+  - beyond that, standard Linux costs $0.006 per minute.
+- Each PR uses 3 jobs of about 1 minute each. Consecutive pushes on the same PR cancel the previous run, so minutes are not wasted.
+- The weekly direction check uses less than 1 minute per week.
 
-## Revisor independente (check `revisao`)
+## Independent reviewer (check `review`)
 
-Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada como **um** comentário no PR. Quem revisa é um modelo de **outro provedor** que o agente que implementou, porque quem escreveu o texto não enxerga os próprios erros.
+Every **ready** PR (not drafts) gets an automated review, published as **one** comment on the PR. The reviewer is a model from **a different provider** than the agent that implemented it, because whoever wrote the text does not see their own mistakes.
 
-### Quando o revisor roda (e quanto custa cada vez)
+### When the reviewer runs (and how much each run costs)
 
-| Situação | O que acontece | Chama o modelo? |
+| Situation | What happens | Calls the model? |
 |---|---|---|
-| PR em **rascunho** (o agente ainda está trabalhando) | Nada | Não |
-| PR marcado **Ready for review** (ou aberto já pronto) | **Revisão completa** do PR inteiro | Sim, uma vez |
-| **Push** depois da revisão | Não chama o modelo. O check fica **vermelho** até alguém aplicar `revisar-de-novo`, e o comentário lista os commits não revisados. É o padrão: `afterReviewPush: "exigir-nova-revisao"` em `.github/review.json`, decisão do dono. Com `"manter-veredito"`, o push mantém o verde anterior e só fica vermelho em: segredo, caminho sensível, bloqueante em aberto, revisão que falhou ou force-push | Não |
-| Rótulo **`revisar-de-novo`** (você ou o agente aplicam) | **Revisão incremental**: só o diff desde o último commit revisado, conferindo se cada achado anterior foi resolvido. O rótulo é removido sozinho, para poder ser aplicado de novo. Se um push chegar logo depois e a fila do GitHub descartar essa execução, o push encontra o rótulo e faz a revisão no lugar dela | Sim, menor |
-| Rótulo **`revisão-profunda`** (só você) | Revisão completa com o modelo mais forte (Opus) | Sim, mais cara |
-| **Outro rótulo** qualquer (ex.: `eval-aprovado`) | Recalcula o veredito da última revisão, sem mexer no comentário. O job não pode ser pulado: com o check obrigatório (M6), um job pulado contaria como verde por cima de um vermelho | Não |
-| PR vindo de **fork** | Check vermelho com aviso: forks não recebem segredos, então ninguém revisou. Revise à mão | Não |
-| PR **trivial**: só `README.md`, `CHANGELOG.md` e `docs/**/*.md`, ou só lockfile. Nunca é trivial se tocar documento que orienta agentes (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `specs/`, `docs/missions/`, `docs/HANDOFF.md`, `docs/SKILLS.md`, `SKILL.md`, `.claude/`) ou caminho sensível | Revisão **leve** (mesmo modelo, raciocínio curto) ou **nenhuma** (só os detectores de segredo), conforme `trivial.mode` em `.github/review.json` | Leve ou não |
+| PR in **draft** (the agent is still working) | Nothing | No |
+| PR marked **Ready for review** (or opened already ready) | **Full review** of the whole PR | Yes, once |
+| **Push** after the review | Does not call the model. The check stays **red** until someone applies `re-review`, and the comment lists the unreviewed commits. This is the default: `afterReviewPush: "require-re-review"` in `.github/review.json`, the owner's decision. With `"keep-verdict"`, the push keeps the previous green and only turns red on: secret, sensitive path, open blocking finding, failed review or force-push | No |
+| Label **`re-review`** (you or the agent apply it) | **Incremental review**: only the diff since the last reviewed commit, checking whether each previous finding was resolved. The label is removed on its own, so it can be applied again. If a push arrives right after and the GitHub queue drops that run, the push finds the label and does the review in its place | Yes, smaller |
+| Label **`deep-review`** (only you) | Full review with the strongest model (Opus) | Yes, more expensive |
+| **Any other label** (e.g. `eval-approved`) | Recomputes the verdict of the last review, without touching the comment. The job cannot be skipped: with the required check (M6), a skipped job would count as green on top of a red one | No |
+| PR from a **fork** | Red check with a notice: forks do not get secrets, so nobody reviewed it. Review it by hand | No |
+| **Trivial** PR: only `README.md`, `CHANGELOG.md` and `docs/**/*.md`, or only a lockfile. It is never trivial if it touches a document that guides agents (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `specs/`, `docs/missions/`, `docs/HANDOFF.md`, `docs/SKILLS.md`, `SKILL.md`, `.claude/`) or a sensitive path | **Light** review (same model, short reasoning) or **none** (only the secret detectors), according to `trivial.mode` (`light` or `none`) in `.github/review.json` | Light or no |
 
-O commit revisado e os achados em aberto ficam guardados no próprio comentário do revisor, de forma invisível. É por isso que a revisão incremental sabe de onde partir.
-- Ninguém deve editar esse comentário. Se ele for adulterado, o estado é validado e, se estiver inválido, é ignorado.
-- Um force-push que apague o commit revisado deixa o check vermelho, e a próxima revisão volta a ser completa.
-- A revisão incremental só olha os arquivos do PR. Um merge da `main` na branch não traz arquivos novos para o diff, mas trechos vindos da `main` **dentro** de arquivos do PR podem aparecer.
-- Achado de arquivo que saiu do PR (apagado, ou revertido ao que está na `main`) se resolve sozinho.
+The reviewed commit and the open findings are stored in the reviewer's own comment, invisibly. That is how the incremental review knows where to start.
+- Nobody should edit that comment. If it is tampered with, the state is validated and, if invalid, ignored.
+- A force-push that erases the reviewed commit turns the check red, and the next review goes back to being full.
+- The incremental review only looks at the PR's files. A merge of `main` into the branch does not bring new files into the diff, but snippets from `main` **inside** the PR's files may show up.
+- A finding in a file that left the PR (deleted, or reverted to what is on `main`) resolves on its own.
 
-- **Segredos** são decididos só pelos detectores, que rodam sobre o PR inteiro em toda execução. O achado só some quando o segredo sai do PR; o modelo nunca decide isso.
-- **Lockfiles** (`package-lock.json` e afins) nunca são enviados ao modelo. Quem os cobre é o check `dependencias`, que olha vulnerabilidades conhecidas. Um PR só de lockfile não recebe revisão de conteúdo.
+- **Secrets** are decided only by the detectors, which run over the whole PR on every run. The finding only goes away when the secret leaves the PR; the model never decides this.
+- **Lockfiles** (`package-lock.json` and the like) are never sent to the model. They are covered by the `dependencies` check, which looks for known vulnerabilities. A lockfile-only PR gets no content review.
 
-A simulação de ponta a ponta desse fluxo, com um GitHub e um modelo falsos, roda em todo `npm test` (`tests/unit/review-flow.test.ts`).
+The end-to-end simulation of this flow, with a fake GitHub and a fake model, runs on every `npm test` (`tests/unit/review-flow.test.ts`).
 
-### Como funciona
+### How it works
 
-1. O workflow `.github/workflows/review.yml` calcula o diff do PR.
-2. **Filtro de segredos, antes de qualquer envio:**
-   - arquivos `.env*` (menos o `.env.example`), chaves e certificados **nunca** são enviados;
-   - linhas com cara de chave ou token viram `[REDIGIDO]`;
-   - segredo numa linha **adicionada** vira achado bloqueante sem nem perguntar ao modelo.
-3. **Escolha do nível:**
+1. The workflow `.github/workflows/review.yml` computes the PR's diff.
+2. **Secret filter, before anything is sent:**
+   - `.env*` files (except `.env.example`), keys and certificates are **never** sent;
+   - lines that look like a key or token become `[REDACTED]`;
+   - a secret on an **added** line becomes a blocking finding without even asking the model.
+3. **Choosing the tier:**
 
-   | Nível | Quando | Modelo padrão | Segredo |
+   | Tier | When | Default model | Secret |
    |---|---|---|---|
-   | `padrao` | PR comum | DeepSeek `deepseek-v4-pro` | `REVIEW_API_KEY` |
-   | `sensivel` | PR toca caminho sensível (`sensitivePaths` em `.github/review.json`: invariantes, evals, CI, autenticação, pagamento, IA…) | Claude `claude-sonnet-5-5` | `REVIEW_DEEP_API_KEY` |
-   | `profunda` | Você aplica o rótulo `revisão-profunda` | Claude `claude-opus-5-5` | `REVIEW_DEEP_API_KEY` |
+   | `standard` | Regular PR | DeepSeek `deepseek-v4-pro` | `REVIEW_API_KEY` |
+   | `sensitive` | PR touches a sensitive path (`sensitivePaths` in `.github/review.json`: invariants, evals, CI, authentication, payment, AI…) | Claude `claude-sonnet-5-5` | `REVIEW_DEEP_API_KEY` |
+   | `deep` | You apply the `deep-review` label | Claude `claude-opus-5-5` | `REVIEW_DEEP_API_KEY` |
 
-   Sem o `REVIEW_DEEP_API_KEY`, o escalonamento não acontece: o nível padrão revisa e o relatório **diz isso** explicitamente.
-4. O modelo recebe o `REVIEW.md` e o `AGENTS.md` **da branch de destino** (um PR não afrouxa a própria revisão) e responde em JSON.
-   - Esses dois arquivos vêm sempre **no começo** do prompt, e do mesmo jeito, em toda revisão.
-   - Provedores com cache de contexto, como a DeepSeek, cobram cerca de 3% do preço por esse trecho repetido.
-   - Na Anthropic (níveis `sensivel` e `profunda`) o cache **não** é ativado: gravar no cache custa 25% a mais e ele dura 5 minutos, o que não compensa em revisões espaçadas.
-   - O relatório mostra quantos tokens vieram do cache.
-5. Achado sem evidência, ou que cita arquivo fora do diff, é **descartado**, e o relatório conta quantos foram descartados.
-6. Algum **bloqueante** deixa o check `revisao` vermelho. Importantes e sugestões só aparecem no comentário.
-7. Se o revisor falhar (provedor fora do ar, resposta inválida, diff grande demais), o check fica **vermelho** e o relatório diz que nada foi verificado. Erro nunca vira "aprovado".
+   Without `REVIEW_DEEP_API_KEY`, the escalation does not happen: the standard tier reviews and the report **says so** explicitly.
+4. The model receives `REVIEW.md` and `AGENTS.md` **from the target branch** (a PR does not loosen its own review) and replies in JSON.
+   - These two files always come **at the start** of the prompt, and in the same way, in every review.
+   - Providers with context caching, like DeepSeek, charge about 3% of the price for that repeated part.
+   - On Anthropic (tiers `sensitive` and `deep`) caching is **not** turned on: writing to the cache costs 25% more and it lasts 5 minutes, which does not pay off for reviews spaced far apart.
+   - The report shows how many tokens came from the cache.
+5. A finding without evidence, or that cites a file outside the diff, is **discarded**, and the report counts how many were discarded.
+6. Any **blocking** finding turns the `review` check red. Important findings and suggestions only show up in the comment.
+7. If the reviewer fails (provider down, invalid reply, diff too large), the check turns **red** and the report says nothing was verified. An error never becomes "approved".
 
-### Trocar de provedor
+### Switching providers
 
-- **Nível padrão:** em Settings → Secrets and variables → Actions → **Variables**, crie `REVIEW_API_BASE_URL` (qualquer API no formato da OpenAI) e `REVIEW_MODEL`. A chave continua no segredo `REVIEW_API_KEY`.
-- **Outros níveis e limites:** edite `.github/review.json` (protegido por CODEOWNERS). Lá ficam:
-  - os caminhos sensíveis;
-  - o tamanho máximo do diff (`maxDiffChars`);
-  - o tempo máximo de espera (`timeoutMs`);
-  - os preços usados na estimativa de custo.
+- **Standard tier:** in Settings → Secrets and variables → Actions → **Variables**, create `REVIEW_API_BASE_URL` (any API in the OpenAI format) and `REVIEW_MODEL`. The key stays in the `REVIEW_API_KEY` secret.
+- **Other tiers and limits:** edit `.github/review.json` (protected by CODEOWNERS). It holds:
+  - the sensitive paths;
+  - the maximum diff size (`maxDiffChars`);
+  - the maximum wait time (`timeoutMs`);
+  - the prices used in the cost estimate.
 
-### Testar na sua máquina (sem colar chave em lugar nenhum)
+### Testing on your machine (without pasting the key anywhere)
 
 ```bash
-read -s REVIEW_API_KEY        # cole a chave e tecle Enter (nada aparece na tela)
+read -s REVIEW_API_KEY        # paste the key and press Enter (nothing shows on screen)
 printf 'REVIEW_API_KEY=%s\n' "$REVIEW_API_KEY" > .env.local
 unset REVIEW_API_KEY
-chmod 600 .env.local          # só você lê o arquivo
-npm run review:dry-run        # confere o que seria enviado, sem custo
-npm run review:local          # revisão real da sua branch
+chmod 600 .env.local          # only you can read the file
+npm run review:dry-run        # checks what would be sent, at no cost
+npm run review:local          # real review of your branch
 ```
 
-O `.env.local` está no `.gitignore` e o Claude Code não tem permissão de lê-lo (`.claude/settings.json`).
+`.env.local` is in `.gitignore`, and Claude Code has no permission to read it (`.claude/settings.json`).
 
-### Canário do revisor
+### Review canary
 
-Um PR **fictício** com 6 defeitos plantados (`scripts/review/canary/`):
-- invariante desligado;
-- `catch` que devolve pedido grátis;
-- comando do e-mail do cliente executado;
-- chave no código;
-- ✅ sem evidência;
-- stack trace mostrado ao cliente.
+A **fake** PR with 6 planted defects (`scripts/review/canary/`):
+- invariant turned off;
+- `catch` that returns a free order;
+- command from the customer's e-mail executed;
+- key in the code;
+- ✅ without evidence;
+- stack trace shown to the customer.
 
-O workflow **Canário do revisor** roda todo dia 1, quando fica pronto um PR que muda o revisor (pushes seguintes não o rodam de novo, por decisão do dono) e sob demanda (aba Actions → Run workflow). Ele falha se algum defeito passar despercebido.
+The **Review canary** workflow runs on the 1st of every month, when a PR that changes the reviewer becomes ready (later pushes do not run it again, by the owner's decision), and on demand (Actions tab → Run workflow). It fails if any defect goes unnoticed.
 
-É assim que você descobre se uma troca de modelo ou de critérios piorou a revisão.
+This is how you find out whether a change of model or of criteria made the review worse.
 
-Por que um PR fictício, e não um PR de verdade: PRs abertos pelo próprio GitHub Actions não disparam outros workflows. Um PR real criado pelo robô não seria revisado.
+Why a fake PR and not a real one: PRs opened by GitHub Actions itself do not trigger other workflows. A real PR created by the bot would not be reviewed.
 
-### Custos
+### Costs
 
-O relatório de cada execução mostra os tokens usados e o custo estimado. Por referência, um PR de tamanho médio (cerca de 20 mil tokens de entrada e 3 mil de saída) custa aproximadamente:
+Each run's report shows the tokens used and the estimated cost. For reference, a medium-sized PR (about 20 thousand input tokens and 3 thousand output tokens) costs roughly:
 
-| Modelo | Preço (entrada / saída, por milhão de tokens) | PR médio |
+| Model | Price (input / output, per million tokens) | Average PR |
 |---|---|---|
-| DeepSeek `deepseek-v4-pro` | US$ 1,32 / 3,96 no pico; metade fora do pico | ≈ US$ 0,04 |
-| Claude `claude-sonnet-5-5` | US$ 2 / 10 (leitura de cache US$ 0,10, não usada) | ≈ US$ 0,07 |
-| Claude `claude-opus-5-5` | US$ 4 / 20 (leitura de cache US$ 0,20, não usada) | ≈ US$ 0,14 |
+| DeepSeek `deepseek-v4-pro` | $1.32 / 3.96 at peak; half off-peak | ≈ $0.04 |
+| Claude `claude-sonnet-5-5` | $2 / 10 (cache read $0.10, not used) | ≈ $0.07 |
+| Claude `claude-opus-5-5` | $4 / 20 (cache read $0.20, not used) | ≈ $0.14 |
 
-Uma revisão incremental costuma custar bem menos que a completa (estimativa: cerca de US$ 0,03), porque o diff é pequeno e o começo do prompt vem do cache. O canário custa uma chamada por mês, mais uma a cada push em PRs que mudam o revisor. Os minutos do GitHub Actions seguem a tabela do CI acima (grátis em repositório público).
+An incremental review usually costs much less than a full one (estimate: about $0.03), because the diff is small and the start of the prompt comes from the cache. The canary costs one call per month, plus one for each push on PRs that change the reviewer. GitHub Actions minutes follow the CI table above (free in a public repository).
 
-### Por que não "max-turns"
+### Why not "max-turns"
 
-O revisor faz **uma** chamada por execução, sem ferramentas e sem loop. Por isso não precisa de limite de turnos (`--max-turns` só faz sentido para agentes que agem em vários passos). Os limites que valem aqui são:
-- tamanho máximo do diff;
-- tempo máximo de espera por resposta;
-- `timeout-minutes: 15` no job.
+The reviewer makes **one** call per run, with no tools and no loop. That is why it needs no turn limit (`--max-turns` only makes sense for agents that act in several steps). The limits that apply here are:
+- maximum diff size;
+- maximum wait time for a reply;
+- `timeout-minutes: 15` on the job.
 
-## Evals no CI (check `evals`)
+## Evals in CI (check `evals`)
 
-Quando um PR **pronto** toca em arquivos de IA (`aiPaths` em `evals/config.json`), o workflow `evals.yml`:
-1. roda o golden set com o modelo real (DeepSeek por padrão, chave `EVAL_API_KEY`);
-2. compara com a `main`, rodada agora com o mesmo modelo;
-3. comenta a tabela no PR.
+When a **ready** PR touches AI files (`aiPaths` in `evals/config.json`), the `evals.yml` workflow:
+1. runs the golden set with the real model (DeepSeek by default, key `EVAL_API_KEY`);
+2. compares it with `main`, run now with the same model;
+3. comments the table on the PR.
 
-O check fica vermelho:
-- abaixo do limite;
-- em queda maior que a tolerada;
-- se casos do golden set forem apagados ou alterados, ou uma suite for removida, sem o rótulo `eval-aprovado`, que só você aplica;
-- se a rodada da `main` (a linha de base) falhar, por exemplo com a API fora do ar. Rode o job de novo (botão **Re-run jobs**) quando ela voltar.
+The check turns red:
+- below the threshold;
+- on a drop larger than the tolerated one;
+- if golden set cases are deleted or changed, or a suite is removed, without the `eval-approved` label, which only you apply;
+- if the `main` run (the baseline) fails, for example with the API down. Run the job again (**Re-run jobs** button) when it is back.
 
-Os evals rodam de novo a cada push e a cada rótulo aplicado em PR que toca em IA (menos de US$ 0,01 por rodada hoje). Pular o job num rótulo faria o check obrigatório contar como verde.
+The evals run again on every push and every label applied to a PR that touches AI (less than $0.01 per run today). Skipping the job on a label would make the required check count as green.
 
-PR que não toca em IA não chama o modelo. Detalhes, variáveis e custos: `evals/README.md`.
+A PR that does not touch AI does not call the model. Details, variables and costs: `evals/README.md`.
 
-O canário do revisor também ganhou dois casos:
-- **revisão incremental:** o modelo não pode dar como "resolvido" um achado não corrigido, nem quando há uma instrução plantada pedindo isso;
-- **nível leve.**
+The review canary also gained two cases:
+- **incremental review:** the model must not mark as "resolved" a finding that was not fixed, not even when there is a planted instruction asking for it;
+- **light tier.**
 
-## Proteção da `main` (M6)
+## Protecting `main` (M6)
 
-Analogia: a `main` é o cofre. Os checks são os alarmes; a regra de proteção é a porta que só abre com todos os alarmes verdes e pelo caminho certo (um PR), nunca por fora.
+Analogy: `main` is the vault. The checks are the alarms; the protection rule is the door that only opens with every alarm green and through the right path (a PR), never from outside.
 
-O arquivo `.github/rulesets/proteger-main.json` é a regra pronta para importar. Ela:
+The file `.github/rulesets/protect-main.json` is the ready-to-import rule. It:
 
-| Regra | Por quê |
+| Rule | Why |
 |---|---|
-| Ninguém apaga a `main` nem faz force-push nela | Histórico não se reescreve |
-| Toda mudança entra por PR | Nem você nem um agente fazem push direto na `main` |
-| Exige os checks `qualidade`, `invariantes`, `dependencias`, `revisao` e `evals` verdes | Merge só com os robôs de acordo |
-| Os checks precisam vir do GitHub Actions (`integration_id` 15368) | Ninguém forja um "verde" pela API, nem um agente com o seu token |
-| 0 aprovações obrigatórias | O GitHub não deixa o autor aprovar o próprio PR, e hoje os agentes usam a sua conta: com 1 aprovação, nenhum PR entraria. **O seu clique em merge é a aprovação** (e, se o merge publica, o deploy) |
-| Sem "Require review from Code Owners" | Mesmo motivo: você é o autor e o dono, e o GitHub não aceita a sua própria revisão |
-| Sem "branch atualizada antes do merge" | Exigiria atualizar a branch a cada merge, e cada atualização pede nova revisão paga |
-| Ninguém na lista de exceções (bypass) | Nem você pula os checks. Numa emergência, desligue a regra (Settings → Rules), faça o necessário e religue |
+| Nobody deletes `main` or force-pushes to it | History is not rewritten |
+| Every change goes in through a PR | Neither you nor an agent pushes directly to `main` |
+| Requires the checks `quality`, `invariants`, `dependencies`, `review` and `evals` to be green | Merge only when the robots agree |
+| The checks must come from GitHub Actions (`integration_id` 15368) | Nobody forges a "green" through the API, not even an agent with your token |
+| 0 required approvals | GitHub does not let the author approve their own PR, and today the agents use your account: with 1 approval, no PR would get in. **Your click on merge is the approval** (and, if the merge publishes, the deploy) |
+| No "Require review from Code Owners" | Same reason: you are the author and the owner, and GitHub does not accept your own review |
+| No "branch up to date before merge" | It would require updating the branch at every merge, and each update asks for a new paid review |
+| Nobody on the exception (bypass) list | Not even you skip the checks. In an emergency, turn the rule off (Settings → Rules), do what is needed and turn it back on |
 
-### Como ligar (uma vez, no GitHub)
+### How to turn it on (once, on GitHub)
 
-1. Baixe `.github/rulesets/proteger-main.json` para o seu computador (abra o arquivo no GitHub → botão **Download raw file**).
-2. No repositório: **Settings** → **Rules** → **Rulesets**.
-3. **New ruleset** → **Import a ruleset** → escolha o arquivo.
-4. Confira na tela: nome `proteger-main`, **Enforcement status: Active**, alvo **Default branch**, e os 5 checks listados em "Require status checks to pass".
-5. Clique em **Create**.
+1. Download `.github/rulesets/protect-main.json` to your computer (open the file on GitHub → **Download raw file** button).
+2. In the repository: **Settings** → **Rules** → **Rulesets**.
+3. **New ruleset** → **Import a ruleset** → choose the file.
+4. Check on screen: name `protect-main`, **Enforcement status: Active**, target **Default branch**, and the 5 checks listed under "Require status checks to pass".
+5. Click **Create**.
 
-Para conferir: abra um PR qualquer. Na caixa de merge deve aparecer "Required" ao lado dos 5 checks, e o botão de merge só fica verde quando todos passarem.
+To check: open any PR. In the merge box, "Required" should appear next to the 5 checks, and the merge button only turns green when all of them pass.
 
-### Repositório privado
+### Private repository
 
-Regras de proteção (rulesets ou branch protection) funcionam de graça em repositórios **públicos**. Em repositório **privado** exigem o plano **GitHub Pro** (pessoal) ou **Team** (organização). No plano Free, num privado, a regra não é aplicada (o GitHub avisa na tela). Sem Pro, os checks continuam rodando e aparecendo no PR; você só perde a trava. Aí a disciplina é sua: não clique em merge com check vermelho.
+Protection rules (rulesets or branch protection) work for free in **public** repositories. In a **private** repository they require the **GitHub Pro** plan (personal) or **Team** (organization). On the Free plan, in a private repository, the rule is not enforced (GitHub warns you on screen). Without Pro, the checks keep running and showing up on the PR; you only lose the lock. Then the discipline is yours: do not click merge with a red check.
 
-### Identidade dos agentes
+### Agent identity
 
-Hoje os agentes (Claude Code na nuvem, Codex) abrem PRs e aplicam rótulos **com a sua conta**. Para o GitHub, eles são você. O que isso permite e como cada opção resolve:
+Today the agents (Claude Code in the cloud, Codex) open PRs and apply labels **with your account**. To GitHub, they are you. What this allows and how each option solves it:
 
-| | A. Sua conta (atual) | B. Conta-robô (ex.: `lexsimoes-agente`) | C. GitHub App |
+| | A. Your account (current) | B. Bot account (e.g. `lexsimoes-agente`) | C. GitHub App |
 |---|---|---|---|
-| Configuração | Nenhuma | Uma conta grátis a mais, convidada com papel **Write**, e um token fino só para os seus repositórios | Criar e instalar um App; gerar tokens curtos |
-| Você aprova o PR formalmente | Não (autor = você) | Sim: dá para exigir 1 aprovação + Code Owners | Sim |
-| Guarda distingue o rótulo do agente | Não | Sim: rótulo aplicado pelo robô fica vermelho | Sim |
-| Agente consegue clicar em merge | Sim (só o `AGENTS.md` impede) | Só depois da sua aprovação | Só depois da sua aprovação |
-| Agentes na nuvem (Claude Code web, Codex cloud) | São você | **Continuam sendo você**: eles usam o app de GitHub deles, com a sua conta | Idem |
-| Para quem | Dev solo começando | Quem usa agentes **locais** (CLI) com frequência | Times |
+| Setup | None | One more free account, invited with the **Write** role, and a fine-grained token for your repositories only | Create and install an App; generate short-lived tokens |
+| You formally approve the PR | No (author = you) | Yes: you can require 1 approval + Code Owners | Yes |
+| Guard tells the agent's label apart | No | Yes: a label applied by the bot turns red | Yes |
+| Agent can click merge | Yes (only `AGENTS.md` prevents it) | Only after your approval | Only after your approval |
+| Cloud agents (Claude Code web, Codex cloud) | They are you | **They are still you**: they use their own GitHub app, with your account | Same |
+| For whom | Solo dev getting started | Whoever uses **local** agents (CLI) often | Teams |
 
-Recomendação: **A agora**, com as travas que valem mesmo quando o agente é você:
-- PR obrigatório;
-- checks obrigatórios vindos só do Actions;
-- guarda e revisor rodando a versão da `main`;
-- golden set e régua dos evals vindos da `main`.
+Recommendation: **A for now**, with the locks that hold even when the agent is you:
+- required PR;
+- required checks coming only from Actions;
+- guard and reviewer running the `main` version;
+- golden set and eval thresholds coming from `main`.
 
-Passe para **B** quando usar agentes locais no dia a dia ou quando entrar outra pessoa no projeto. Aí, na regra: aprovações = 1 e "Require review from Code Owners" ligado.
+Move to **B** when you use local agents day to day or when another person joins the project. Then, in the rule: approvals = 1 and "Require review from Code Owners" on.
 
-O que continua dependendo de disciplina na opção A:
-- **Merge e rótulos:** um agente poderia fazer merge ou aplicar `invariante-aprovado` / `eval-aprovado`. O `AGENTS.md` proíbe, e o histórico do rótulo fica no Summary do job.
-- **Workflows:** um PR pode alterar workflows (o GitHub roda a versão do PR em `pull_request`). O revisor trata `.github/` como caminho sensível e manda para o modelo mais forte; leia esses diffs com atenção antes do merge.
-- **Segredos:** quem tem push pode, num PR, escrever um workflow que leia um segredo. Mitigação: só você e seus agentes têm push, e cada chave tem **limite de gasto** no provedor. Ambientes com aprovação manual para segredos protegeriam mais, mas pediriam um clique seu em cada revisão e cada eval; para um dev solo, o limite de gasto é a troca melhor.
-- **No Claude Code:** dá para bloquear o merge pelo terminal acrescentando `"Bash(gh pr merge:*)"` à lista `deny` de `.claude/settings.json`. O arquivo é protegido contra edição do agente, então essa mudança é sua.
+What still depends on discipline in option A:
+- **Merge and labels:** an agent could merge or apply `invariant-approved` / `eval-approved`. `AGENTS.md` forbids it, and the label history stays in the job's Summary.
+- **Workflows:** a PR can change workflows (GitHub runs the PR's version on `pull_request`). The reviewer treats `.github/` as a sensitive path and sends it to the strongest model; read those diffs carefully before the merge.
+- **Secrets:** anyone with push access can, in a PR, write a workflow that reads a secret. Mitigation: only you and your agents have push access, and each key has a **spending limit** at the provider. Environments with manual approval for secrets would protect more, but would ask for a click from you on every review and every eval; for a solo dev, the spending limit is the better trade-off.
+- **In Claude Code:** you can block merging from the terminal by adding `"Bash(gh pr merge:*)"` to the `deny` list in `.claude/settings.json`. The file is protected against edits by the agent, so this change is yours.
 
-## Checagem de direção semanal
+## Weekly direction check
 
-Analogia: o GPS que, uma vez por semana, pergunta "ainda é para lá que você quer ir?". Robôs verificam se o código está **certo**; só você verifica se ele vai para o **lugar certo**.
+Analogy: the GPS that, once a week, asks "is that still where you want to go?". Robots verify whether the code is **right**; only you verify whether it is going to the **right place**.
 
-Toda segunda-feira às 08:23 (Brasília), o workflow **Checagem de direção** abre uma issue com o rótulo `checagem-de-direcao`:
-1. cinco perguntas para você (objetivo, critérios de aceite, inegociáveis, fila, gastos);
-2. saúde da `main`: última execução do CI e do canário mensal;
-3. a tabela de direção do `specs/PRD.md`, com uma conferência automática: os arquivos citados como evidência existem? Algum requisito ficou sem linha?
-4. PRs mesclados na semana e PRs abertos, com alerta para os parados há mais de 7 dias;
-5. a fila e as decisões pendentes do `docs/HANDOFF.md`.
+Every Monday at 08:23 (Brasília time), the **Direction check** workflow opens an issue with the `direction-check` label:
+1. five questions for you (goal, acceptance criteria, non-negotiables, queue, spending);
+2. health of `main`: latest run of CI and of the monthly canary;
+3. the direction table from `specs/PRD.md`, with an automatic check: do the files cited as evidence exist? Was any requirement left without a row?
+4. PRs merged during the week and open PRs, with an alert for those stalled for more than 7 days;
+5. the queue and the pending decisions from `docs/HANDOFF.md`.
 
-Se a issue da semana anterior ainda estiver aberta, ela é atualizada (e ganha um comentário, que te notifica) em vez de abrir outra. Feche a issue quando terminar.
+If the previous week's issue is still open, it is updated (and gets a comment, which notifies you) instead of opening another one. Close the issue when you are done.
 
-Não chama modelo de IA e não usa segredos: custa alguns segundos de Actions. Para rodar na hora: aba **Actions** → **Checagem de direção** → **Run workflow**. Para ver o texto sem publicar: `node scripts/direction/run.ts --dry-run`.
+It does not call an AI model and does not use secrets: it costs a few seconds of Actions. To run it right away: **Actions** tab → **Direction check** → **Run workflow**. To see the text without publishing: `node scripts/direction/run.ts --dry-run`.
 
-## Ainda em construção
+## Still under construction
 
-As seções abaixo entram nos próximos módulos:
-- **M7:** primeiro dia de um projeto novo (PRD → inegociáveis → primeira missão → primeiro PR).
+The sections below come in the next modules:
+- **M7:** first day of a new project (PRD → non-negotiables → first mission → first PR).

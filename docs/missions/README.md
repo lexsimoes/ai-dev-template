@@ -1,8 +1,8 @@
-# Missões
+# Missions
 
-Uma **missão** é uma ordem de serviço para um agente: o que fazer, o que ele pode e não pode fazer, e como saber que terminou.
+A **mission** is a work order for an agent: what to do, what it may and may not do, and how to know it is finished.
 
-- Copie `_TEMPLATE.md` para `NNNN-tema-curto.md` (ex.: `0003-cupom-no-checkout.md`). A numeração é sequencial.
-- O dono escreve ou aprova a missão **antes** de o agente começar (Status: `aprovada`).
-- Uma missão = uma branch (`missao/NNNN-tema`) = um PR.
-- Missão concluída continua aqui como histórico; o estado atual do projeto fica em `docs/HANDOFF.md`.
+- Copy `_TEMPLATE.md` to `NNNN-short-topic.md` (e.g. `0003-coupon-at-checkout.md`). Numbering is sequential.
+- The owner writes or approves the mission **before** the agent starts (Status: `approved`).
+- One mission = one branch (`mission/NNNN-topic`) = one PR.
+- A finished mission stays here as history; the current state of the project lives in `docs/HANDOFF.md`.
