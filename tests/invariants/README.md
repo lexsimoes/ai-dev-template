@@ -20,7 +20,7 @@ O agente que implementa uma mudança é o mesmo que roda os testes. Se ele pudes
 |---|---|---|---|
 | Regra escrita | Qualquer agente | Proíbe e manda parar e perguntar | `AGENTS.md`, seção 1.2 |
 | Trava local | **Só o Claude Code** | Recusa gravar nesta pasta | `.claude/settings.json` |
-| Robô | Qualquer agente ou pessoa | Job separado e obrigatório no CI; falha se a pasta mudar sem autorização ou se houver `.skip` | `.github/workflows/` (M3) |
+| Robô | Qualquer agente ou pessoa | Job `invariantes` do CI: falha se a pasta mudar sem o rótulo `invariante-aprovado`, se um teste for pulado (`.skip`, `.todo`, `.only`) ou se o número de testes cair | `.github/workflows/ci.yml` + `scripts/guard-invariants.ts` |
 | Dono obrigatório | Qualquer agente ou pessoa | PR que toca aqui exige a aprovação do dono | `.github/CODEOWNERS` + proteção da `main` (M6) |
 | Revisor | Qualquer PR | Mudança aqui = achado **bloqueante** | `REVIEW.md` (M4) |
 
@@ -47,7 +47,7 @@ O agente que implementa uma mudança é o mesmo que roda os testes. Se ele pudes
 2. Crie `tests/invariants/<tema>.invariant.test.ts` com o cabeçalho de arquivo protegido (copie de um existente) e testes com o ID no nome (`INV-003a: …`).
 3. Prefira testes com **muitos casos** (incluindo valores extremos) a um único exemplo.
 4. Confira que o teste **falha** quando o código quebra a regra: estrague o código de propósito, rode `npm run test:invariants`, veja vermelho e desfaça.
-5. Abra um PR só para isso. Você mesmo aprova e faz o merge.
+5. Abra um PR só para isso, aplique o rótulo `invariante-aprovado` e faça o merge depois de revisar.
 
 ## Exemplos nesta pasta
 
