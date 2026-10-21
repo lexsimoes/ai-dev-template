@@ -8,6 +8,7 @@
 //   EVENT_NAME  "pull_request" ou "push" (vazio = uso local, compara com a main)
 //   BASE_REF    branch de destino do PR (ex.: "main")
 //   PR_LABELS   JSON com os nomes dos rótulos do PR
+//   PR_NUMBER, GITHUB_REPOSITORY, GITHUB_TOKEN  para registrar quem aplicou ou removeu o rótulo
 //
 // Uso local: npm run guard:invariants  (depois de git fetch origin main)
 
@@ -32,6 +33,27 @@ function listTestFiles(dir: string): string[] {
 
 function countTests(source: string): number {
   return source.match(TEST_CALL)?.length ?? 0;
+}
+
+interface IssueEvent {
+  event: string;
+  label?: { name: string };
+  actor?: { login: string } | null;
+  created_at: string;
+}
+
+/** Histórico do rótulo de aprovação no PR: quem aplicou ou removeu, e quando. */
+async function approvalHistory(): Promise<string[]> {
+  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_NUMBER: pr } = process.env;
+  if (!token || !repo || !pr) return ["Histórico do rótulo: não verificado (sem acesso à API do GitHub neste ambiente)."];
+  const response = await fetch(`https://api.github.com/repos/${repo}/issues/${pr}/events?per_page=100`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+  });
+  if (!response.ok) return [`Histórico do rótulo: não verificado (a API respondeu ${response.status}).`];
+  const events = (await response.json()) as IssueEvent[];
+  return events
+    .filter((e) => (e.event === "labeled" || e.event === "unlabeled") && e.label?.name === APPROVAL_LABEL)
+    .map((e) => `Rótulo \`${APPROVAL_LABEL}\` ${e.event === "labeled" ? "aplicado" : "removido"} por @${e.actor?.login ?? "desconhecido"} em ${e.created_at}.`);
 }
 
 function report(lines: string[]): void {
@@ -68,6 +90,7 @@ if (process.env.EVENT_NAME !== "push") {
 
   notes.push(`Testes de invariantes: ${baseCount} na \`${baseRef}\` → ${headCount} neste PR.`);
 
+  if (changed.length > 0 || approved) notes.push(...(await approvalHistory()));
   if (changed.length > 0) {
     const list = changed.map((f) => `\`${f}\``).join(", ");
     if (approved) notes.push(`Arquivos protegidos alterados com o rótulo \`${APPROVAL_LABEL}\`: ${list}.`);

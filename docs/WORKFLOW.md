@@ -123,7 +123,12 @@ Quando **você** decide mudar uma regra inegociável:
 
 Mesmo com o rótulo, testes pulados (`.skip`, `.todo`, `.only`) **nunca** passam.
 
-Limite atual: o agente trabalha com a sua conta do GitHub e, tecnicamente, consegue aplicar o rótulo. Hoje quem impede isso é a regra no `AGENTS.md` e a revisão. O M6 resolve de vez, separando a identidade do agente da sua.
+Limite atual: o agente trabalha com a sua conta do GitHub e, tecnicamente, consegue aplicar o rótulo. Hoje isso fica coberto de três formas:
+- o `AGENTS.md` proíbe qualquer agente de aplicar ou remover o rótulo;
+- a guarda registra no **Summary** do job quem aplicou ou removeu o rótulo, e quando;
+- a revisão confere.
+
+O M6 resolve de vez, dando ao agente uma identidade própria no GitHub.
 
 ### Custos do CI
 

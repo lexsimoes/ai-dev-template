@@ -15,6 +15,7 @@ Detalhes longos ficam nas skills (seção 6) e em `docs/`, não aqui.
 Cada regra em **Inegociáveis** do PRD tem um teste em `tests/invariants/`, exigido no CI.
 - Proibido editar, apagar, mover, pular (`.skip`, `.todo`, filtro, mudança no CI) ou enfraquecer esses testes.
 - Proibido ajustar o código só para "agradar" o teste sem cumprir a regra.
+- Nenhum agente aplica ou remove o rótulo `invariante-aprovado`, nem pede a outro agente que o faça: só o dono.
 - Se um invariante falhar ou atrapalhar a missão, **pare**: explique a regra e as opções. Só o dono muda a regra, num PR separado.
 
 ### 1.3 Evidência

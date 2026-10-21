@@ -18,9 +18,15 @@
 
 ## Fila (próximos itens)
 
-1. M4: revisão independente (`REVIEW.md`). **Nota do dono:** o revisor é independente de provedor, com DeepSeek como padrão e escalonamento para outro modelo quando o PR tocar caminhos sensíveis. No M4, atualizar o `docs/WORKFLOW.md` (diagrama e texto) para refletir isso, em vez de "Claude (outro modelo)".
+1. M4: revisão independente (`REVIEW.md`). Notas do dono (2026-10-21):
+   - O revisor é independente de provedor (`REVIEW_API_BASE_URL`, `REVIEW_MODEL`), com DeepSeek como padrão.
+   - Escalonamento automático para Sonnet/Opus em caminhos sensíveis (lista configurável) ou com o rótulo `revisão-profunda`.
+   - O segredo `REVIEW_API_KEY` (DeepSeek) já está cadastrado no repositório. Nunca pedir a chave no chat nem gravá-la em arquivo. Teste local: `.env.local` preenchido pelo dono com `read -s`.
+   - Filtro que nunca envia `.env` nem segredos; limite de tamanho do diff; timeout; custo por execução no relatório.
+   - Workflow mensal de "PR canário" com defeitos plantados.
+   - Atualizar o `docs/WORKFLOW.md` (diagrama e texto) para o revisor novo, em vez de "Claude (outro modelo)".
 2. M5: evals no CI.
-3. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes` e `dependencias` checks obrigatórios. Resolver o limite do rótulo `invariante-aprovado`: hoje o agente usa a conta do dono e tecnicamente consegue aplicá-lo.
+3. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes` e `dependencias` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
 4. M7: bootstrap e Template repository.
 5. M8: ensaio completo com projeto de demonstração.
 

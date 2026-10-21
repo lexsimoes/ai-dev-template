@@ -46,6 +46,9 @@ jobs:
     name: invariantes
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # ler quem aplicou o rótulo invariante-aprovado (auditoria)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -62,6 +65,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/guard-invariants.ts
       - name: Testes de invariantes
         # Chamado direto (sem npm run) para que mudar o package.json não pule os testes.
