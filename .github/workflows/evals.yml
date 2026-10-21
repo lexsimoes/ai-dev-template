@@ -12,20 +12,17 @@ on:
 permissions:
   contents: read
 
-# Um push novo cancela a rodada anterior. Rótulos que não são eval-aprovado ganham um grupo só deles:
-# o job é pulado, e sem isso a execução vazia cancelaria uma rodada de evals em andamento.
+# Um push ou rótulo novo cancela a rodada anterior e roda de novo (cada rodada custa menos de US$ 0,01).
 concurrency:
-  group: evals-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && github.event.label.name != 'eval-aprovado' && format('-rotulo-{0}', github.run_id) || '' }}
+  group: evals-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   evals:
     name: evals
-    # Rótulos: só o eval-aprovado (dono) reavalia; os demais não gastam chamadas.
-    if: >-
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action != 'labeled' || github.event.label.name == 'eval-aprovado')
+    # Só PRs prontos. O job roda em todo evento, inclusive rótulos: este check é obrigatório na main,
+    # e um job pulado contaria como verde por cima de um vermelho anterior.
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -41,6 +38,12 @@ jobs:
       LLM_EXTRA_BODY: ${{ vars.EVAL_EXTRA_BODY || '{"reasoning_effort":"none"}' }}
       EVAL_JUDGE: ${{ vars.EVAL_JUDGE || '0' }}
     steps:
+      - name: PR de fork
+        # Forks não recebem segredos: os evals não rodam e o check fica vermelho, nunca verde por omissão.
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::PR vindo de fork: os evals não rodam (sem acesso aos segredos). Para mesclar, traga as mudanças para uma branch deste repositório."
+          exit 1
       - name: Código do PR
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -85,7 +88,8 @@ jobs:
           (cd base && npm ci)
       - name: Evals da branch de destino (linha de base)
         if: steps.ia.outputs.tocou == 'true'
-        # Pode falhar (ex.: a main ainda não tem o provedor ou a suite): aí não há comparação.
+        # Segue mesmo se falhar, para o passo seguinte comentar o motivo no PR. A linha de base é exigida:
+        # sem ela (ex.: API fora do ar), o passo seguinte reprova. Rode o job de novo quando a API voltar.
         continue-on-error: true
         working-directory: base
         env:
@@ -100,4 +104,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-        run: node evals/run.ts --base-dir ../base --baseline ../resultados-base --out ../resultados-pr --pr-comment
+        run: node evals/run.ts --base-dir ../base --baseline ../resultados-base --require-baseline --out ../resultados-pr --pr-comment

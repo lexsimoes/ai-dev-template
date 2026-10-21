@@ -6,6 +6,7 @@
 //   node evals/run.ts [--provider mock|anthropic|openai-compatible] [--model ID] [--suite nome]
 //                     [--judge] [--baseline pasta] [--out pasta]
 //                     [--base-dir pasta]   régua confiável: limites, teto e golden set da branch de destino
+//                     [--require-baseline] reprova suite da branch de destino sem linha de base (no CI)
 //                     [--pr-comment]       publica a tabela como comentário no PR (no CI)
 
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -226,6 +227,7 @@ async function main(): Promise<number> {
       out: { type: "string", default: "evals/results" },
       "base-dir": { type: "string" },
       "pr-comment": { type: "boolean", default: false },
+      "require-baseline": { type: "boolean", default: false },
     },
   });
 
@@ -306,6 +308,10 @@ async function main(): Promise<number> {
     const before = budget.used;
     const result = await runSuite(suite, llm, judgeClient, baseline);
     result.calls = budget.used - before;
+    // Suite que existe na branch de destino precisa de linha de base; suite nova não tem com o que comparar.
+    if (values["require-baseline"] && !baseline && baseConfig?.suites.some((b) => b.name === suite.name)) {
+      result.failures.push("sem linha de base: a rodada da branch de destino falhou (veja o log do job e rode-o de novo)");
+    }
     results.push(result);
   }
 
@@ -323,7 +329,9 @@ async function main(): Promise<number> {
     baselineNote: values.baseline
       ? baselines.size
         ? "evals da branch de destino, rodados agora com o mesmo modelo"
-        : "não foi possível rodar os evals da branch de destino (ex.: primeira versão); sem comparação"
+        : values["require-baseline"]
+          ? "❌ não foi possível rodar os evals da branch de destino; sem comparação, o check reprova"
+          : "não foi possível rodar os evals da branch de destino (ex.: primeira versão); sem comparação"
       : "nenhuma (execução local)",
     notes,
     failed,
