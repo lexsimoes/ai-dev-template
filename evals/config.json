@@ -1,0 +1,17 @@
+{
+  "$comment": "Limites dos evals. Mude só com aprovação do dono do projeto (é como mexer num invariante).",
+  "maxCalls": 60,
+  "suites": [
+    {
+      "name": "classify-message",
+      "golden": "evals/golden/classify-message.jsonl",
+      "target": "classifyMessage",
+      "thresholds": {
+        "accuracy": 0.9,
+        "rulePassRate": 1.0,
+        "judgeAverage": 4.0
+      },
+      "maxDropFromBaseline": 0.05
+    }
+  ]
+}
