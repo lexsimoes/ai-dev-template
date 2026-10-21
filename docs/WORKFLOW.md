@@ -309,7 +309,7 @@ Protection rules (rulesets or branch protection) work for free in **public** rep
 
 Today the agents (Claude Code in the cloud, Codex) open PRs and apply labels **with your account**. To GitHub, they are you. What this allows and how each option solves it:
 
-| | A. Your account (current) | B. Bot account (e.g. `lexsimoes-agente`) | C. GitHub App |
+| | A. Your account (current) | B. Bot account (e.g. `yourname-agent`) | C. GitHub App |
 |---|---|---|---|
 | Setup | None | One more free account, invited with the **Write** role, and a fine-grained token for your repositories only | Create and install an App; generate short-lived tokens |
 | You formally approve the PR | No (author = you) | Yes: you can require 1 approval + Code Owners | Yes |
@@ -347,7 +347,38 @@ If the previous week's issue is still open, it is updated (and gets a comment, w
 
 It does not call an AI model and does not use secrets: it costs a few seconds of Actions. To run it right away: **Actions** tab → **Direction check** → **Run workflow**. To see the text without publishing: `node scripts/direction/run.ts --dry-run`.
 
+## Creating a project from this template (Copier)
+
+Analogy: the template is a cake mold with a few adjustable parts. Copier asks how you want each part (owner, language, reviewer, optional sections), pours the project out of the mold, and remembers the answers. Later it can bring improvements of the mold into the cake without touching the filling you added.
+
+Requires [Copier](https://copier.readthedocs.io) 9.18.2 or newer (`pipx install copier`).
+
+```bash
+copier copy --vcs-ref HEAD gh:<template-owner>/ai-dev-template my-project
+```
+
+| Question | What it changes |
+|---|---|
+| Project name (and package name) | README, PRD title, `package.json` |
+| GitHub owner | `.github/CODEOWNERS`; the invariant guard accepts `invariant-approved` only from this owner |
+| Conversation language (`en` / `pt-BR`) | The `Conversation language` rule in `AGENTS.md` (the repository itself is always in English) |
+| Reviewer provider | `.github/review.json`: DeepSeek with Claude on sensitive paths, Claude only, or none (no AI key; the no-key behavior comes in M7 PR 3) |
+| Optional sections | Context7 and UI/UX sections of `AGENTS.md` (section numbers adjust) |
+
+What belongs to whom:
+
+| Kind | Files | On `copier update` |
+|---|---|---|
+| **Project** | `README.md`, `specs/PRD.md`, `docs/HANDOFF.md`, `.github/CODEOWNERS`, `.env.example`, `src/`, `tests/invariants/`, the app's unit tests, `evals/golden/`, `evals/config.json`, `evals/targets.ts` | Never overwritten (recreated only if deleted) |
+| **Template** | Workflows, reviewer, guard, direction check, `AGENTS.md`, `REVIEW.md`, `docs/WORKFLOW.md`, tooling tests | Merged: your edits are kept, template changes are added; conflicts show up as markers to resolve |
+| **Template only** | `copier.yml`, `tests/template/`, `.github/workflows/template.yml` | Never copied into projects |
+
+To bring template improvements into a project, on a clean working tree: `copier update --defaults`, review the diff, open a PR.
+
+The `Template` workflow (job `template`) proves this on every PR of the template: the `.jinja` twins render back to this repository's own files, two projects with different answers pass their checks, no owner of the template leaks into them, and `copier update` brings a template change while keeping the project's PRD, app code and invariants.
+
 ## Still under construction
 
-The sections below come in the next modules:
-- **M7:** first day of a new project (PRD → non-negotiables → first mission → first PR).
+The sections below come in the next PRs:
+- **M7 PR 3:** no-key mode, license, "Getting started" README, traffic export.
+- **M7b/M7c:** first day of a new project (`/new-project`, discovery, audit).

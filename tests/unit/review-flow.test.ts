@@ -6,14 +6,30 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { composeComment } from "../../scripts/review/lib.ts";
+import { testConfig } from "./review-test-config.ts";
 
 const run = promisify(execFile);
-const SCRIPT = resolve("scripts/review/run.ts");
+
+// The reviewer reads its config, REVIEW.md and AGENTS.md from its own folder. The test runs a copy of it with a
+// fixed provider setup (OpenAI format for standard/light, Anthropic for sensitive/deep), so a project that picks
+// another provider, or no reviewer, still tests the same flow against the fake server below.
+let SCRIPT = resolve("scripts/review/run.ts");
+let reviewerSrc = "";
+
+function copyReviewer(): void {
+  reviewerSrc = mkdtempSync(join(tmpdir(), "reviewer-src-"));
+  cpSync("scripts/review", join(reviewerSrc, "scripts/review"), { recursive: true });
+  for (const f of ["REVIEW.md", "AGENTS.md"]) cpSync(f, join(reviewerSrc, f));
+  mkdirSync(join(reviewerSrc, ".github"));
+  writeFileSync(join(reviewerSrc, ".github/review.json"), JSON.stringify(testConfig(), null, 2));
+  symlinkSync(resolve("node_modules"), join(reviewerSrc, "node_modules"), "dir");
+  SCRIPT = join(reviewerSrc, "scripts/review/run.ts");
+}
 
 interface Comment {
   id: number;
@@ -134,6 +150,7 @@ async function review(pr: string, env: Record<string, string>, args: string[] = 
 
 before(async () => {
   await startServer();
+  copyReviewer();
   repo = mkdtempSync(join(tmpdir(), "reviewer-"));
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
   git("config", "user.email", "t@t");
@@ -151,6 +168,7 @@ before(async () => {
 after(() => {
   server.close();
   rmSync(repo, { recursive: true, force: true });
+  rmSync(reviewerSrc, { recursive: true, force: true });
 });
 
 test("flow: ready → push → re-review → sensitive push", async () => {

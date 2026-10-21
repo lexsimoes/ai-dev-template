@@ -1,0 +1,36 @@
+# HANDOFF: current state of the project
+
+> This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
+> The agent updates it at the end of **every** mission.
+
+**Updated on:** [YYYY-MM-DD] · **By:** project created from the ai-dev-template Copier template
+
+## Current state
+
+- Project created from the template. It still carries the template's demo app (`src/pricing.ts`, `src/ai/classify-message.ts`) and its example invariants and evals: replace them with this project's own as the first missions land.
+- CI: `quality`, `invariants` and `dependencies` run on every PR; `review` and `evals` need their keys (see `docs/WORKFLOW.md`).
+- Reviewer provider: `{{ reviewer_provider }}`. Conversation language: `{{ conversation_language }}`.
+
+## Last mission
+
+- None yet.
+
+## Queue (next items)
+
+1. Write `specs/PRD.md`: goal, users, verifiable acceptance criteria, non-negotiables.
+2. First mission in `docs/missions/` (copy `docs/missions/_TEMPLATE.md`).
+
+## Pending decisions (owner)
+
+- Turn on the `protect-main` ruleset (`.github/rulesets/protect-main.json`; steps in `docs/WORKFLOW.md`).
+- Register the secrets the chosen providers need (in your own terminal, never in a chat): `gh secret set REVIEW_API_KEY`, `gh secret set EVAL_API_KEY`, with a spending limit on each key.
+
+## Risks and warnings
+
+- Agents use the owner's GitHub account (option A in `docs/WORKFLOW.md`): only `AGENTS.md` stops an agent from merging or applying the owner's labels.
+
+## How to resume
+
+1. `npm ci`
+2. `npm run check`
+3. Read the next mission in `docs/missions/` or item 1 of the queue above.
