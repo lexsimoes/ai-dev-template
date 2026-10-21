@@ -25,7 +25,7 @@ import {
   splitDiff,
 } from "./lib.ts";
 import type { Finding, ParsedReview, ReportInput, ReviewConfig, Severity, TierName, Usage } from "./lib.ts";
-import { callModel } from "./providers.ts";
+import { ModelCallError, callModel } from "./providers.ts";
 
 const SOURCE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CANARY_DIR = join(SOURCE_DIR, "scripts", "review", "canary");
@@ -222,6 +222,7 @@ async function main(): Promise<number> {
       review = parseReview(reply.text, included.map((f) => f.path), config.maxFindings);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
+      if (e instanceof ModelCallError) usage = e.usage;
     }
   }
 

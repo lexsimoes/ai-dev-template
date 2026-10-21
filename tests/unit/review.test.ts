@@ -103,7 +103,7 @@ test("relatório: marcador, contagem e custo", () => {
   assert.ok(md.startsWith(REPORT_MARKER));
   assert.match(md, /Nenhum achado bloqueante/);
   assert.match(md, /\.env\.local.*nunca enviado/);
-  assert.match(md, /US\$ 0\.0172/);
+  assert.match(md, /US\$ 0,0172/);
   assert.equal(estimateCost(config.tiers.padrao, { inputTokens: 1e6, outputTokens: 0 }), config.tiers.padrao.pricePerMTok.input);
 });
 

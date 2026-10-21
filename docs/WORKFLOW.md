@@ -223,7 +223,7 @@ O canário custa uma chamada por mês. Os minutos do GitHub Actions seguem a tab
 O revisor faz **uma** chamada por execução, sem ferramentas e sem loop. Por isso não precisa de limite de turnos (`--max-turns` só faz sentido para agentes que agem em vários passos). Os limites que valem aqui são:
 - tamanho máximo do diff;
 - tempo máximo de espera por resposta;
-- `timeout-minutes: 10` no job.
+- `timeout-minutes: 15` no job.
 
 ## Ainda em construção
 

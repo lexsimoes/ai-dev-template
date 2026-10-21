@@ -11,6 +11,17 @@ export interface ModelReply {
   model: string;
 }
 
+/** Falha depois que o modelo já foi cobrado: carrega o uso para o relatório mostrar o custo. */
+export class ModelCallError extends Error {
+  usage: Usage | null;
+  constructor(message: string, usage: Usage | null) {
+    super(message);
+    this.usage = usage;
+  }
+}
+
+const DEFAULT_MAX_OUTPUT_TOKENS = 16000;
+
 interface ChatCompletion {
   model?: string;
   choices?: Array<{ message?: { content?: string | null }; finish_reason?: string }>;
@@ -34,7 +45,8 @@ async function callOpenAICompatible(
         { role: "user", content: prompt.user },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 16000,
+      // Modelos com raciocínio gastam parte deste limite pensando antes de responder.
+      max_tokens: tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     }),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -46,12 +58,15 @@ async function callOpenAICompatible(
   const data = (await response.json()) as ChatCompletion;
   const choice = data.choices?.[0];
   const text = choice?.message?.content ?? "";
-  if (!text.trim()) throw new Error(`resposta vazia do modelo (finish_reason: ${choice?.finish_reason ?? "?"})`);
-  return {
-    text,
-    model: data.model ?? tier.model,
-    usage: { inputTokens: data.usage?.prompt_tokens ?? 0, outputTokens: data.usage?.completion_tokens ?? 0 },
-  };
+  const usage = { inputTokens: data.usage?.prompt_tokens ?? 0, outputTokens: data.usage?.completion_tokens ?? 0 };
+  if (choice?.finish_reason === "length") {
+    throw new ModelCallError(
+      `a resposta do modelo foi cortada no limite de ${tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS} tokens de saída (aumente maxOutputTokens em .github/review.json ou divida o PR)`,
+      usage,
+    );
+  }
+  if (!text.trim()) throw new ModelCallError(`resposta vazia do modelo (finish_reason: ${choice?.finish_reason ?? "?"})`, usage);
+  return { text, model: data.model ?? tier.model, usage };
 }
 
 async function callAnthropic(
@@ -61,10 +76,11 @@ async function callAnthropic(
   timeoutMs: number,
 ): Promise<ModelReply> {
   const client = new Anthropic({ apiKey, maxRetries: 1 });
-  const response = await client.beta.messages.create(
+  // Streaming: o SDK exige para limites de saída grandes (evita timeout da conexão).
+  const stream = client.beta.messages.stream(
     {
       model: tier.model,
-      max_tokens: 16000,
+      max_tokens: tier.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       system: prompt.system,
       messages: [{ role: "user", content: prompt.user }],
       output_config: { effort: "high" },
@@ -74,16 +90,16 @@ async function callAnthropic(
     },
     { timeout: timeoutMs },
   );
+  const response = await stream.finalMessage();
+  const usage = { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens };
   if (response.stop_reason === "refusal") {
-    throw new Error(`o modelo recusou a revisão (${response.stop_details?.category ?? "sem categoria"})`);
+    throw new ModelCallError(`o modelo recusou a revisão (${response.stop_details?.category ?? "sem categoria"})`, usage);
   }
-  if (response.stop_reason === "max_tokens") throw new Error("a resposta do modelo foi cortada (max_tokens)");
+  if (response.stop_reason === "max_tokens") {
+    throw new ModelCallError("a resposta do modelo foi cortada no limite de tokens de saída", usage);
+  }
   const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
-  return {
-    text,
-    model: response.model,
-    usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens },
-  };
+  return { text, model: response.model, usage };
 }
 
 export async function callModel(
