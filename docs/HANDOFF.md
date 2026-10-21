@@ -18,7 +18,7 @@
 - Weekly direction check (`.github/workflows/direction-check.yml`, `scripts/direction/`): an issue every Monday with the `direction-check` label.
 - Copier template (`copier.yml`, `.jinja` twins), proven on every PR by the `template` check (`.github/workflows/template.yml`, `tests/template/`). The owner adds `template` to the live `protect-main` ruleset in the GitHub UI only, never to `protect-main.json`: that file is copied into projects, which have no `template` job, and the check would wait forever.
 - No-key mode: `disabled` in the target branch's `.github/review.json` / `evals/config.json` turns those checks into an "off" notice (secret detectors and golden set guard still run). Copier writes it for "no key" answers.
-- Template-only (not copied into projects): `LICENSE` (MIT), weekly traffic export to the `traffic` branch (`.github/workflows/traffic.yml`, `scripts/traffic/`, secret `TRAFFIC_TOKEN`).
+- Template-only (not copied into projects): `LICENSE` (MIT), weekly traffic export to the `traffic` branch (`.github/workflows/traffic.yml`, `scripts/traffic/`, secret `TRAFFIC_TOKEN`), and the release flow (`CHANGELOG.md`, `docs/RELEASING.md`, `scripts/release/`, `tests/unit/release.test.ts`).
 
 ## Last mission
 

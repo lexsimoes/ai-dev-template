@@ -1,6 +1,6 @@
 # Mission 0013: template releases
 
-**Status:** in review
+**Status:** in review (done, waiting for the owner's merge and the `v0.1.0` release)
 **Branch:** `mission/0013-releases` · **PR:** https://github.com/lexsimoes/ai-dev-template/pull/16
 **Created on:** 2026-10-21 · **Approved by the owner on:** 2026-10-21 (M7b brief, item 1)
 
@@ -38,4 +38,8 @@ The agent may not: create tags or releases (the owner does), change rulesets or 
 
 ## Report
 
-_(filled in at the end, in the PR)_
+- **What was done:** semver scheme from `v0.1.0`; `CHANGELOG.md` with the `0.1.0` section; `scripts/release/notes.ts` (refuses a version that is not ready); `docs/RELEASING.md` (release PR by an agent, tag and release by the owner, release immutability, bad releases); Copier and the docs use the latest release; release files are template-only; `AGENTS.md` 1.7 forbids agents to tag or release.
+- **Evidence:** `tests/template/template.test.ts` "releases" (copy uses the latest tag and not unreleased commits; update moves a pinned project to the next release); `tests/unit/release.test.ts`; `npm run check` and the `template` check green on the PR.
+- **What was NOT verified:** the real `v0.1.0` release and release immutability on GitHub (owner actions after the merge).
+- **Pending decisions for the owner:** approve `v0.1.0`; optionally deny `gh release create` and `git tag` in `.claude/settings.json`.
+- **Possible injections found in external content:** none.

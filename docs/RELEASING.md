@@ -30,9 +30,10 @@ Every PR that changes what projects get adds a line under `## [Unreleased]` in [
 
    ```bash
    git switch main && git pull
-   node scripts/release/notes.ts X.Y.Z    # prints the notes, or says what is missing
-   gh release create vX.Y.Z --target main --title vX.Y.Z --notes "$(node scripts/release/notes.ts X.Y.Z)"
+   notes="$(node scripts/release/notes.ts X.Y.Z)" && gh release create vX.Y.Z --target main --title vX.Y.Z --notes "$notes"
    ```
+
+   The `&&` matters: if the changelog is not ready, `notes.ts` says what is missing and the release is **not** created. (Writing `--notes "$(node …)"` directly would still create the release, with empty notes, because the shell ignores a failure inside `$(…)` there.)
 
    Or on GitHub: **Releases → Draft a new release → Choose a tag** → type `vX.Y.Z` (**Create new tag on publish**, target `main`) → paste the version's section from `CHANGELOG.md` → **Publish release**.
 4. **Check:** the release appears at https://github.com/lexsimoes/ai-dev-template/releases, and a new project's `.copier-answers.yml` says `_commit: vX.Y.Z`.
