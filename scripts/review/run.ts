@@ -26,12 +26,14 @@ import {
   REPORT_MARKER,
   buildPrompt,
   composeComment,
+  decideKind,
   decodeState,
+  deletedFiles,
   extractReport,
   filterFiles,
-  matchesAny,
   openFindings,
   parseReview,
+  pushReasons,
   redactSecrets,
   renderReport,
   resolvePrevious,
@@ -109,12 +111,17 @@ function githubEnv() {
 
 async function findComment(): Promise<ExistingComment | null> {
   const { repo, pr, headers } = githubEnv();
-  const list = await fetch(`${API}/repos/${repo}/issues/${pr}/comments?per_page=100`, { headers });
-  if (!list.ok) throw new Error(`não consegui listar comentários (HTTP ${list.status})`);
-  const comments = (await list.json()) as Array<{ id: number; body?: string; user?: { login?: string } }>;
-  // Só vale o comentário do próprio robô do GitHub Actions.
-  const mine = comments.find((c) => c.user?.login === "github-actions[bot]" && c.body?.includes(REPORT_MARKER));
-  return mine ? { id: mine.id, body: mine.body ?? "" } : null;
+  // Pagina: em PRs com muitos comentários, o do revisor pode não estar na primeira página.
+  for (let page = 1; page <= 20; page++) {
+    const list = await fetch(`${API}/repos/${repo}/issues/${pr}/comments?per_page=100&page=${page}`, { headers });
+    if (!list.ok) throw new Error(`não consegui listar comentários (HTTP ${list.status})`);
+    const comments = (await list.json()) as Array<{ id: number; body?: string; user?: { login?: string } }>;
+    // Só vale o comentário do próprio robô do GitHub Actions.
+    const mine = comments.find((c) => c.user?.login === "github-actions[bot]" && c.body?.includes(REPORT_MARKER));
+    if (mine) return { id: mine.id, body: mine.body ?? "" };
+    if (comments.length < 100) return null;
+  }
+  return null;
 }
 
 async function upsertComment(existing: ExistingComment | null, body: string): Promise<void> {
@@ -170,17 +177,6 @@ function evaluateCanary(findings: Finding[]): { text: string; passed: boolean } 
 
 // ---------- execução ----------
 
-function decideKind(mode: string, config: ReviewConfig, state: ReviewState | null, headSha: string, notes: string[]): ReviewKind {
-  if (mode !== "ci") return "completa";
-  const action = process.env.EVENT_ACTION ?? "";
-  const label = process.env.EVENT_LABEL ?? "";
-  if (action === "synchronize") return "sem-revisao";
-  if (action === "labeled" && label === config.deepLabel) return "completa";
-  if (state && isAncestor(state.sha, headSha)) return "incremental";
-  if (state) notes.push(`O commit da última revisão (\`${state.sha.slice(0, 7)}\`) não está mais no histórico do PR (force-push?): revisão completa.`);
-  return "completa";
-}
-
 async function main(): Promise<number> {
   const { values } = parseArgs({
     options: {
@@ -207,7 +203,12 @@ async function main(): Promise<number> {
 
   const existing = mode === "ci" && !values["dry-run"] ? await findComment() : null;
   const state = existing ? decodeState(existing.body) : null;
-  const kind = decideKind(mode, config, state, headSha, notes);
+  if (existing && !state && existing.body.includes("revisor-estado")) notes.push("O estado guardado no comentário era inválido e foi ignorado.");
+  const stateReachable = state !== null && isAncestor(state.sha, headSha);
+  const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "" };
+  const decision = mode === "ci" ? decideKind(event, config, state, stateReachable) : { kind: "completa" as ReviewKind, note: null };
+  const kind = decision.kind;
+  if (decision.note) notes.push(decision.note);
 
   // Diff a analisar: o PR inteiro, ou só o que mudou desde a última revisão.
   let diff: string;
@@ -222,9 +223,12 @@ async function main(): Promise<number> {
     prPaths = splitDiff(diff).map((f) => f.path);
   } else {
     prPaths = git("diff", "--name-only", `${baseRef}...${headSha}`).split("\n").filter(Boolean);
-    const incrementalBase = (kind === "incremental" || kind === "sem-revisao") && state ? state.sha : null;
+    // Desde a última revisão, mas só nos arquivos do PR: um merge da main na branch não infla o diff.
+    const incrementalBase = (kind === "incremental" || kind === "sem-revisao") && state && stateReachable ? state.sha : null;
     diff = incrementalBase
-      ? git("diff", "--no-color", "-U5", incrementalBase, headSha)
+      ? prPaths.length
+        ? git("diff", "--no-color", "-U5", incrementalBase, headSha, "--", ...prPaths)
+        : ""
       : git("diff", "--no-color", "-U5", `${baseRef}...${headSha}`);
   }
 
@@ -243,20 +247,13 @@ async function main(): Promise<number> {
   // ----- push depois da revisão: nenhuma chamada ao modelo -----
   if (kind === "sem-revisao") {
     const changed = allFiles.map((f) => f.path);
-    const sensitive = changed.filter((p) => matchesAny(p, config.sensitivePaths));
-    const pendingBlocking = (state?.achados ?? []).filter((a) => a.severidade === "bloqueante");
-    const reasons = [
-      ...(state ? [] : ["nenhuma revisão foi concluída neste PR ainda"]),
-      ...secretFindings.map((f) => `possível segredo em \`${f.arquivo}${f.linha ? `:${f.linha}` : ""}\``),
-      ...(sensitive.length ? [`os commits novos tocam caminhos sensíveis: ${sensitive.map((p) => `\`${p}\``).join(", ")}`] : []),
-      ...(pendingBlocking.length ? [`${pendingBlocking.length} achado(s) bloqueante(s) da revisão anterior seguem em aberto`] : []),
-    ];
+    const reasons = pushReasons({ state, stateReachable, secretFindings, changedPaths: changed, config });
     const since = state ? ` desde \`${state.sha.slice(0, 7)}\`` : "";
     const banner = [
       `> ⏩ **Commits novos${since} não foram revisados pelo modelo** (push depois da revisão: \`${headSha.slice(0, 7)}\`).`,
       changed.length ? `> Arquivos alterados: ${changed.map((p) => `\`${p}\``).join(", ")}` : "",
       reasons.length
-        ? `> ❌ Check vermelho: ${reasons.join("; ")}. Corrija e aplique o rótulo \`${config.rereviewLabel}\` para uma revisão incremental.`
+        ? `> ❌ Check vermelho: ${reasons.join("; ")}. Corrija se for o caso e aplique o rótulo \`${config.rereviewLabel}\` para uma nova revisão.`
         : `> ✅ Check verde: veredito anterior mantido. Para revisar estes commits, aplique o rótulo \`${config.rereviewLabel}\`.`,
     ]
       .filter(Boolean)
@@ -349,7 +346,7 @@ async function main(): Promise<number> {
   }
 
   const checkedIds = new Set(toCheck.map((p) => p.id));
-  const resolved = resolvePrevious(previous, (review?.anteriores ?? []).filter((s) => checkedIds.has(s.id)));
+  const resolved = resolvePrevious(previous, (review?.anteriores ?? []).filter((s) => checkedIds.has(s.id)), deletedFiles(allFiles));
   const report: ReportInput = {
     kind: finalKind,
     reviewedSha: mode === "ci" ? headSha : null,
@@ -381,8 +378,9 @@ async function main(): Promise<number> {
   console.log(markdown);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown + "\n");
   if (mode === "ci") {
-    // Só avança o estado quando a revisão terminou; em erro, o estado anterior continua valendo.
-    const newState: ReviewState | null = error ? state : { sha: headSha, achados: open };
+    // Só avança o estado quando a revisão terminou. Em erro, o estado anterior continua valendo,
+    // mas marcado com a falha: o próximo push não fica verde até uma revisão terminar bem.
+    const newState: ReviewState | null = error ? (state ? { ...state, falha: headSha } : null) : { sha: headSha, achados: open };
     const banner = `> Pushes novos não disparam outra revisão. Para revisar de novo (só o que mudou), aplique o rótulo \`${config.rereviewLabel}\`.`;
     await upsertComment(existing, composeComment(banner, markdown, newState));
     if (labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);

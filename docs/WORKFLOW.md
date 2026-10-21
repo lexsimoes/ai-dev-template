@@ -155,14 +155,17 @@ Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada c
 |---|---|---|
 | PR em **rascunho** (o agente ainda está trabalhando) | Nada | Não |
 | PR marcado **Ready for review** (ou aberto já pronto) | **Revisão completa** do PR inteiro | Sim, uma vez |
-| **Push** depois da revisão | Mantém o veredito anterior e avisa no comentário que há commits não revisados. Fica **vermelho** se os commits novos tiverem possível segredo, tocarem caminho sensível ou se ainda houver bloqueante em aberto | Não |
+| **Push** depois da revisão | Mantém o veredito anterior e avisa no comentário que há commits não revisados. Fica **vermelho** em qualquer destes casos: os commits novos têm possível segredo; tocam caminho sensível; ainda há bloqueante em aberto; a última tentativa de revisão falhou; o commit revisado sumiu (force-push). Com `afterReviewPush: "exigir-nova-revisao"` em `.github/review.json`, qualquer push fica vermelho até uma nova revisão | Não |
 | Rótulo **`revisar-de-novo`** (você ou o agente aplicam) | **Revisão incremental**: só o diff desde o último commit revisado, conferindo se cada achado anterior foi resolvido. O rótulo é removido sozinho, para poder ser aplicado de novo | Sim, menor |
 | Rótulo **`revisão-profunda`** (só você) | Revisão completa com o modelo mais forte (Opus) | Sim, mais cara |
-| PR **trivial** (só `.md` fora de `AGENTS.md`, `REVIEW.md`, `CLAUDE.md` e `specs/`, ou só lockfile) | Revisão **leve** (mesmo modelo, raciocínio curto) ou **nenhuma** (só os detectores de segredo), conforme `trivial.mode` em `.github/review.json` | Leve ou não |
+| PR **trivial**: só `README.md`, `CHANGELOG.md` e `docs/**/*.md`, ou só lockfile. Nunca é trivial se tocar documento que orienta agentes (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `specs/`, `docs/missions/`, `docs/HANDOFF.md`, `docs/SKILLS.md`, `SKILL.md`, `.claude/`) ou caminho sensível | Revisão **leve** (mesmo modelo, raciocínio curto) ou **nenhuma** (só os detectores de segredo), conforme `trivial.mode` em `.github/review.json` | Leve ou não |
 
-O commit revisado e os achados em aberto ficam guardados no próprio comentário do revisor, de forma invisível. É por isso que a revisão incremental sabe de onde partir. Ninguém deve editar esse comentário.
+O commit revisado e os achados em aberto ficam guardados no próprio comentário do revisor, de forma invisível. É por isso que a revisão incremental sabe de onde partir.
+- Ninguém deve editar esse comentário. Se ele for adulterado, o estado é validado e, se estiver inválido, é ignorado.
+- Um force-push que apague o commit revisado deixa o check vermelho, e a próxima revisão volta a ser completa.
+- A revisão incremental só olha os arquivos do PR: um merge da `main` na branch não infla o diff.
 
-Um force-push que apague o commit revisado faz a próxima revisão voltar a ser completa.
+A simulação de ponta a ponta desse fluxo, com um GitHub e um modelo falsos, roda em todo `npm test` (`tests/unit/review-flow.test.ts`).
 
 ### Como funciona
 

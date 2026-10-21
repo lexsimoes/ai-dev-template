@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs";
 import {
   REPORT_MARKER,
   composeComment,
+  decideKind,
   decodeState,
+  deletedFiles,
+  pushReasons,
   encodeState,
   estimateCost,
   extractReport,
@@ -228,6 +231,10 @@ test("prompt: conteúdo do PR não consegue fechar as tags e escrever fora dos d
 
 test("trivial: só documentação comum ou lockfile; AGENTS.md, specs/ e caminhos sensíveis nunca", () => {
   assert.ok(isTrivial(["docs/WORKFLOW.md", "README.md"], config));
+  assert.ok(!isTrivial(["docs/missions/0003-x.md"], config), "missões orientam agentes");
+  assert.ok(!isTrivial(["docs/HANDOFF.md"], config), "HANDOFF orienta agentes");
+  assert.ok(!isTrivial([".claude/skills/x/SKILL.md"], config));
+  assert.ok(!isTrivial(["notas.md"], config), "só .md listados em paths");
   assert.ok(isTrivial(["package-lock.json"], config));
   assert.ok(!isTrivial(["AGENTS.md"], config));
   assert.ok(!isTrivial(["specs/PRD.md"], config));
@@ -239,10 +246,10 @@ test("trivial: só documentação comum ou lockfile; AGENTS.md, specs/ e caminho
 });
 
 test("estado: vai e volta pelo comentário, e comentário sem estado devolve null", () => {
-  const state = { sha: "abc1234def", achados: [finding({ explicacao: "ç".repeat(1000) })] };
+  const state = { sha: "a".repeat(40), achados: [finding({ explicacao: "ç".repeat(1000) })] };
   const comment = composeComment("aviso", "relatório", state);
   const back = decodeState(comment);
-  assert.equal(back?.sha, "abc1234def");
+  assert.equal(back?.sha, "a".repeat(40));
   assert.equal(back?.achados[0]?.explicacao.length, 600, "explicação é encurtada no estado");
   assert.equal(decodeState("sem estado"), null);
   assert.equal(decodeState("<!-- revisor-estado:!!!lixo -->"), null);
@@ -293,4 +300,45 @@ test("comentário: começa pelo marcador do revisor e o estado não fecha o come
   assert.ok(composeComment("a", "b", null).startsWith(REPORT_MARKER));
   const encoded = encodeState({ sha: "x", achados: [finding({ explicacao: "--> fim" })] });
   assert.equal(encoded.indexOf("-->"), encoded.length - 3);
+});
+
+const SHA = "b".repeat(40);
+const forge = (raw: unknown) => `<!-- revisor-estado:${Buffer.from(JSON.stringify(raw)).toString("base64")} -->`;
+
+test("estado: SHA ou achado fora do formato é rejeitado (nada vira argumento do git)", () => {
+  assert.equal(decodeState(forge({ sha: "--output=/tmp/x", achados: [] })), null);
+  assert.equal(decodeState(forge({ sha: "abc123", achados: [] })), null);
+  assert.equal(decodeState(forge({ sha: SHA, achados: [{ severidade: "gravissimo" }] })), null);
+  assert.equal(decodeState(forge({ sha: SHA, achados: [], falha: "--x" })), null);
+  assert.deepEqual(decodeState(forge({ sha: SHA, achados: [finding()], falha: SHA })), { sha: SHA, achados: [finding()], falha: SHA });
+});
+
+test("decisão por evento: push não chama o modelo; rótulo e 'pronto' revisam", () => {
+  const st = { sha: SHA, achados: [] };
+  const k = (action: string, label = "", state: typeof st | null = st, reachable = true) => decideKind({ action, label }, config, state, reachable).kind;
+  assert.equal(k("synchronize"), "sem-revisao");
+  assert.equal(k("ready_for_review", "", null), "completa");
+  assert.equal(k("ready_for_review"), "incremental");
+  assert.equal(k("labeled", "revisar-de-novo"), "incremental");
+  assert.equal(k("labeled", "revisar-de-novo", st, false), "completa", "force-push volta a ser completa");
+  assert.equal(k("labeled", "revisão-profunda"), "completa");
+});
+
+test("push depois da revisão: motivos para vermelho", () => {
+  const base = { state: { sha: SHA, achados: [] as Finding[] }, stateReachable: true, secretFindings: [] as Finding[], changedPaths: ["src/x.ts"], config };
+  assert.deepEqual(pushReasons(base), [], "push limpo mantém o verde");
+  assert.match(pushReasons({ ...base, state: null }).join(), /nenhuma revisão foi concluída/);
+  assert.match(pushReasons({ ...base, stateReachable: false }).join(), /force-push/);
+  assert.match(pushReasons({ ...base, state: { ...base.state, falha: SHA } }).join(), /falhou/);
+  assert.match(pushReasons({ ...base, changedPaths: [".github/workflows/x.yml"] }).join(), /caminhos sensíveis/);
+  assert.match(pushReasons({ ...base, secretFindings: [finding()] }).join(), /possível segredo/);
+  assert.match(pushReasons({ ...base, state: { sha: SHA, achados: [finding()] } }).join(), /bloqueante/);
+  assert.match(pushReasons({ ...base, config: { ...config, afterReviewPush: "exigir-nova-revisao" } }).join(), /exige nova revisão/);
+});
+
+test("achado de arquivo apagado se resolve sozinho", () => {
+  const files = splitDiff(["diff --git a/.env b/.env", "deleted file mode 100644", "--- a/.env", "+++ /dev/null", "@@ -1 +0,0 @@", "-X=1"].join("\n"));
+  assert.deepEqual(deletedFiles(files), [".env"]);
+  const [r] = resolvePrevious([{ ...finding({ arquivo: ".env" }), id: 1 }], [], deletedFiles(files));
+  assert.equal(r?.status, "resolvido");
 });

@@ -30,6 +30,8 @@ export interface ReviewConfig {
   ignorePaths: string[];
   sensitivePaths: string[];
   trivial: { mode: "leve" | "nenhuma"; paths: string[]; exceptPaths: string[] };
+  /** Push depois da revisão: manter o veredito anterior, ou exigir nova revisão (rótulo) antes do verde. */
+  afterReviewPush: "manter-veredito" | "exigir-nova-revisao";
   tiers: Record<TierName, Tier>;
 }
 
@@ -210,27 +212,102 @@ export interface ReviewState {
   sha: string;
   /** Achados ainda abertos depois dessa revisão. */
   achados: Finding[];
+  /** Commit em que a última tentativa de revisão falhou (some quando uma revisão termina bem). */
+  falha?: string;
 }
 
 const STATE_RE = /<!-- revisor-estado:([A-Za-z0-9+/=]+) -->/;
+const SHA_RE = /^[0-9a-f]{40}$/;
 
 export function encodeState(state: ReviewState): string {
   const compact: ReviewState = {
     sha: state.sha,
     achados: state.achados.map((a) => ({ ...a, explicacao: a.explicacao.slice(0, 600), evidencia: a.evidencia.slice(0, 300) })),
+    ...(state.falha ? { falha: state.falha } : {}),
   };
   return `<!-- revisor-estado:${Buffer.from(JSON.stringify(compact), "utf-8").toString("base64")} -->`;
 }
 
+function isFinding(value: unknown): value is Finding {
+  if (typeof value !== "object" || value === null) return false;
+  const f = value as Record<string, unknown>;
+  return (
+    (f.severidade === "bloqueante" || f.severidade === "importante" || f.severidade === "sugestao") &&
+    typeof f.arquivo === "string" &&
+    (f.linha === null || (typeof f.linha === "number" && Number.isInteger(f.linha))) &&
+    typeof f.titulo === "string" &&
+    typeof f.explicacao === "string" &&
+    typeof f.evidencia === "string"
+  );
+}
+
+/**
+ * Lê o estado do comentário do revisor. O comentário pode ser editado por quem tem escrita
+ * no repositório, então tudo é validado: SHAs só com 40 dígitos hexadecimais (nunca viram
+ * opção do git) e achados só com os campos e valores esperados. Estado inválido = sem estado.
+ */
 export function decodeState(commentBody: string): ReviewState | null {
   const encoded = STATE_RE.exec(commentBody)?.[1];
   if (!encoded) return null;
   try {
-    const state = JSON.parse(Buffer.from(encoded, "base64").toString("utf-8")) as ReviewState;
-    return typeof state.sha === "string" && Array.isArray(state.achados) ? state : null;
+    const raw = JSON.parse(Buffer.from(encoded, "base64").toString("utf-8")) as Record<string, unknown>;
+    if (typeof raw.sha !== "string" || !SHA_RE.test(raw.sha)) return null;
+    if (!Array.isArray(raw.achados) || !raw.achados.every(isFinding)) return null;
+    if (raw.falha !== undefined && (typeof raw.falha !== "string" || !SHA_RE.test(raw.falha))) return null;
+    return { sha: raw.sha, achados: raw.achados, ...(raw.falha ? { falha: raw.falha as string } : {}) };
   } catch {
     return null;
   }
+}
+
+// ---------- decisão por evento ----------
+
+export interface ReviewEvent {
+  action: string;
+  label: string;
+}
+
+/** Que tipo de revisão fazer neste evento do GitHub. `stateReachable`: o commit revisado ainda está no histórico do PR. */
+export function decideKind(
+  event: ReviewEvent,
+  config: ReviewConfig,
+  state: ReviewState | null,
+  stateReachable: boolean,
+): { kind: ReviewKind; note: string | null } {
+  if (event.action === "synchronize") return { kind: "sem-revisao", note: null };
+  if (event.action === "labeled" && event.label === config.deepLabel) return { kind: "completa", note: null };
+  if (state && stateReachable) return { kind: "incremental", note: null };
+  if (state) {
+    return {
+      kind: "completa",
+      note: `O commit da última revisão (\`${state.sha.slice(0, 7)}\`) não está mais no histórico do PR (force-push?): revisão completa.`,
+    };
+  }
+  return { kind: "completa", note: null };
+}
+
+/** Motivos para o check ficar vermelho num push depois da revisão (sem chamar o modelo). Lista vazia = verde. */
+export function pushReasons(input: {
+  state: ReviewState | null;
+  stateReachable: boolean;
+  secretFindings: Finding[];
+  changedPaths: string[];
+  config: ReviewConfig;
+}): string[] {
+  const { state, stateReachable, secretFindings, changedPaths, config } = input;
+  if (!state) return ["nenhuma revisão foi concluída neste PR ainda"];
+  const sensitive = changedPaths.filter((p) => matchesAny(p, config.sensitivePaths));
+  const pendingBlocking = state.achados.filter((a) => a.severidade === "bloqueante").length;
+  return [
+    ...(stateReachable ? [] : [`o commit revisado (\`${state.sha.slice(0, 7)}\`) não está mais no histórico do PR (force-push)`]),
+    ...(state.falha ? [`a última tentativa de revisão (\`${state.falha.slice(0, 7)}\`) falhou`] : []),
+    ...secretFindings.map((f) => `possível segredo em \`${f.arquivo}${f.linha ? `:${f.linha}` : ""}\``),
+    ...(sensitive.length ? [`os commits novos tocam caminhos sensíveis: ${sensitive.map((p) => `\`${p}\``).join(", ")}`] : []),
+    ...(pendingBlocking ? [`${pendingBlocking} achado(s) bloqueante(s) da revisão anterior seguem em aberto`] : []),
+    ...(config.afterReviewPush === "exigir-nova-revisao" && changedPaths.length > 0
+      ? ["a configuração exige nova revisão depois de qualquer push (`afterReviewPush`)"]
+      : []),
+  ];
 }
 
 // ---------- prompt ----------
@@ -432,11 +509,19 @@ export function parseReview(raw: string, allowedFiles: string[], maxFindings: nu
 export function resolvePrevious(
   previous: PreviousFinding[],
   statuses: PreviousStatus[],
+  deletedPaths: string[] = [],
 ): Array<PreviousFinding & { status: "resolvido" | "pendente"; comentario: string }> {
   return previous.map((p) => {
+    // Arquivo apagado do PR (ex.: um .env que não devia estar ali): o achado se resolve sem perguntar ao modelo.
+    if (deletedPaths.includes(p.arquivo)) return { ...p, status: "resolvido" as const, comentario: "arquivo removido do PR" };
     const s = statuses.find((x) => x.id === p.id);
     return { ...p, status: s?.status ?? "pendente", comentario: s?.comentario ?? "arquivo não mudou desde a última revisão" };
   });
+}
+
+/** Arquivos que o diff apaga. */
+export function deletedFiles(files: DiffFile[]): string[] {
+  return files.filter((f) => /^deleted file mode/m.test(f.text)).map((f) => f.path);
 }
 
 // ---------- custo e relatório ----------

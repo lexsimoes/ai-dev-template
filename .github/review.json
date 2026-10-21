@@ -5,6 +5,7 @@
   "maxFindings": 20,
   "deepLabel": "revisão-profunda",
   "rereviewLabel": "revisar-de-novo",
+  "afterReviewPush": "manter-veredito",
   "excludePaths": [
     ".env",
     ".env.*",
@@ -19,17 +20,8 @@
     "**/secrets/**",
     "**/*secret*.json"
   ],
-  "allowPaths": [
-    ".env.example",
-    "**/.env.example"
-  ],
-  "ignorePaths": [
-    "package-lock.json",
-    "**/package-lock.json",
-    "pnpm-lock.yaml",
-    "yarn.lock",
-    "scripts/review/canary/**"
-  ],
+  "allowPaths": [".env.example", "**/.env.example"],
+  "ignorePaths": ["package-lock.json", "**/package-lock.json", "pnpm-lock.yaml", "yarn.lock", "scripts/review/canary/**"],
   "sensitivePaths": [
     "tests/invariants/**",
     "evals/**",
@@ -49,6 +41,15 @@
     "src/pricing.ts",
     "src/ai/**"
   ],
+  "trivial": {
+    "$comment": "PR trivial = todos os arquivos batem com 'paths', nenhum com 'exceptPaths' nem com sensitivePaths. mode: 'leve' (nível leve) ou 'nenhuma' (só detectores de segredo). Documentos que agentes leem como instrução ficam em exceptPaths.",
+    "mode": "leve",
+    "paths": ["README.md", "**/README.md", "CHANGELOG.md", "docs/**/*.md", "package-lock.json", "**/package-lock.json", "pnpm-lock.yaml", "yarn.lock"],
+    "exceptPaths": [
+      "AGENTS.md", "**/AGENTS.md", "REVIEW.md", "CLAUDE.md", "**/CLAUDE.md", "specs/**",
+      "docs/missions/**", "docs/HANDOFF.md", "docs/SKILLS.md", "**/SKILL.md", ".claude/**", ".cursor/**", ".agents/**"
+    ]
+  },
   "tiers": {
     "padrao": {
       "provider": "openai-compatible",
@@ -56,67 +57,31 @@
       "model": "deepseek-v4-pro",
       "apiKeyEnv": "REVIEW_API_KEY",
       "maxOutputTokens": 64000,
-      "pricePerMTok": {
-        "input": 1.32,
-        "output": 3.96,
-        "cachedInput": 0.044
-      }
+      "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
     },
     "leve": {
+      "$comment": "Mesmo modelo do padrão, com raciocínio curto: para PRs triviais.",
       "provider": "openai-compatible",
       "baseUrl": "https://api.deepseek.com",
       "model": "deepseek-v4-pro",
       "apiKeyEnv": "REVIEW_API_KEY",
       "maxOutputTokens": 16000,
-      "extraBody": {
-        "reasoning_effort": "low"
-      },
-      "pricePerMTok": {
-        "input": 1.32,
-        "output": 3.96,
-        "cachedInput": 0.044
-      }
+      "extraBody": { "reasoning_effort": "low" },
+      "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
     },
     "sensivel": {
       "provider": "anthropic",
       "model": "claude-sonnet-5-5",
       "apiKeyEnv": "REVIEW_DEEP_API_KEY",
       "maxOutputTokens": 64000,
-      "pricePerMTok": {
-        "input": 2.0,
-        "output": 10.0,
-        "cachedInput": 0.2
-      }
+      "pricePerMTok": { "input": 2.0, "output": 10.0, "cachedInput": 0.2 }
     },
     "profunda": {
       "provider": "anthropic",
       "model": "claude-opus-5-5",
       "apiKeyEnv": "REVIEW_DEEP_API_KEY",
       "maxOutputTokens": 64000,
-      "pricePerMTok": {
-        "input": 4.0,
-        "output": 20.0,
-        "cachedInput": 0.2
-      }
+      "pricePerMTok": { "input": 4.0, "output": 20.0, "cachedInput": 0.2 }
     }
-  },
-  "trivial": {
-    "$comment": "PR trivial = todos os arquivos batem com 'paths', nenhum com 'exceptPaths' nem com sensitivePaths. mode: 'leve' (nível leve) ou 'nenhuma' (só detectores de segredo).",
-    "mode": "leve",
-    "paths": [
-      "**/*.md",
-      "package-lock.json",
-      "**/package-lock.json",
-      "pnpm-lock.yaml",
-      "yarn.lock"
-    ],
-    "exceptPaths": [
-      "AGENTS.md",
-      "**/AGENTS.md",
-      "REVIEW.md",
-      "CLAUDE.md",
-      "**/CLAUDE.md",
-      "specs/**"
-    ]
   }
 }
