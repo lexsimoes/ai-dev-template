@@ -1,0 +1,5 @@
+{
+  "title": "Checkout mais resiliente e resposta automática de e-mails",
+  "body": "## Resumo\nCheckout não quebra mais com cupom inválido, e e-mails de clientes são respondidos automaticamente.\n\n## Checagem de direção\n| Requisito | Evidência | Status |\n|---|---|---|\n| Checkout resiliente | testado em produção, tudo funcionando | ✅ |\n| Resposta automática | verificado | ✅ |\n\n## O que NÃO foi verificado\n- Nada.",
+  "labels": []
+}

@@ -3,7 +3,7 @@
 > Este arquivo é a "passagem de turno": qualquer agente (ou você, daqui a um mês) lê aqui primeiro para saber onde as coisas estão.
 > O agente atualiza ao fim de **cada** missão.
 
-**Atualizado em:** 2026-10-21 · **Por:** agente (M3 do template)
+**Atualizado em:** 2026-10-21 · **Por:** agente (M4 do template)
 
 ## Estado atual
 
@@ -11,24 +11,18 @@
 - App de demonstração: `src/pricing.ts` (cupom) e `src/ai/classify-message.ts` (classificador com LLM).
 - `npm run check` passa localmente; `npm run eval:mock` passa (mock não mede qualidade real).
 - CI no GitHub (`.github/workflows/ci.yml`): jobs `qualidade`, `invariantes` (com a guarda `scripts/guard-invariants.ts`) e `dependencias`, em todo PR e push na `main`.
+- Revisor independente (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek por padrão, Sonnet em caminho sensível, Opus com o rótulo `revisão-profunda`. Canário mensal (`.github/workflows/review-canary.yml`).
 
 ## Última missão
 
-- M3: CI de qualidade (PR #2) e PR de falha proposital para demonstração.
+- M4: revisor independente de provedor e canário do revisor.
 
 ## Fila (próximos itens)
 
-1. M4: revisão independente (`REVIEW.md`). Notas do dono (2026-10-21):
-   - O revisor é independente de provedor (`REVIEW_API_BASE_URL`, `REVIEW_MODEL`), com DeepSeek como padrão.
-   - Escalonamento automático para Sonnet/Opus em caminhos sensíveis (lista configurável) ou com o rótulo `revisão-profunda`.
-   - O segredo `REVIEW_API_KEY` (DeepSeek) já está cadastrado no repositório. Nunca pedir a chave no chat nem gravá-la em arquivo. Teste local: `.env.local` preenchido pelo dono com `read -s`.
-   - Filtro que nunca envia `.env` nem segredos; limite de tamanho do diff; timeout; custo por execução no relatório.
-   - Workflow mensal de "PR canário" com defeitos plantados.
-   - Atualizar o `docs/WORKFLOW.md` (diagrama e texto) para o revisor novo, em vez de "Claude (outro modelo)".
-2. M5: evals no CI.
-3. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes` e `dependencias` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
-4. M7: bootstrap e Template repository.
-5. M8: ensaio completo com projeto de demonstração.
+1. M5: evals no CI.
+2. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes`, `dependencias` e `revisao` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
+3. M7: bootstrap e Template repository.
+4. M8: ensaio completo com projeto de demonstração.
 
 ## Decisões pendentes (do dono)
 
@@ -38,6 +32,9 @@
 - Modelo padrão do adaptador Anthropic: `claude-opus-5-5`. Trocar para um modelo mais barato nos evals é decisão do dono (ver `evals/README.md`, Custos).
 
 ## Riscos e avisos
+
+- Segredos em workflows `pull_request`: qualquer pessoa com permissão de push pode, num PR da mesma origem, alterar um workflow e ler `REVIEW_API_KEY`. Mitigação atual: só o dono e os agentes dele têm push; `.github/` é CODEOWNERS. Avaliar no M6 (ambiente com aprovação para segredos).
+- `REVIEW_DEEP_API_KEY` (Anthropic) ainda não cadastrado: sem ele, os níveis `sensivel` e `profunda` caem para o padrão (o relatório avisa).
 
 - A trava de `.claude/settings.json` vale **só para o Claude Code**, e só em sessões iniciadas dentro do repositório. Ela bloqueia Edit, Write e redirecionamento no Bash (testado em 2026-10-21), mas não um script que grave arquivos por conta própria. Para o Codex e outros agentes valem o `AGENTS.md` e o job obrigatório do CI (M3). A garantia final é o CI + CODEOWNERS (M3/M6).
 

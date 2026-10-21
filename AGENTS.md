@@ -64,6 +64,7 @@ Cada regra em **Inegociáveis** do PRD tem um teste em `tests/invariants/`, exig
 - Nunca faça commit ou push na `main`. Nunca faça merge.
 - Commits pequenos, no formato `tipo: o que mudou` (`feat`, `fix`, `test`, `docs`, `chore`, `refactor`).
 - Antes do PR: `npm run check` verde (e os evals, se tocou em IA).
+- O revisor automático (`REVIEW.md`) comenta em todo PR pronto. Corrija os bloqueantes; responda aos importantes (corrigido ou por que não).
 - O PR preenche todo o template: requisito → evidência → status, checks executados, o que NÃO foi verificado, decisões pendentes.
 - Ao terminar: atualize `docs/HANDOFF.md` e o "Relatório" da missão.
 

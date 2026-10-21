@@ -1,0 +1,77 @@
+# Revisão independente: um modelo de IA diferente do que implementou lê o diff
+# do PR com os critérios do REVIEW.md e comenta o resultado no PR.
+# DeepSeek por padrão; Sonnet em caminhos sensíveis; Opus com o rótulo "revisão-profunda".
+# O nome do job (revisao) vira check obrigatório no M6.
+
+name: Revisão
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: revisao-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  revisao:
+    name: revisao
+    # Só PRs prontos (não rascunhos), só deste repositório (forks não recebem segredos)
+    # e, em eventos de rótulo, só quando o rótulo for o de revisão profunda.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'revisão-profunda')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # publicar o relatório como comentário no PR
+    steps:
+      - name: Código do PR (só para calcular o diff)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Revisor da branch de destino (o PR não altera a própria revisão)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: base
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+      - name: Escolher a versão do revisor
+        id: fonte
+        run: |
+          if [ -f base/scripts/review/run.ts ]; then
+            echo "dir=base" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=pr" >> "$GITHUB_OUTPUT"
+            echo "::warning::O revisor ainda não existe na branch de destino; usando a versão deste PR (instalação inicial)."
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: ${{ steps.fonte.outputs.dir }}/.nvmrc
+          cache: npm
+          cache-dependency-path: ${{ steps.fonte.outputs.dir }}/package-lock.json
+      - name: Instalar o revisor
+        working-directory: ${{ steps.fonte.outputs.dir }}
+        run: npm ci
+      - name: Revisar
+        working-directory: pr
+        env:
+          REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
+          REVIEW_DEEP_API_KEY: ${{ secrets.REVIEW_DEEP_API_KEY }}
+          REVIEW_API_BASE_URL: ${{ vars.REVIEW_API_BASE_URL }}
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          BASE_REF: ${{ github.base_ref }}
+          REVIEW_SCRIPT: ${{ github.workspace }}/${{ steps.fonte.outputs.dir }}/scripts/review/run.ts
+        run: node "$REVIEW_SCRIPT" --mode ci
