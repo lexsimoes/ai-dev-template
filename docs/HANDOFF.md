@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-21 · **By:** agent (M7, PR 1: housekeeping + sample store in English)
+**Updated on:** 2026-10-21 · **By:** agent (M7, PR 2: Copier engine)
 
 ## Current state
 
@@ -19,6 +19,7 @@
 
 ## Last mission
 
+- M7 PR 2: Copier engine. `copier.yml` (project name, GitHub owner, conversation language, reviewer provider, optional sections), `.jinja` twins of `AGENTS.md`, `CODEOWNERS`, `review.json`, `package.json` plus starter README/PRD/HANDOFF, project-owned files in `_skip_if_exists`. `Template` workflow: twins in sync, 2 generated projects pass their checks, no owner leak, `copier update` keeps project files. Reviewer tests now use a fixed provider config (they depended on this repository's `review.json`).
 - M7 PR 1: HANDOFF housekeeping, reviewer `maxDiffChars` back to 150000, and the sample store translated to English (prompt, tag `<customer_message>`, categories, golden set, LLM judge, mock, pricing errors), with evals before/after and the owner's `invariant-approved` (INV-002) and `eval-approved` (golden set).
 - M-EN (done, PR #10): translated the template to English (docs, messages, check and label names), with no behavior change.
 - M6: `main` protection and weekly direction check.
@@ -32,8 +33,8 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 
 1. **M-EN: done** (PR #10, merged 2026-10-21; post-merge test in PR #11).
 2. **M7 (engine)**, split by the owner into 3 PRs, each stopping for the owner's merge:
-   1. Housekeeping + sample store in English (this PR).
-   2. Copier engine: `copier.yml` (project name, GitHub owner → CODEOWNERS and the guard's owner, conversation language pt-BR/en, reviewer provider including "none", optional sections Context7 and UI/UX); no hardcoded `@lexsimoes`; 2 generated projects with CI; `copier update` brings a template change without overwriting project files (PRD, invariants, app code).
+   1. Housekeeping + sample store in English (done, PR #12).
+   2. Copier engine (this PR): `copier.yml` (project name, GitHub owner → CODEOWNERS and the guard's owner, conversation language pt-BR/en, reviewer provider including "none", optional sections Context7 and UI/UX); no hardcoded `@lexsimoes`; 2 generated projects with CI; `copier update` brings a template change without overwriting project files (PRD, invariants, app code).
    3. No-key mode + public release: without an AI key, `quality`, `invariants` and `dependencies` run normally and `review`/`evals` pass with a clear "disabled" notice, without reopening the "skipped check counts as green" loophole for projects that do have a key; MIT license; "Getting started" README; weekly export of GitHub traffic data to a versioned file.
    - The owner's dotfiles and global CLAUDE.md stay out of the template, in a separate private repository.
 3. **M7b (entry point): Claude Code plugin** (marketplace in this repository):
