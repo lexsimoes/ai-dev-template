@@ -86,6 +86,8 @@ _exclude:
   - docs/RELEASING.md
   - scripts/release
   - tests/unit/release.test.ts
+  # The template's own missions are its history; projects get only the mission template and README.
+  - "docs/missions/[0-9]*"
 
 # Project-owned files: created once, never overwritten by `copier update` (recreated only if deleted).
 _skip_if_exists:

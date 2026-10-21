@@ -167,6 +167,7 @@ for (const p of PROJECTS) {
       "docs/RELEASING.md",
       "scripts/release",
       "tests/unit/release.test.ts",
+      "docs/missions/0013-releases.md",
     ];
     for (const f of templateOnly) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
     assert.deepEqual(filesUnder(dest).filter((f) => f.endsWith(".jinja")), [], "no .jinja file left");
