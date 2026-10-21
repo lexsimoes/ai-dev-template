@@ -18,7 +18,7 @@ O agente que implementa uma mudança é o mesmo que roda os testes. Se ele pudes
 
 | Camada | O que faz | Onde |
 |---|---|---|
-| Regra escrita | Proíbe e manda parar e perguntar | `AGENTS.md`, seção 3 |
+| Regra escrita | Proíbe e manda parar e perguntar | `AGENTS.md`, seção 1.2 |
 | Trava local | Claude Code recusa editar esta pasta | `.claude/settings.json` |
 | Dono obrigatório | PR que toca aqui exige a aprovação do dono | `.github/CODEOWNERS` + proteção da `main` (M6) |
 | Robô | Job separado e obrigatório no CI; falha se a pasta mudar sem autorização ou se houver `.skip` | `.github/workflows/` (M3) |

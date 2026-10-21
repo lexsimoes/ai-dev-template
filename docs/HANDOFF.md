@@ -27,7 +27,9 @@
 
 ## Decisões pendentes (do dono)
 
-- Conteúdo completo do `~/.claude/CLAUDE.md` do dono ainda não recebido. O `AGENTS.md` segue o resumo do método enviado na missão; revisar quando o texto chegar.
+- O `AGENTS.md` do template é a versão oficial do método (decisão do dono, 2026-10-21).
+- `~/.codex/AGENTS.md` do dono (Context7 + preferências de UI/UX) ainda não recebido: a seção 5 (UI/UX) tem um marcador PENDENTE para o resumo dessas preferências.
+- M7: gerar `~/.codex/AGENTS.md` e `~/.claude/CLAUDE.md` globais a partir do template, versionados num repositório de dotfiles; seções opcionais (`<!-- opcional:... -->`) ligadas pelo tipo de projeto.
 - Modelo padrão do adaptador Anthropic: `claude-opus-5-5`. Trocar para um modelo mais barato nos evals é decisão do dono (ver `evals/README.md`, Custos).
 
 ## Riscos e avisos

@@ -76,7 +76,7 @@ O agente implementa, outro modelo revisa, os robôs verificam e **você decide e
 
 - Comente no PR o que está errado. Com o revisor configurado (M4), você pode escrever `@claude corrija X` no comentário.
 - O agente corrige **na mesma branch**; o CI e a revisão rodam de novo sozinhos.
-- Feedback de cliente, issue ou e-mail vira uma **missão nova**, nunca uma correção direta (`AGENTS.md`, seção 6).
+- Feedback de cliente, issue ou e-mail vira uma **missão nova**, nunca uma correção direta (`AGENTS.md`, seção 1.5).
 
 ## Comandos locais
 

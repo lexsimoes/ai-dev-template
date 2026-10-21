@@ -9,6 +9,7 @@ Modelo de repositório para desenvolver com agentes de IA. O agente implementa, 
 | Peça | Arquivo | Para quê |
 |---|---|---|
 | Regras para agentes | [`AGENTS.md`](AGENTS.md) · [`CLAUDE.md`](CLAUDE.md) | Como qualquer agente deve trabalhar aqui |
+| Skills | [`docs/SKILLS.md`](docs/SKILLS.md) | Qual skill usar por tarefa, de onde vem e como instalar |
 | Requisitos | [`specs/PRD.md`](specs/PRD.md) | Objetivo, critérios de aceite, **inegociáveis**, checagem de direção |
 | Missões | [`docs/missions/`](docs/missions/) | Ordem de serviço para cada tarefa |
 | Passagem de turno | [`docs/HANDOFF.md`](docs/HANDOFF.md) | Estado atual e fila |

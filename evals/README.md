@@ -59,4 +59,4 @@ Variáveis: `LLM_PROVIDER`, `LLM_MODEL`, `EVAL_JUDGE_PROVIDER`, `EVAL_JUDGE_MODE
 3. Registre a suite em `config.json` com limites.
 4. Rode `npm run eval:mock` para validar o formato, e depois com o provedor real.
 
-Casos existentes não são editados nem apagados para "passar": isso é enfraquecer teste (`AGENTS.md`, seção 5).
+Casos existentes não são editados nem apagados para "passar": isso é enfraquecer teste (`AGENTS.md`, seção 1.3).
