@@ -211,3 +211,25 @@ test("fluxo: comentário com estado adulterado é ignorado", async () => {
   assert.equal(r.code, 1);
   assert.match(r.out, /nenhuma revisão foi concluída/);
 });
+
+test("fluxo: arquivo com acento entra no diff incremental", async () => {
+  git("checkout", "-q", "pr");
+  commit("E", { "docs/decisão.md": "# decisão\n" });
+  await review("13", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.B! });
+  const r = await review("13", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.E! });
+  assert.match(r.out, /docs\/decisão\.md/, r.out);
+});
+
+test("fluxo: segredo continua bloqueando em revisão incremental até sair do PR", async () => {
+  git("checkout", "-q", "-b", "segredo", "origin/main");
+  const fake = "api" + "Key = \"" + "q".repeat(20) + "\";";
+  commit("S1", { "src/conf.ts": `export const ${fake}\n` });
+  await review("14", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.S1! });
+  commit("S2", { "README.md": "outra coisa\n" });
+  const r = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.S2! });
+  assert.equal(r.code, 1, "segredo ainda no PR mantém vermelho");
+  assert.match(r.out, /Possível segredo no código/);
+  commit("S3", { "src/conf.ts": "export const apiKey = process.env.API_KEY;\n" });
+  const r2 = await review("14", { EVENT_ACTION: "labeled", EVENT_LABEL: "revisar-de-novo", PR_LABELS: '["revisar-de-novo"]', HEAD_SHA: sha.S3! });
+  assert.equal(r2.code, 0, r2.out);
+});

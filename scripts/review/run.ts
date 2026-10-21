@@ -88,8 +88,9 @@ function loadConfig(): ReviewConfig {
   return config;
 }
 
+// core.quotePath=false: nomes com acento saem como estão (sem aspas nem códigos octais).
 function git(...args: string[]): string {
-  return execFileSync("git", args, { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
+  return execFileSync("git", ["-c", "core.quotePath=false", ...args], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
 }
 
 function isAncestor(ancestor: string, descendant: string): boolean {
@@ -205,13 +206,15 @@ async function main(): Promise<number> {
   const state = existing ? decodeState(existing.body) : null;
   if (existing && !state && existing.body.includes("revisor-estado")) notes.push("O estado guardado no comentário era inválido e foi ignorado.");
   const stateReachable = state !== null && isAncestor(state.sha, headSha);
-  const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "" };
+  const event = { action: process.env.EVENT_ACTION ?? "", label: process.env.EVENT_LABEL ?? "", labels };
   const decision = mode === "ci" ? decideKind(event, config, state, stateReachable) : { kind: "completa" as ReviewKind, note: null };
   const kind = decision.kind;
   if (decision.note) notes.push(decision.note);
 
   // Diff a analisar: o PR inteiro, ou só o que mudou desde a última revisão.
+  // Os detectores de segredo sempre olham o PR inteiro: um segredo só some quando sai do PR.
   let diff: string;
+  let fullDiff: string;
   let prPaths: string[];
   if (mode === "canary") {
     const pr = JSON.parse(readFileSync(join(CANARY_DIR, "pr.json"), "utf-8")) as { title: string; body: string };
@@ -220,28 +223,29 @@ async function main(): Promise<number> {
     // O segredo falso é gerado na hora: nenhum valor parecido com chave fica gravado no repositório.
     const fake = ["canario", "nao", "e", "real", Date.now().toString(36), "x".repeat(12)].join("-");
     diff = readFileSync(join(CANARY_DIR, "canary.diff"), "utf-8").replaceAll("{{SEGREDO_FALSO}}", fake);
+    fullDiff = diff;
     prPaths = splitDiff(diff).map((f) => f.path);
   } else {
-    prPaths = git("diff", "--name-only", `${baseRef}...${headSha}`).split("\n").filter(Boolean);
-    // Desde a última revisão, mas só nos arquivos do PR: um merge da main na branch não infla o diff.
+    prPaths = git("diff", "--name-only", "-z", `${baseRef}...${headSha}`).split("\0").filter(Boolean);
+    fullDiff = git("diff", "--no-color", "-U5", `${baseRef}...${headSha}`);
     const incrementalBase = (kind === "incremental" || kind === "sem-revisao") && state && stateReachable ? state.sha : null;
-    diff = incrementalBase
-      ? prPaths.length
-        ? git("diff", "--no-color", "-U5", incrementalBase, headSha, "--", ...prPaths)
-        : ""
-      : git("diff", "--no-color", "-U5", `${baseRef}...${headSha}`);
+    diff = incrementalBase ? git("diff", "--no-color", "-U5", incrementalBase, headSha) : fullDiff;
   }
 
-  const allFiles = splitDiff(diff);
+  // Só arquivos do PR: um merge da main na branch não infla o diff incremental.
+  const prPathSet = new Set(prPaths);
+  const allFiles = splitDiff(diff).filter((f) => prPathSet.has(f.path) || mode === "canary");
   const filtered = filterFiles(allFiles, config);
   const redacted = filtered.included.map(redactSecrets);
   const included = redacted.map((r) => r.file);
-  const hits = redacted.flatMap((r) => r.hits);
+  const fullFiles = splitDiff(fullDiff);
+  const fullFiltered = filterFiles(fullFiles, config);
+  const fullHits = fullFiltered.included.flatMap((f) => redactSecrets(f).hits);
   const secretFindings = [
-    ...secretPathFindings(allFiles, filtered.excluded),
-    ...hits.filter((h) => h.added).map((h) => secretFinding(h.path, h.line)),
+    ...secretPathFindings(fullFiles, fullFiltered.excluded),
+    ...fullHits.filter((h) => h.added).map((h) => secretFinding(h.path, h.line)),
   ];
-  const contextHits = hits.filter((h) => !h.added).length;
+  const contextHits = redacted.flatMap((r) => r.hits).filter((h) => !h.added).length;
   if (contextHits > 0) notes.push(`${contextHits} possível(is) segredo(s) em linhas já existentes foram redigidos antes do envio.`);
 
   // ----- push depois da revisão: nenhuma chamada ao modelo -----
@@ -285,7 +289,9 @@ async function main(): Promise<number> {
   const finalKind: ReviewKind = dispensed ? "dispensada" : kind;
 
   // ----- achados anteriores (revisão incremental) -----
-  const previous: PreviousFinding[] = finalKind === "incremental" ? (state?.achados ?? []).map((a, i) => ({ ...a, id: i + 1 })) : [];
+  // Achados de detector não entram: o detector roda de novo no PR inteiro e os reporta enquanto existirem.
+  const previous: PreviousFinding[] =
+    finalKind === "incremental" ? (state?.achados ?? []).filter((a) => a.origem !== "detector").map((a, i) => ({ ...a, id: i + 1 })) : [];
   const changedNow = new Set(included.map((f) => f.path));
   const toCheck = previous.filter((p) => p.arquivo === "PR" || changedNow.has(p.arquivo));
 

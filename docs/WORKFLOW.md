@@ -156,7 +156,7 @@ Todo PR **pronto** (rascunhos não) recebe uma revisão automática, publicada c
 | PR em **rascunho** (o agente ainda está trabalhando) | Nada | Não |
 | PR marcado **Ready for review** (ou aberto já pronto) | **Revisão completa** do PR inteiro | Sim, uma vez |
 | **Push** depois da revisão | Mantém o veredito anterior e avisa no comentário que há commits não revisados. Fica **vermelho** em qualquer destes casos: os commits novos têm possível segredo; tocam caminho sensível; ainda há bloqueante em aberto; a última tentativa de revisão falhou; o commit revisado sumiu (force-push). Com `afterReviewPush: "exigir-nova-revisao"` em `.github/review.json`, qualquer push fica vermelho até uma nova revisão | Não |
-| Rótulo **`revisar-de-novo`** (você ou o agente aplicam) | **Revisão incremental**: só o diff desde o último commit revisado, conferindo se cada achado anterior foi resolvido. O rótulo é removido sozinho, para poder ser aplicado de novo | Sim, menor |
+| Rótulo **`revisar-de-novo`** (você ou o agente aplicam) | **Revisão incremental**: só o diff desde o último commit revisado, conferindo se cada achado anterior foi resolvido. O rótulo é removido sozinho, para poder ser aplicado de novo. Se um push chegar logo depois e a fila do GitHub descartar essa execução, o push encontra o rótulo e faz a revisão no lugar dela | Sim, menor |
 | Rótulo **`revisão-profunda`** (só você) | Revisão completa com o modelo mais forte (Opus) | Sim, mais cara |
 | PR **trivial**: só `README.md`, `CHANGELOG.md` e `docs/**/*.md`, ou só lockfile. Nunca é trivial se tocar documento que orienta agentes (`AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `specs/`, `docs/missions/`, `docs/HANDOFF.md`, `docs/SKILLS.md`, `SKILL.md`, `.claude/`) ou caminho sensível | Revisão **leve** (mesmo modelo, raciocínio curto) ou **nenhuma** (só os detectores de segredo), conforme `trivial.mode` em `.github/review.json` | Leve ou não |
 
@@ -164,6 +164,9 @@ O commit revisado e os achados em aberto ficam guardados no próprio comentário
 - Ninguém deve editar esse comentário. Se ele for adulterado, o estado é validado e, se estiver inválido, é ignorado.
 - Um force-push que apague o commit revisado deixa o check vermelho, e a próxima revisão volta a ser completa.
 - A revisão incremental só olha os arquivos do PR: um merge da `main` na branch não infla o diff.
+
+- **Segredos** são decididos só pelos detectores, que rodam sobre o PR inteiro em toda execução. O achado só some quando o segredo sai do PR; o modelo nunca decide isso.
+- **Lockfiles** (`package-lock.json` e afins) nunca são enviados ao modelo. Quem os cobre é o check `dependencias`, que olha vulnerabilidades conhecidas. Um PR só de lockfile não recebe revisão de conteúdo.
 
 A simulação de ponta a ponta desse fluxo, com um GitHub e um modelo falsos, roda em todo `npm test` (`tests/unit/review-flow.test.ts`).
 
@@ -186,6 +189,7 @@ A simulação de ponta a ponta desse fluxo, com um GitHub e um modelo falsos, ro
 4. O modelo recebe o `REVIEW.md` e o `AGENTS.md` **da branch de destino** (um PR não afrouxa a própria revisão) e responde em JSON.
    - Esses dois arquivos vêm sempre **no começo** do prompt, e do mesmo jeito, em toda revisão.
    - Provedores com cache de contexto, como a DeepSeek, cobram cerca de 3% do preço por esse trecho repetido.
+   - Na Anthropic (níveis `sensivel` e `profunda`) o cache **não** é ativado: gravar no cache custa 25% a mais e ele dura 5 minutos, o que não compensa em revisões espaçadas.
    - O relatório mostra quantos tokens vieram do cache.
 5. Achado sem evidência, ou que cita arquivo fora do diff, é **descartado**, e o relatório conta quantos foram descartados.
 6. Algum **bloqueante** deixa o check `revisao` vermelho. Importantes e sugestões só aparecem no comentário.

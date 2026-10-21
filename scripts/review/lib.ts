@@ -47,6 +47,8 @@ export interface Finding {
   titulo: string;
   explicacao: string;
   evidencia: string;
+  /** "detector": achado determinístico (segredo). Nunca vai para o modelo decidir se foi resolvido. */
+  origem?: "detector" | "modelo";
 }
 
 export interface Usage {
@@ -154,6 +156,7 @@ export function redactSecrets(file: DiffFile): { file: DiffFile; hits: SecretHit
 
 export function secretFinding(path: string, line: number | null): Finding {
   return {
+    origem: "detector",
     severidade: "bloqueante",
     arquivo: path,
     linha: line,
@@ -169,6 +172,7 @@ export function secretPathFindings(files: DiffFile[], excluded: string[]): Findi
   return files
     .filter((f) => excluded.includes(f.path) && !/^deleted file mode/m.test(f.text))
     .map((f) => ({
+      origem: "detector" as const,
       severidade: "bloqueante" as const,
       arquivo: f.path,
       linha: null,
@@ -216,7 +220,8 @@ export interface ReviewState {
   falha?: string;
 }
 
-const STATE_RE = /<!-- revisor-estado:([A-Za-z0-9+/=]+) -->/;
+// Só vale o estado que FECHA o comentário: um marcador forjado no meio do texto é ignorado.
+const STATE_RE = /<!-- revisor-estado:([A-Za-z0-9+/=]+) -->\s*$/;
 const SHA_RE = /^[0-9a-f]{40}$/;
 
 export function encodeState(state: ReviewState): string {
@@ -237,7 +242,8 @@ function isFinding(value: unknown): value is Finding {
     (f.linha === null || (typeof f.linha === "number" && Number.isInteger(f.linha))) &&
     typeof f.titulo === "string" &&
     typeof f.explicacao === "string" &&
-    typeof f.evidencia === "string"
+    typeof f.evidencia === "string" &&
+    (f.origem === undefined || f.origem === "detector" || f.origem === "modelo")
   );
 }
 
@@ -265,6 +271,8 @@ export function decodeState(commentBody: string): ReviewState | null {
 export interface ReviewEvent {
   action: string;
   label: string;
+  /** Rótulos do PR no momento do evento. */
+  labels: string[];
 }
 
 /** Que tipo de revisão fazer neste evento do GitHub. `stateReachable`: o commit revisado ainda está no histórico do PR. */
@@ -274,7 +282,9 @@ export function decideKind(
   state: ReviewState | null,
   stateReachable: boolean,
 ): { kind: ReviewKind; note: string | null } {
-  if (event.action === "synchronize") return { kind: "sem-revisao", note: null };
+  // Um push que encontra o rótulo "revisar-de-novo" ainda no PR faz a revisão pedida: a fila do GitHub
+  // guarda só uma execução pendente e pode ter descartado a do rótulo.
+  if (event.action === "synchronize" && !event.labels.includes(config.rereviewLabel)) return { kind: "sem-revisao", note: null };
   if (event.action === "labeled" && event.label === config.deepLabel) return { kind: "completa", note: null };
   if (state && stateReachable) return { kind: "incremental", note: null };
   if (state) {
@@ -665,9 +675,25 @@ export function renderReport(r: ReportInput): string {
   return lines.join("\n");
 }
 
-/** Monta o comentário completo: marcador, aviso (trocado a cada push), relatório e estado. */
+/** Impede que texto vindo do PR (nomes de arquivo, evidências) crie comentários HTML, como um estado forjado. */
+export function neutralizeHtmlComments(text: string): string {
+  return text.replaceAll("<!--", "&lt;!--").replaceAll("-->", "--&gt;");
+}
+
+/** Monta o comentário completo: marcador, aviso (trocado a cada push), relatório e estado (sempre no fim). */
 export function composeComment(banner: string, report: string, state: ReviewState | null): string {
-  return [REPORT_MARKER, BANNER_START, banner, BANNER_END, "", report, "", state ? encodeState(state) : ""].join("\n").trimEnd();
+  return [
+    REPORT_MARKER,
+    BANNER_START,
+    neutralizeHtmlComments(banner),
+    BANNER_END,
+    "",
+    neutralizeHtmlComments(report),
+    "",
+    state ? encodeState(state) : "",
+  ]
+    .join("\n")
+    .trimEnd();
 }
 
 /** Extrai o relatório de um comentário existente, sem marcador, aviso e estado. */
