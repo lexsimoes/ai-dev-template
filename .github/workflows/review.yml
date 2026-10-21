@@ -29,7 +29,8 @@ jobs:
     timeout-minutes: 15
     # No cancelling: a push right after "ready" must not throw away a review already paid for.
     # Runs of the same PR go one at a time, and each one decides from the PR as it is when it starts
-    # (labels read from the API, the review state in the comment), not from the event that started it.
+    # (labels and head commit read from the API, the review state in the comment), not from the event that started it.
+    # A run whose event carries an older commit than the PR head changes nothing.
     # So a push and a "re-review" label close together give the same verdict in both runs, whichever runs
     # first and whichever GitHub counts (tests/unit/review-flow.test.ts, "race"). If the queue drops a
     # pending run, the next run still finds the "re-review" label on the PR. With "deep-review" there is no
