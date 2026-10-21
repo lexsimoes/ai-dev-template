@@ -21,6 +21,7 @@ import {
   parseReview,
   redactSecrets,
   renderReport,
+  secretPathFindings,
   selectTier,
   splitDiff,
 } from "./lib.ts";
@@ -155,7 +156,10 @@ async function main(): Promise<number> {
   const redacted = filtered.included.map(redactSecrets);
   const included = redacted.map((r) => r.file);
   const hits = redacted.flatMap((r) => r.hits);
-  const secretFindings = hits.filter((h) => h.added).map((h) => secretFinding(h.path, h.line));
+  const secretFindings = [
+    ...secretPathFindings(allFiles, filtered.excluded),
+    ...hits.filter((h) => h.added).map((h) => secretFinding(h.path, h.line)),
+  ];
   const notes: string[] = [];
   const contextHits = hits.filter((h) => !h.added).length;
   if (contextHits > 0) notes.push(`${contextHits} possível(is) segredo(s) em linhas já existentes foram redigidos antes do envio.`);
@@ -185,6 +189,7 @@ async function main(): Promise<number> {
     labels: context.labels,
     diff: diffText,
     files: included.map((f) => f.path),
+    withheld: [...filtered.excluded, ...filtered.ignored],
     maxFindings: config.maxFindings,
   });
 

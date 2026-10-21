@@ -142,6 +142,21 @@ export function redactSecrets(file: DiffFile): { file: DiffFile; hits: SecretHit
   return { file: { path: file.path, text: lines.join("\n") }, hits };
 }
 
+/** Arquivo de segredo (.env, chave) adicionado ou alterado no PR: bloqueante sem consultar o modelo. */
+export function secretPathFindings(files: DiffFile[], excluded: string[]): Finding[] {
+  return files
+    .filter((f) => excluded.includes(f.path) && !/^deleted file mode/m.test(f.text))
+    .map((f) => ({
+      severidade: "bloqueante" as const,
+      arquivo: f.path,
+      linha: null,
+      titulo: "Arquivo de segredo no PR",
+      explicacao:
+        "Este tipo de arquivo (.env, chave, certificado) não deve ir para o repositório. Remova-o do PR, confira o .gitignore e, se ele continha chaves reais, troque-as no provedor.",
+      evidencia: "[conteúdo não exibido nem enviado ao modelo]",
+    }));
+}
+
 // ---------- nível do revisor ----------
 
 export function selectTier(
@@ -168,6 +183,8 @@ export interface PromptInput {
   labels: string[];
   diff: string;
   files: string[];
+  /** Arquivos que estão no PR mas não foram enviados (segredo ou fora da revisão por configuração). */
+  withheld: string[];
   maxFindings: number;
 }
 
@@ -206,6 +223,7 @@ ${OUTPUT_SPEC}`;
 
   const user = `Rótulos do PR: ${input.labels.length ? input.labels.join(", ") : "(nenhum)"}
 Arquivos no diff enviado: ${input.files.join(", ")}
+Arquivos que ESTÃO no PR mas não foram enviados a você (por segurança ou configuração; existem, não os trate como ausentes): ${input.withheld.length ? input.withheld.join(", ") : "(nenhum)"}
 
 <pr_titulo>
 ${input.title}
@@ -331,9 +349,15 @@ export function renderReport(r: ReportInput): string {
   const lines = [REPORT_MARKER, "## 🤖 Revisão automática", ""];
   if (r.error) {
     lines.push(`**❌ A revisão não foi concluída:** ${r.error}`, "", "Nada foi verificado pelo revisor nesta execução.");
+  } else if (!r.review && achados.length === 0) {
+    lines.push("**ℹ️ Nada foi revisado pelo modelo:** nenhum arquivo do diff é revisável (veja \"Não revisado\"). Isto não é uma aprovação.");
   } else {
     lines.push(
-      blocking > 0 ? `**❌ ${blocking} achado(s) bloqueante(s): o merge deve esperar.**` : "**✅ Nenhum achado bloqueante.**",
+      blocking > 0
+        ? `**❌ ${blocking} achado(s) bloqueante(s): o merge deve esperar.**`
+        : r.review
+          ? "**✅ Nenhum achado bloqueante.**"
+          : "**ℹ️ O modelo não revisou este diff** (veja \"Não revisado\").",
       "",
       `| 🔴 Bloqueante | 🟠 Importante | 🔵 Sugestão |`,
       `|---|---|---|`,

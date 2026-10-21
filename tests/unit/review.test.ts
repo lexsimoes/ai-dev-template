@@ -9,8 +9,10 @@ import {
   parseReview,
   redactSecrets,
   renderReport,
+  secretPathFindings,
   selectTier,
   splitDiff,
+  buildPrompt,
 } from "../../scripts/review/lib.ts";
 import type { ReviewConfig } from "../../scripts/review/lib.ts";
 
@@ -123,4 +125,46 @@ test("canário: o segredo plantado é pego pelo detector antes do envio", () => 
   assert.ok(config_ts);
   const { hits } = redactSecrets(config_ts);
   assert.deepEqual(hits.map((h) => h.line), [2]);
+});
+
+test("arquivo de segredo adicionado ao PR é bloqueante; apagado, não", () => {
+  const added = splitDiff(fileDiff(".env.local", ["X=1"]));
+  const deleted = splitDiff(
+    ["diff --git a/.env b/.env", "deleted file mode 100644", "--- a/.env", "+++ /dev/null", "@@ -1 +0,0 @@", "-X=1"].join("\n"),
+  );
+  assert.deepEqual(secretPathFindings(added, [".env.local"]).map((f) => f.severidade), ["bloqueante"]);
+  assert.deepEqual(secretPathFindings(deleted, [".env"]), []);
+});
+
+test("relatório: sem nada revisado não afirma aprovação", () => {
+  const md = renderReport({
+    tierName: "padrao",
+    tier: config.tiers.padrao,
+    reason: "x",
+    notes: [],
+    review: null,
+    secretFindings: [],
+    excluded: [],
+    ignored: ["package-lock.json"],
+    usage: null,
+    durationMs: 1,
+    error: null,
+  });
+  assert.doesNotMatch(md, /Nenhum achado bloqueante/);
+  assert.match(md, /Isto não é uma aprovação/);
+});
+
+test("prompt: arquivos retidos são listados para o modelo não tratá-los como ausentes", () => {
+  const { user } = buildPrompt({
+    reviewMd: "",
+    agentsMd: "",
+    title: "t",
+    body: "",
+    labels: [],
+    diff: "",
+    files: ["src/a.ts"],
+    withheld: ["scripts/review/canary/canary.diff"],
+    maxFindings: 5,
+  });
+  assert.match(user, /não foram enviados a você.*scripts\/review\/canary\/canary\.diff/);
 });
