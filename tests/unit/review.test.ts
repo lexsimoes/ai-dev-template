@@ -28,8 +28,9 @@ import {
   buildPrompt,
 } from "../../scripts/review/lib.ts";
 import type { Finding, ReportInput, ReviewConfig } from "../../scripts/review/lib.ts";
+import { testConfig } from "./review-test-config.ts";
 
-const config = JSON.parse(readFileSync(".github/review.json", "utf-8")) as ReviewConfig;
+const config: ReviewConfig = testConfig();
 
 const BASE_REPORT: ReportInput = {
   kind: "full",
