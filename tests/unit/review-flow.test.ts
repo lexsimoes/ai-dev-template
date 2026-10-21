@@ -376,6 +376,7 @@ test("no-key mode: the review is off with a notice, the secret detector still ru
     assert.equal(r.code, 0, `${action}: ${r.out}`);
     assert.match(r.out, /Automated review is off in this repository/);
     assert.match(r.out, /no AI key in this test/);
+    assert.deepEqual(prLabels.get("30"), [], `${action}: no re-review label left on the PR`);
   }
   assert.match(comments.get("30")?.[0]?.body ?? "", /Automated review is off/, "the notice is posted on the PR");
   assert.equal(comments.get("30")?.length, 1, "one comment, updated in place");

@@ -365,7 +365,11 @@ async function main(): Promise<number> {
       : "✅ Green check: review off, no secret found.";
     console.log(`${banner}\n\n${report}\n\n${verdict}`);
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${banner}\n\n${report}\n\n${verdict}\n`);
-    if (!values["dry-run"]) await upsertComment(existing, composeComment(banner, `${report}\n\n${verdict}`, state));
+    if (!values["dry-run"]) {
+      await upsertComment(existing, composeComment(banner, `${report}\n\n${verdict}`, state));
+      // Same as a review: the label is used up, so applying it again starts a new run.
+      if (labels.includes(config.rereviewLabel)) await removeLabel(config.rereviewLabel);
+    }
     return blocking ? 1 : 0;
   }
 
