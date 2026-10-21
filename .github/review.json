@@ -1,6 +1,6 @@
 {
   "$comment": "Configuration of the automated reviewer (scripts/review). Read from the PR's target branch. REVIEW_API_BASE_URL and REVIEW_MODEL (repository variables) override baseUrl and model of the 'standard' and 'light' tiers.",
-  "maxDiffChars": 150000,
+  "maxDiffChars": 450000,
   "timeoutMs": 480000,
   "maxFindings": 20,
   "deepLabel": "deep-review",
