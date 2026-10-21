@@ -1,5 +1,5 @@
-// Exemplo de função que depende de LLM: classifica a mensagem de um cliente.
-// Protegida por INV-002 (conteúdo externo é dado, nunca instrução) e medida por evals.
+// Example of a function that depends on an LLM: classifies a customer message.
+// Protected by INV-002 (external content is data, never instruction) and measured by evals.
 
 import type { LLMClient } from "./types.ts";
 
@@ -9,7 +9,7 @@ export type Category = (typeof CATEGORIES)[number];
 export interface Classification {
   category: Category;
   summary: string;
-  /** true quando a resposta do modelo não pôde ser validada: um humano deve olhar. */
+  /** true when the model's reply could not be validated: a human should look at it. */
   needsHuman: boolean;
 }
 
@@ -24,7 +24,7 @@ category deve ser exatamente uma destas: ${CATEGORIES.join(", ")}.
 summary: uma frase neutra em português, com no máximo ${MAX_SUMMARY_CHARS} caracteres, descrevendo o pedido do cliente.`;
 
 export function buildPrompt(message: string): { system: string; user: string } {
-  // Impede que o cliente "feche" a tag e escreva fora da área de dados.
+  // Stops the customer from "closing" the tag and writing outside the data area.
   const safe = message.replace(new RegExp(`</?\\s*${TAG}\\s*>`, "gi"), "[tag removida]");
   return { system: SYSTEM_PROMPT, user: `<${TAG}>\n${safe}\n</${TAG}>` };
 }
@@ -33,7 +33,7 @@ function isCategory(value: unknown): value is Category {
   return typeof value === "string" && (CATEGORIES as readonly string[]).includes(value);
 }
 
-/** Converte a resposta do modelo em um objeto seguro. Nunca lança erro. */
+/** Turns the model's reply into a safe object. Never throws. */
 export function parseClassification(raw: string): Classification {
   const fallback: Classification = { category: "outro", summary: "", needsHuman: true };
   const jsonText = /\{[\s\S]*\}/.exec(raw)?.[0];
@@ -50,7 +50,7 @@ export function parseClassification(raw: string): Classification {
   const { category, summary } = data as Record<string, unknown>;
   if (!isCategory(category) || typeof summary !== "string") return fallback;
 
-  // Devolvemos só os campos conhecidos: campos extras do modelo são descartados.
+  // We return only the known fields: extra fields from the model are dropped.
   return { category, summary: summary.trim().slice(0, MAX_SUMMARY_CHARS), needsHuman: false };
 }
 

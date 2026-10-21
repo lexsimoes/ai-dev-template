@@ -1,6 +1,6 @@
-// Adaptador para APIs no formato da OpenAI (POST {baseUrl}/chat/completions):
+// Adapter for APIs in the OpenAI format (POST {baseUrl}/chat/completions):
 // DeepSeek, OpenAI, OpenRouter, Groq, Ollama…
-// Configuração: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY e, opcional, LLM_EXTRA_BODY (JSON).
+// Config: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY and, optionally, LLM_EXTRA_BODY (JSON).
 
 import type { LLMClient } from "../types.ts";
 
@@ -14,7 +14,7 @@ export interface OpenAICompatibleOptions {
   baseUrl?: string;
   model?: string;
   apiKey?: string;
-  /** Campos extras do corpo da requisição, ex.: { "reasoning_effort": "low" }. */
+  /** Extra fields for the request body, e.g. { "reasoning_effort": "low" }. */
   extraBody?: Record<string, unknown>;
   timeoutMs?: number;
 }
@@ -23,9 +23,9 @@ export function createOpenAICompatibleClient(options: OpenAICompatibleOptions = 
   const baseUrl = options.baseUrl ?? process.env.LLM_BASE_URL;
   const model = options.model ?? process.env.LLM_MODEL;
   const apiKey = options.apiKey ?? process.env.LLM_API_KEY;
-  if (!baseUrl) throw new Error("LLM_BASE_URL não definida (ex.: https://api.deepseek.com)");
-  if (!model) throw new Error("LLM_MODEL não definido (ex.: deepseek-v4-pro)");
-  if (!apiKey) throw new Error("LLM_API_KEY não definida");
+  if (!baseUrl) throw new Error("LLM_BASE_URL is not set (e.g. https://api.deepseek.com)");
+  if (!model) throw new Error("LLM_MODEL is not set (e.g. deepseek-v4-pro)");
+  if (!apiKey) throw new Error("LLM_API_KEY is not set");
   const extraBody = options.extraBody ?? (process.env.LLM_EXTRA_BODY ? (JSON.parse(process.env.LLM_EXTRA_BODY) as Record<string, unknown>) : {});
 
   return {
@@ -46,15 +46,15 @@ export function createOpenAICompatibleClient(options: OpenAICompatibleOptions = 
         signal: AbortSignal.timeout(options.timeoutMs ?? 120_000),
       });
       if (!response.ok) {
-        // Só o status e o começo da mensagem; nunca os cabeçalhos (que contêm a chave).
-        throw new Error(`o provedor respondeu HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
+        // Only the status and the start of the message; never the headers (they contain the key).
+        throw new Error(`the provider answered HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
       }
       const data = (await response.json()) as ChatCompletion;
       const choice = data.choices?.[0];
-      // Resposta cortada ou vazia é falha do provedor, não uma saída para interpretar.
-      if (choice?.finish_reason === "length") throw new Error("a resposta passou do limite de tokens de saída (finish_reason: length)");
+      // A cut or empty reply is a provider failure, not an output to interpret.
+      if (choice?.finish_reason === "length") throw new Error("the reply went over the output token limit (finish_reason: length)");
       if (typeof choice?.message?.content !== "string" || !choice.message.content.trim()) {
-        throw new Error(`o provedor não devolveu texto (finish_reason: ${choice?.finish_reason ?? "?"})`);
+        throw new Error(`the provider returned no text (finish_reason: ${choice?.finish_reason ?? "?"})`);
       }
       return {
         text: choice.message.content,

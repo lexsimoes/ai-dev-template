@@ -1,5 +1,5 @@
-// Partes puras dos evals (sem rede): régua confiável, golden set protegido, custo e comentário.
-// Testadas em tests/unit/evals-lib.test.ts.
+// Pure parts of the evals (no network): trusted thresholds, protected golden set, cost and comment.
+// Tested in tests/unit/evals-lib.test.ts.
 
 import { matchesAny } from "../scripts/review/lib.ts";
 
@@ -22,9 +22,9 @@ export interface Suite {
 
 export interface EvalConfig {
   maxCalls: number;
-  /** Caminhos que, quando mudam num PR, fazem os evals rodarem no CI. */
+  /** Paths that, when changed in a PR, make the evals run in CI. */
   aiPaths: string[];
-  /** Preço por milhão de tokens, por modelo (para a estimativa de custo). */
+  /** Price per million tokens, per model (for the cost estimate). */
   pricing: Record<string, { input: number; output: number }>;
   suites: Suite[];
 }
@@ -39,20 +39,20 @@ export function touchesAi(changedPaths: string[], config: Pick<EvalConfig, "aiPa
 }
 
 /**
- * Régua confiável: limites, queda máxima e teto de chamadas vêm da branch de destino.
- * Suites novas (que ainda não existem lá) usam os limites do PR.
+ * Trusted thresholds: limits, maximum drop and call ceiling come from the target branch.
+ * New suites (that do not exist there yet) use the PR's limits.
  */
 export function trustedConfig(pr: EvalConfig, base: EvalConfig | null): { config: EvalConfig; notes: string[] } {
-  if (!base) return { config: pr, notes: ["Sem configuração na branch de destino: limites do próprio PR."] };
+  if (!base) return { config: pr, notes: ["No config on the target branch: using the PR's own limits."] };
   const notes: string[] = [];
   const suites = pr.suites.map((s) => {
     const b = base.suites.find((x) => x.name === s.name);
     if (!b) {
-      notes.push(`Suite nova \`${s.name}\`: limites do PR (não existem na branch de destino).`);
+      notes.push(`New suite \`${s.name}\`: PR limits (they do not exist on the target branch).`);
       return s;
     }
     if (JSON.stringify(b.thresholds) !== JSON.stringify(s.thresholds) || b.maxDropFromBaseline !== s.maxDropFromBaseline) {
-      notes.push(`Suite \`${s.name}\`: o PR muda os limites; valem os da branch de destino.`);
+      notes.push(`Suite \`${s.name}\`: the PR changes the limits; the target branch's limits apply.`);
     }
     return { ...s, thresholds: b.thresholds, maxDropFromBaseline: b.maxDropFromBaseline };
   });
@@ -60,14 +60,14 @@ export function trustedConfig(pr: EvalConfig, base: EvalConfig | null): { config
 }
 
 /**
- * Suites a proteger: todas as da branch de destino, com o golden de lá e o do PR.
- * Vem da config da base para que o PR não escape apontando `golden` para outro arquivo ou apagando a suite.
+ * Suites to protect: all suites from the target branch, with the golden file there and the PR's one.
+ * Comes from the base config so the PR cannot escape by pointing `golden` to another file or deleting the suite.
  */
 export function protectedSuites(base: EvalConfig, pr: EvalConfig): Array<{ name: string; baseGolden: string; prGolden: string | null }> {
   return base.suites.map((b) => ({ name: b.name, baseGolden: b.golden, prGolden: pr.suites.find((s) => s.name === b.name)?.golden ?? null }));
 }
 
-/** Casos do golden set que o PR apagou ou alterou (entrada, esperado, regras ou critério do juiz). Acrescentar casos é livre. */
+/** Golden set cases the PR deleted or changed (input, expected, rules or judge criterion). Adding cases is free. */
 export function goldenChanges(base: GoldenCase[], pr: GoldenCase[]): { removed: string[]; changed: string[] } {
   const byId = new Map(pr.map((c) => [c.id, c]));
   const removed: string[] = [];
@@ -87,7 +87,7 @@ export function goldenChanges(base: GoldenCase[], pr: GoldenCase[]): { removed: 
   return { removed, changed };
 }
 
-/** Preço do modelo: nome exato ou o prefixo mais longo que bate (ex.: "deepseek-v4-pro"). */
+/** Model price: exact name or the longest matching prefix (e.g. "deepseek-v4-pro"). */
 export function priceFor(config: Pick<EvalConfig, "pricing">, model: string): { input: number; output: number } | null {
   const key = Object.keys(config.pricing)
     .filter((k) => model === k || model.startsWith(k))
@@ -99,7 +99,7 @@ export function estimateCost(price: { input: number; output: number } | null, us
   return price ? (usage.inputTokens / 1e6) * price.input + (usage.outputTokens / 1e6) * price.output : null;
 }
 
-export const EVAL_COMMENT_MARKER = "<!-- evals-automaticos -->";
+export const EVAL_COMMENT_MARKER = "<!-- automated-evals -->";
 
 export function renderEvalComment(input: {
   summaryTable: string;
@@ -112,16 +112,16 @@ export function renderEvalComment(input: {
   notes: string[];
   failed: boolean;
 }): string {
-  const cost = input.cost === null ? "sem preço configurado" : `≈ US$ ${input.cost.toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+  const cost = input.cost === null ? "no price configured" : `≈ $${input.cost.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
   return [
     EVAL_COMMENT_MARKER,
-    `## 🧪 Evals ${input.failed ? "❌ reprovados (motivo abaixo)" : "✅ dentro dos limites"}`,
+    `## 🧪 Evals ${input.failed ? "❌ failed (reason below)" : "✅ within limits"}`,
     "",
     input.summaryTable,
     "",
-    `- Modelo: \`${input.model}\` · chamadas: ${input.calls} de no máximo ${input.maxCalls}`,
-    `- Tokens: ${input.usage.inputTokens.toLocaleString("pt-BR")} de entrada + ${input.usage.outputTokens.toLocaleString("pt-BR")} de saída · custo ${cost} (estimativa pelo preço de tabela)`,
-    `- Linha de base: ${input.baselineNote}`,
+    `- Model: \`${input.model}\` · calls: ${input.calls} of at most ${input.maxCalls}`,
+    `- Tokens: ${input.usage.inputTokens.toLocaleString("en-US")} input + ${input.usage.outputTokens.toLocaleString("en-US")} output · cost ${cost} (estimate from list price)`,
+    `- Baseline: ${input.baselineNote}`,
     ...input.notes.map((n) => `- ${n}`),
   ].join("\n");
 }

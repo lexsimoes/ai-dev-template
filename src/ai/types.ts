@@ -1,5 +1,5 @@
-// Contrato único para qualquer provedor de LLM.
-// O resto do app só conhece estes tipos; trocar de provedor = trocar o adaptador.
+// Single contract for any LLM provider.
+// The rest of the app only knows these types; changing provider = changing the adapter.
 
 export interface LLMRequest {
   system: string;
@@ -19,5 +19,5 @@ export interface LLMClient {
   complete(request: LLMRequest): Promise<LLMResponse>;
 }
 
-/** O provedor recusou responder (ex.: filtro de segurança). */
+/** The provider refused to answer (e.g. safety filter). */
 export class LLMRefusalError extends Error {}

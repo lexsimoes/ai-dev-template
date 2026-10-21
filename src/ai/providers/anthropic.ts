@@ -1,4 +1,4 @@
-// Adaptador para a API da Anthropic (Claude). Lê ANTHROPIC_API_KEY do ambiente.
+// Adapter for the Anthropic API (Claude). Reads ANTHROPIC_API_KEY from the environment.
 
 import Anthropic from "@anthropic-ai/sdk";
 import { LLMRefusalError } from "../types.ts";
@@ -18,15 +18,15 @@ export function createAnthropicClient(options: { model?: string } = {}): LLMClie
         max_tokens: request.maxTokens ?? 1024,
         system: request.system,
         messages: [{ role: "user", content: request.user }],
-        // Tarefas curtas (classificar, resumir) não precisam de raciocínio longo.
+        // Short tasks (classify, summarize) do not need long reasoning.
         output_config: { effort: "low" },
-        // Se o modelo recusar por filtro de segurança, a API tenta outro modelo recomendado.
+        // If the model refuses due to a safety filter, the API tries another recommended model.
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
       });
 
       if (response.stop_reason === "refusal") {
-        throw new LLMRefusalError(response.stop_details?.explanation ?? "O modelo recusou a solicitação");
+        throw new LLMRefusalError(response.stop_details?.explanation ?? "The model refused the request");
       }
 
       const text = response.content

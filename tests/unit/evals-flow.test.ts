@@ -1,5 +1,5 @@
-// Fluxo dos evals no modo do CI, com o provedor mock (sem rede e sem custo):
-// régua da branch de destino e golden set protegido.
+// Evals flow in CI mode, with the mock provider (no network and no cost):
+// target-branch thresholds and protected golden set.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -35,78 +35,78 @@ after(() => {
   rmSync(out, { recursive: true, force: true });
 });
 
-test("evals: base igual ao PR passa", async () => {
+test("evals: base equal to the PR passes", async () => {
   const r = await evals();
   assert.equal(r.code, 0, r.out);
 });
 
-test("evals: caso do golden set apagado no PR falha sem o rótulo e passa com ele", async () => {
+test("evals: golden set case deleted in the PR fails without the label and passes with it", async () => {
   const golden = join(base, "evals/golden/classify-message.jsonl");
   const original = readFileSync(golden, "utf-8");
-  writeFileSync(golden, original + JSON.stringify({ id: "so-na-base", input: "x", expected: { category: "outro" } }) + "\n");
+  writeFileSync(golden, original + JSON.stringify({ id: "base-only", input: "x", expected: { category: "outro" } }) + "\n");
   try {
     const r = await evals();
     assert.equal(r.code, 1);
-    assert.match(r.out, /apagados \(so-na-base\)/);
-    const ok = await evals({ PR_LABELS: '["eval-aprovado"]' });
+    assert.match(r.out, /deleted \(base-only\)/);
+    const ok = await evals({ PR_LABELS: '["eval-approved"]' });
     assert.equal(ok.code, 0, ok.out);
-    assert.match(ok.out, /Aprovado pelo rótulo/);
+    assert.match(ok.out, /Approved by the `eval-approved` label/);
   } finally {
     writeFileSync(golden, original);
   }
 });
 
-test("evals: limite da branch de destino vale, mesmo que o PR o afrouxe", async () => {
+test("evals: the target branch's limit applies, even if the PR loosens it", async () => {
   const cfgPath = join(base, "evals/config.json");
   const original = readFileSync(cfgPath, "utf-8");
   const cfg = JSON.parse(original) as { suites: Array<{ thresholds: { accuracy: number } }> };
-  cfg.suites[0]!.thresholds.accuracy = 1.01; // impossível de atingir
+  cfg.suites[0]!.thresholds.accuracy = 1.01; // impossible to reach
   writeFileSync(cfgPath, JSON.stringify(cfg));
   try {
     const r = await evals();
-    assert.equal(r.code, 1, "limite da base reprova");
-    assert.match(r.out, /mínimo 101\.0%/);
+    assert.equal(r.code, 1, "the base limit fails the run");
+    assert.match(r.out, /minimum 101\.0%/);
   } finally {
     writeFileSync(cfgPath, original);
   }
 });
 
-test("evals: suite removida ou golden trocado por outro arquivo também exigem o rótulo", async () => {
+test("evals: a removed suite or a golden file swapped for another also require the label", async () => {
   const cfgPath = join(base, "evals/config.json");
   const original = readFileSync(cfgPath, "utf-8");
   const cfg = JSON.parse(original) as { suites: Array<{ name: string; golden: string }> };
   const first = cfg.suites[0]!;
-  // Na base, a suite lia outro arquivo (com um caso a mais); no PR, aponta para o atual.
-  writeFileSync(join(base, "evals/golden/antigo.jsonl"), readFileSync(first.golden, "utf-8") + JSON.stringify({ id: "so-no-antigo", input: "x", expected: { category: "outro" } }) + "\n");
-  cfg.suites = [{ ...first, golden: "evals/golden/antigo.jsonl" }, { ...first, name: "removida-no-pr" }];
+  // On the base, the suite read another file (with one extra case); in the PR, it points to the current one.
+  writeFileSync(join(base, "evals/golden/old.jsonl"), readFileSync(first.golden, "utf-8") + JSON.stringify({ id: "old-only", input: "x", expected: { category: "outro" } }) + "\n");
+  cfg.suites = [{ ...first, golden: "evals/golden/old.jsonl" }, { ...first, name: "removed-in-pr" }];
   writeFileSync(cfgPath, JSON.stringify(cfg));
   try {
     const r = await evals();
     assert.equal(r.code, 1, r.out);
-    assert.match(r.out, /apagados \(so-no-antigo\)/);
-    assert.match(r.out, /Suite `removida-no-pr` removida/);
+    assert.match(r.out, /deleted \(old-only\)/);
+    assert.match(r.out, /Suite `removed-in-pr` removed/);
   } finally {
     writeFileSync(cfgPath, original);
   }
 });
 
-test("evals: EVAL_MAX_CALLS inválido falha em vez de desligar o teto; vazio usa o da config", async () => {
+test("evals: invalid EVAL_MAX_CALLS fails instead of turning off the ceiling; empty uses the config's", async () => {
   const r = await evals({ EVAL_MAX_CALLS: "abc" });
   assert.equal(r.code, 1);
   const vazio = await evals({ EVAL_MAX_CALLS: "" });
   assert.equal(vazio.code, 0, vazio.out);
 });
 
-test("evals: com --require-baseline, suite da branch de destino sem linha de base reprova", async () => {
-  const semBase = join(out, "nao-existe");
+test("evals: with --require-baseline, a target-branch suite without a baseline fails", async () => {
+  const semBase = join(out, "does-not-exist");
   const args = ["evals/run.ts", "--provider", "mock", "--base-dir", base, "--out", out, "--baseline", semBase];
   const env = { ...process.env, GITHUB_STEP_SUMMARY: "", PR_LABELS: "[]" };
   const livre = await run("node", args, { env }).then(() => 0, (e: { code?: number }) => e.code ?? 1);
-  assert.equal(livre, 0, "sem a opção, falta de linha de base só vira aviso");
+  assert.equal(livre, 0, "without the option, a missing baseline is only a notice");
   const exigida = await run("node", [...args, "--require-baseline"], { env }).then(
     () => ({ code: 0, out: "" }),
     (e: { code?: number; stdout?: string }) => ({ code: e.code ?? 1, out: e.stdout ?? "" }),
   );
   assert.equal(exigida.code, 1);
-  assert.match(exigida.out, /sem linha de base/);
+  assert.match(exigida.out, /no baseline/);
 });

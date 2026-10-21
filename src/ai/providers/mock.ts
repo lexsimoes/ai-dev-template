@@ -1,5 +1,5 @@
-// Provedor falso, determinístico e sem custo. Serve para testar o "encanamento"
-// (testes, evals, CI) sem chave de API. NÃO mede a qualidade de nenhuma IA real.
+// Fake provider, deterministic and free. Used to test the "plumbing"
+// (tests, evals, CI) without an API key. It does NOT measure the quality of any real AI.
 
 import type { LLMClient } from "../types.ts";
 
@@ -13,7 +13,7 @@ export function createMockClient(): LLMClient {
   return {
     name: "mock",
     async complete(request) {
-      // Só olha o texto do cliente, que fica entre as tags do prompt.
+      // Only looks at the customer's text, which sits between the prompt tags.
       const match = /<mensagem_do_cliente>([\s\S]*)<\/mensagem_do_cliente>/.exec(request.user);
       const message = (match?.[1] ?? request.user).trim();
       const lower = message.toLowerCase();
