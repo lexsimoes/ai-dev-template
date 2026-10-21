@@ -21,6 +21,7 @@
 
 1. M5: evals no CI.
    - Evals com modelo real usam o segredo `EVAL_API_KEY` (chave DeepSeek separada, com limite de gasto, cadastrada pelo dono). Nunca a chave do revisor nem a de produção.
+   - Sugestões pendentes da revisão do PR #5: `isAncestor` distinguir erro do git de "não é ancestral"; conferir se rótulos irrelevantes ocupam a vaga pendente da fila de `review.yml` (se sim, incluir o rótulo no `group`).
    - Canário do revisor (lacuna aceita pelo dono até o M5): caso de "resolvido" falso na revisão incremental (achado plantado NÃO corrigido) e caso no nível leve.
 2. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes`, `dependencias` e `revisao` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
 3. M7: bootstrap e Template repository.
