@@ -383,6 +383,10 @@ test("no-key mode: the review is off with a notice, the secret detector still ru
   const secret = await review("31", { ...env, EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.S1! }, undefined, SCRIPT_OFF);
   assert.equal(secret.code, 1, "a secret still turns the check red without a key");
   assert.match(secret.out, /Possible secret in the code/);
+  assert.match(secret.out, /Blocked: 1 possible secret\(s\) in this PR/, "red with the review off says why");
+  assert.match(secret.out, /To turn this check green/);
+  assert.match(secret.out, /process\.env\.API_KEY/);
+  assert.doesNotMatch(secret.out, /⏸️/, "it does not lead with \"review is off\"");
 
   const canary = await review("0", env, ["--mode", "canary", "--canary", "full"], SCRIPT_OFF);
   assert.equal(canary.code, 0, canary.out);

@@ -344,14 +344,25 @@ async function main(): Promise<number> {
   if (config.disabled && mode === "ci") {
     const detected = [...secretFindings, ...switchOff];
     const blocking = secretFindings.length;
-    const banner = [
-      `> ⏸️ **Automated review is off in this repository** (no AI model ran): ${config.disabled}`,
-      "> Only the secret detectors ran. To turn the review on, see `docs/WORKFLOW.md` (\"No-key mode\").",
-    ].join("\n");
+    // Red with the review off reads like a contradiction: the banner says what is blocking and how to fix it.
+    const banner = blocking
+      ? [
+          `> ❌ **Blocked: ${blocking} possible secret(s) in this PR.** The AI review is off in this repository (${config.disabled}), but the secret detectors always run: they need no key.`,
+          "> **To turn this check green:**",
+          "> 1. Remove each value or file listed below from the PR and push again (the check runs again on its own).",
+          "> 2. Treat any real key that was pushed as leaked, even after removing it: revoke it and create a new one at the provider.",
+          "> 3. False positive? Read the value from an environment variable (e.g. `process.env.API_KEY`) instead of writing it in the code; in `.env.example`, leave the value empty (`API_KEY=`).",
+        ].join("\n")
+      : [
+          `> ⏸️ **Automated review is off in this repository** (no AI model ran): ${config.disabled}`,
+          "> Only the secret detectors ran. To turn the review on, see `docs/WORKFLOW.md` (\"No-key mode\").",
+        ].join("\n");
     const report = detected.length
       ? ["### Detectors", "", ...detected.map((f) => `- ${f.severity === "blocking" ? "🔴" : "🟠"} \`${f.file}${f.line ? `:${f.line}` : ""}\`: **${f.title}**. ${f.explanation}`)].join("\n")
       : "No secret found in the PR.";
-    const verdict = blocking ? `❌ Red check: ${blocking} possible secret(s) in the PR.` : "✅ Green check: review off, no secret found.";
+    const verdict = blocking
+      ? `❌ Red check: ${blocking} possible secret(s) in the PR (the secret detectors run even with the AI review off). Fix: see the steps at the top of this comment.`
+      : "✅ Green check: review off, no secret found.";
     console.log(`${banner}\n\n${report}\n\n${verdict}`);
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${banner}\n\n${report}\n\n${verdict}\n`);
     if (!values["dry-run"]) await upsertComment(existing, composeComment(banner, `${report}\n\n${verdict}`, state));

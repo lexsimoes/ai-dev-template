@@ -128,16 +128,22 @@ export function renderEvalComment(input: {
   ].join("\n");
 }
 
-/** Comment for the no-key mode: says clearly that no model ran, and what still did. */
+/** Comment for the no-key mode: says clearly that no model ran, what still did, and how to fix a red check. */
 export function renderDisabledComment(reason: string, goldenFailures: string[], notes: string[]): string {
-  return [
-    EVAL_COMMENT_MARKER,
-    `## 🧪 Evals ⏸️ off in this repository${goldenFailures.length ? " · ❌ golden set weakened" : ""}`,
-    "",
-    `> No AI model ran: ${reason}`,
-    "> Only the golden set guard ran (deleting or changing cases needs the owner's label). To turn the evals on, see `docs/WORKFLOW.md` (\"No-key mode\").",
-    "",
-    ...goldenFailures.map((f) => `- ❌ ${f}`),
-    ...notes.map((n) => `- ${n}`),
-  ].join("\n").trimEnd();
+  const head = goldenFailures.length
+    ? [
+        "## 🧪 Evals ❌ blocked: golden set weakened",
+        "",
+        `> The evals with an AI model are off in this repository (${reason}), but the golden set guard always runs: it needs no key.`,
+        "> **To turn this check green**, either:",
+        "> - restore the golden set cases listed below (adding new cases is always free); or",
+        "> - if the change is intended, the **owner** applies the `eval-approved` label to this PR (the check runs again on its own). Agents never apply it.",
+      ]
+    : [
+        "## 🧪 Evals ⏸️ off in this repository",
+        "",
+        `> No AI model ran: ${reason}`,
+        "> Only the golden set guard ran (deleting or changing cases needs the owner's label). To turn the evals on, see `docs/WORKFLOW.md` (\"No-key mode\").",
+      ];
+  return [EVAL_COMMENT_MARKER, ...head, "", ...goldenFailures.map((f) => `- ❌ ${f}`), ...notes.map((n) => `- ${n}`)].join("\n").trimEnd();
 }

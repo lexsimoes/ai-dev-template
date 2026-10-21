@@ -140,6 +140,10 @@ test("evals no-key mode: switched on in the target branch, no model runs and the
     const weakened = await go({});
     assert.equal(weakened.code, 1, "deleting a golden case still needs the owner's label");
     assert.match(weakened.out, /deleted \(base-only\)/);
+    assert.match(weakened.out, /blocked: golden set weakened/);
+    assert.match(weakened.out, /To turn this check green/);
+    assert.match(weakened.out, /restore the golden set cases/);
+    assert.match(weakened.out, /owner\*\* applies the `eval-approved` label/);
     assert.equal((await go({ PR_LABELS: '["eval-approved"]' })).code, 0);
   } finally {
     writeFileSync(cfgPath, original);
