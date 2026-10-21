@@ -44,12 +44,16 @@ test("openai-compatible: resposta cortada ou sem texto é erro, não texto vazio
   for (const [choices, re] of [
     [[{ message: { content: "{\"categ" }, finish_reason: "length" }], /limite de tokens/],
     [[{ message: { content: null }, finish_reason: "stop" }], /não devolveu texto/],
+    [[{ message: { content: "  " }, finish_reason: "stop" }], /não devolveu texto/],
     [[], /não devolveu texto/],
   ] as const) {
     const srv = await server(() => [200, { choices }]);
     const client = createOpenAICompatibleClient({ baseUrl: srv.url, model: "m1", apiKey: "k" });
-    await assert.rejects(client.complete({ system: "s", user: "u" }), re);
-    srv.close();
+    try {
+      await assert.rejects(client.complete({ system: "s", user: "u" }), re);
+    } finally {
+      srv.close(); // sem isto, um teste que falha deixa o servidor aberto e trava a execução
+    }
   }
 });
 
