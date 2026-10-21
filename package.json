@@ -2,7 +2,7 @@
   "name": "ai-dev-template",
   "version": "0.1.0",
   "private": true,
-  "description": "Modelo de projeto para desenvolvimento com agentes de IA: missão → PR → CI → revisão → aprovação humana.",
+  "description": "Project template for development with AI agents: mission → PR → CI → review → human approval.",
   "type": "module",
   "engines": {
     "node": ">=22.18"
