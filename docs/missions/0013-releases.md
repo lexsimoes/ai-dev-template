@@ -1,7 +1,7 @@
 # Mission 0013: template releases
 
 **Status:** in review
-**Branch:** `mission/0013-releases` · **PR:** _(link once it exists)_
+**Branch:** `mission/0013-releases` · **PR:** https://github.com/lexsimoes/ai-dev-template/pull/16
 **Created on:** 2026-10-21 · **Approved by the owner on:** 2026-10-21 (M7b brief, item 1)
 
 ## Goal
