@@ -28,7 +28,7 @@ import {
   buildPrompt,
 } from "../../scripts/review/lib.ts";
 import type { Finding, ReportInput, ReviewConfig } from "../../scripts/review/lib.ts";
-import { testConfig } from "./review-test-config.ts";
+import { assertUsableTiers, testConfig } from "./review-test-config.ts";
 
 const config: ReviewConfig = testConfig();
 
@@ -75,6 +75,11 @@ function fileDiff(path: string, added: string[]): string {
     " context 2",
   ].join("\n");
 }
+
+test("config: every tier of the real .github/review.json is usable by the reviewer", () => {
+  const real = JSON.parse(readFileSync(".github/review.json", "utf-8")) as ReviewConfig;
+  assertUsableTiers(real.tiers);
+});
 
 test("glob: ** covers any depth and * does not cross folders", () => {
   assert.ok(globToRegExp("**/*.pem").test("a/b/c.pem"));

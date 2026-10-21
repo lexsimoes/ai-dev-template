@@ -1,7 +1,7 @@
 {
   "$comment": "Configuration of the automated reviewer (scripts/review). Read from the PR's target branch. REVIEW_API_BASE_URL and REVIEW_MODEL (repository variables) override baseUrl and model of the 'standard' and 'light' tiers.",
 {% if reviewer_provider == 'none' %}
-  "disabled": "reviewer_provider none: no AI key; the review check passes with a notice (no-key mode)",
+  "disabled": "reviewer_provider none: no AI key. The reviewer honors this marker once the no-key mode ships (M7 PR 3); until then the review check needs a key.",
 {% endif %}
   "maxDiffChars": 150000,
   "timeoutMs": 480000,

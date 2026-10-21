@@ -12,6 +12,7 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { assertUsableTiers } from "../unit/review-test-config.ts";
 
 const ROOT = resolve(".");
 const COPIER = process.env.COPIER || "copier";
@@ -140,6 +141,7 @@ for (const p of PROJECTS) {
     if (p.answers.reviewer_provider === "none") assert.ok(review.disabled, "reviewer marked as disabled");
     else assert.equal(review.disabled, undefined);
     if (p.answers.reviewer_provider === "anthropic") assert.ok(Object.values(review.tiers).every((t) => t.provider === "anthropic"));
+    assertUsableTiers(review.tiers as never);
 
     assert.match(readFileSync(join(dest, "package.json"), "utf-8"), new RegExp(`"name": "${p.answers.project_name.toLowerCase().replace(" ", "-")}"`));
     assert.match(readFileSync(join(dest, "specs/PRD.md"), "utf-8"), new RegExp(`^# PRD: ${p.answers.project_name}$`, "m"));

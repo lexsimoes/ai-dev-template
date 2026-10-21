@@ -2,7 +2,7 @@
   "name": "{{ project_slug }}",
   "version": "0.1.0",
   "private": true,
-  "description": "{{ project_name | replace('"', '') }}: built with the ai-dev-template workflow (mission → PR → CI → review → human approval).",
+  "description": {{ (project_name ~ ": built with the ai-dev-template workflow (mission → PR → CI → review → human approval).") | tojson }},
   "type": "module",
   "engines": {
     "node": ">=22.18"
