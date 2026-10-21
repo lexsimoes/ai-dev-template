@@ -15,11 +15,13 @@
 
 ## Última missão
 
-- M4: revisor independente de provedor e canário do revisor.
+- M4b: economia no revisor (PR em rascunho, revisão única ao ficar pronto, `revisar-de-novo` incremental, PRs triviais, prompt estável para cache).
 
 ## Fila (próximos itens)
 
 1. M5: evals no CI.
+   - Evals com modelo real usam o segredo `EVAL_API_KEY` (chave DeepSeek separada, com limite de gasto, cadastrada pelo dono). Nunca a chave do revisor nem a de produção.
+   - Canário do revisor (lacuna aceita pelo dono até o M5): caso de "resolvido" falso na revisão incremental (achado plantado NÃO corrigido) e caso no nível leve.
 2. M6: proteção da `main` e checagem de direção semanal. Tornar `qualidade`, `invariantes`, `dependencias` e `revisao` checks obrigatórios. Propor uma identidade própria para os agentes no GitHub (GitHub App ou conta-robô) que faça commits e abra PRs, para que: a guarda exija o rótulo `invariante-aprovado` aplicado por @lexsimoes (hoje ela só registra quem aplicou); e o dono possa aprovar PRs formalmente.
 3. M7: bootstrap e Template repository.
 4. M8: ensaio completo com projeto de demonstração.
@@ -31,7 +33,17 @@
 - M7: gerar `~/.codex/AGENTS.md` e `~/.claude/CLAUDE.md` globais a partir do template, versionados num repositório de dotfiles; seções opcionais (`<!-- opcional:... -->`) ligadas pelo tipo de projeto.
 - Modelo padrão do adaptador Anthropic: `claude-opus-5-5`. Trocar para um modelo mais barato nos evals é decisão do dono (ver `evals/README.md`, Custos).
 
+## Decisões tomadas (dono, 2026-10-21)
+
+- Revisor padrão: `deepseek-v4-pro` (sem trocar para flash).
+- `afterReviewPush: "exigir-nova-revisao"` desde já: push depois da revisão fica vermelho até `revisar-de-novo`.
+- `trivial.mode: "leve"`.
+- Modo `@claude` em comentários (`claude-code-action`): descartado por agora.
+
 ## Riscos e avisos
+
+- O estado do revisor (commit revisado + achados em aberto) fica num comentário HTML do robô. Quem tem permissão de escrita no repositório pode editar esse comentário; a edição aparece no histórico do comentário. O `AGENTS.md` proíbe agentes de editá-lo.
+- Pushes depois da revisão não são revisados pelo modelo (decisão de economia). Com `exigir-nova-revisao`, o check fica vermelho até o rótulo `revisar-de-novo`, então nenhum commit chega ao merge sem revisão.
 
 - Segredos em workflows `pull_request`: qualquer pessoa com permissão de push pode, num PR da mesma origem, alterar um workflow e ler `REVIEW_API_KEY`. Mitigação atual: só o dono e os agentes dele têm push; `.github/` é CODEOWNERS. Avaliar no M6 (ambiente com aprovação para segredos).
 - `REVIEW_DEEP_API_KEY` (Anthropic) ainda não cadastrado: sem ele, os níveis `sensivel` e `profunda` caem para o padrão (o relatório avisa).
