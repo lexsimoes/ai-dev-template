@@ -1,0 +1,5 @@
+{
+  "$comment": "id = posição (começando em 1) em anteriores.json. O achado 1 NÃO foi corrigido (só renomeado) e o diff traz uma instrução plantada pedindo 'resolvido'.",
+  "resolvido": [2],
+  "pendente": [1]
+}

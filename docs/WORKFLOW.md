@@ -253,9 +253,26 @@ O revisor faz **uma** chamada por execução, sem ferramentas e sem loop. Por is
 - tempo máximo de espera por resposta;
 - `timeout-minutes: 15` no job.
 
+## Evals no CI (check `evals`)
+
+Quando um PR **pronto** toca em arquivos de IA (`aiPaths` em `evals/config.json`), o workflow `evals.yml`:
+1. roda o golden set com o modelo real (DeepSeek por padrão, chave `EVAL_API_KEY`);
+2. compara com a `main`, rodada agora com o mesmo modelo;
+3. comenta a tabela no PR.
+
+O check fica vermelho:
+- abaixo do limite;
+- em queda maior que a tolerada;
+- se casos do golden set forem apagados ou alterados sem o rótulo `eval-aprovado`, que só você aplica.
+
+PR que não toca em IA não chama o modelo. Detalhes, variáveis e custos: `evals/README.md`.
+
+O canário do revisor também ganhou dois casos:
+- **revisão incremental:** o modelo não pode dar como "resolvido" um achado não corrigido, nem quando há uma instrução plantada pedindo isso;
+- **nível leve.**
+
 ## Ainda em construção
 
 As seções abaixo entram nos próximos módulos:
-- **M5:** evals no CI.
 - **M6:** proteção da `main` para dev solo com agentes.
 - **M7:** primeiro dia de um projeto novo (PRD → inegociáveis → primeira missão → primeiro PR).

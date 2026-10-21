@@ -3,38 +3,22 @@
 // em relação a uma linha de base (ex.: resultados da main).
 //
 // Uso:
-//   node evals/run.ts [--provider mock|anthropic] [--model ID] [--suite nome]
+//   node evals/run.ts [--provider mock|anthropic|openai-compatible] [--model ID] [--suite nome]
 //                     [--judge] [--baseline pasta] [--out pasta]
+//                     [--base-dir pasta]   régua confiável: limites, teto e golden set da branch de destino
+//                     [--pr-comment]       publica a tabela como comentário no PR (no CI)
 
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { createLLMClient } from "../src/ai/llm.ts";
 import type { LLMClient } from "../src/ai/llm.ts";
 import { TARGETS } from "./targets.ts";
 import type { TargetOutput } from "./targets.ts";
+import { EVAL_COMMENT_MARKER, estimateCost, goldenChanges, priceFor, protectedSuites, renderEvalComment, trustedConfig } from "./lib.ts";
+import type { EvalConfig, GoldenCase, Suite, TokenUsage } from "./lib.ts";
 
-interface GoldenCase {
-  id: string;
-  input: string;
-  expected: { category?: string };
-  mustNotContain?: string[];
-  rubric?: string;
-  tags?: string[];
-}
-
-interface Suite {
-  name: string;
-  golden: string;
-  target: string;
-  thresholds: { accuracy: number; rulePassRate: number; judgeAverage?: number };
-  maxDropFromBaseline: number;
-}
-
-interface Config {
-  maxCalls: number;
-  suites: Suite[];
-}
+const GOLDEN_APPROVAL_LABEL = "eval-aprovado";
 
 interface Metrics {
   accuracy: number;
@@ -64,8 +48,8 @@ interface SuiteResult {
 
 class BudgetExceededError extends Error {}
 
-/** Conta chamadas e interrompe tudo ao passar do teto (protege o seu cartão). */
-function withBudget(client: LLMClient, budget: { used: number; max: number }): LLMClient {
+/** Conta chamadas e tokens, e interrompe tudo ao passar do teto (protege o seu cartão). */
+function withBudget(client: LLMClient, budget: { used: number; max: number }, usage: TokenUsage): LLMClient {
   return {
     name: client.name,
     async complete(request) {
@@ -73,9 +57,30 @@ function withBudget(client: LLMClient, budget: { used: number; max: number }): L
         throw new BudgetExceededError(`Teto de ${budget.max} chamadas atingido`);
       }
       budget.used++;
-      return client.complete(request);
+      const response = await client.complete(request);
+      usage.inputTokens += response.inputTokens ?? 0;
+      usage.outputTokens += response.outputTokens ?? 0;
+      return response;
     },
   };
+}
+
+async function upsertPrComment(body: string): Promise<void> {
+  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_NUMBER: pr } = process.env;
+  if (!token || !repo || !pr) throw new Error("faltam GITHUB_TOKEN, GITHUB_REPOSITORY ou PR_NUMBER para comentar no PR");
+  const api = process.env.GITHUB_API_URL || "https://api.github.com";
+  const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" };
+  const list = await fetch(`${api}/repos/${repo}/issues/${pr}/comments?per_page=100`, { headers });
+  if (!list.ok) throw new Error(`não consegui listar comentários (HTTP ${list.status})`);
+  const comments = (await list.json()) as Array<{ id: number; body?: string; user?: { login?: string } }>;
+  const existing = comments.find((c) => c.user?.login === "github-actions[bot]" && c.body?.includes(EVAL_COMMENT_MARKER));
+  const url = existing ? `${api}/repos/${repo}/issues/comments/${existing.id}` : `${api}/repos/${repo}/issues/${pr}/comments`;
+  const response = await fetch(url, {
+    method: existing ? "PATCH" : "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  if (!response.ok) throw new Error(`não consegui publicar o comentário (HTTP ${response.status})`);
 }
 
 function loadGolden(path: string): GoldenCase[] {
@@ -219,15 +224,31 @@ async function main(): Promise<number> {
       judge: { type: "boolean", default: false },
       baseline: { type: "string" },
       out: { type: "string", default: "evals/results" },
+      "base-dir": { type: "string" },
+      "pr-comment": { type: "boolean", default: false },
     },
   });
 
-  const config = JSON.parse(readFileSync("evals/config.json", "utf-8")) as Config;
-  const maxCalls = Number(process.env.EVAL_MAX_CALLS ?? config.maxCalls);
+  const prConfig = JSON.parse(readFileSync("evals/config.json", "utf-8")) as EvalConfig;
+  const baseDir = values["base-dir"];
+  const baseConfigPath = baseDir ? join(baseDir, "evals/config.json") : null;
+  const baseConfig = baseConfigPath && existsSync(baseConfigPath) ? (JSON.parse(readFileSync(baseConfigPath, "utf-8")) as EvalConfig) : null;
+  const trusted = baseDir ? trustedConfig(prConfig, baseConfig) : { config: prConfig, notes: [] as string[] };
+  const config = trusted.config;
+  const notes = [...trusted.notes];
+
+  // Vazio conta como ausente: um workflow que repassa uma variável não definida entrega "".
+  const envMax = process.env.EVAL_MAX_CALLS?.trim() || undefined;
+  if (envMax !== undefined && !(Number.isInteger(Number(envMax)) && Number(envMax) >= 0)) {
+    throw new Error(`EVAL_MAX_CALLS inválido ("${envMax}"): use um inteiro, ex.: 20`);
+  }
+  const maxCalls = Math.min(envMax === undefined ? config.maxCalls : Number(envMax), config.maxCalls);
   const budget = { used: 0, max: maxCalls };
+  const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
 
   const provider = values.provider ?? process.env.LLM_PROVIDER ?? "mock";
-  const llm = withBudget(createLLMClient({ provider, model: values.model }), budget);
+  const model = values.model ?? (process.env.LLM_MODEL || provider);
+  const llm = withBudget(createLLMClient({ provider, model: values.model }), budget, usage);
 
   let judgeClient: LLMClient | null = null;
   if (values.judge || process.env.EVAL_JUDGE === "1") {
@@ -238,12 +259,42 @@ async function main(): Promise<number> {
       judgeClient = withBudget(
         createLLMClient({ provider: judgeProvider, model: process.env.EVAL_JUDGE_MODEL || undefined }),
         budget,
+        usage,
       );
     }
   }
 
   const suites = config.suites.filter((s) => !values.suite || s.name === values.suite);
   if (suites.length === 0) throw new Error(`Nenhuma suite encontrada${values.suite ? `: ${values.suite}` : ""}`);
+
+  // Golden set protegido: apagar ou alterar casos existentes exige o rótulo do dono.
+  const labels = (JSON.parse(process.env.PR_LABELS || "[]") as string[] | null) ?? [];
+  const goldenFailures: string[] = [];
+  if (baseDir && baseConfig) {
+    for (const suite of protectedSuites(baseConfig, prConfig)) {
+      const basePath = join(baseDir, suite.baseGolden);
+      if (!existsSync(basePath)) continue;
+      const baseCases = loadGolden(basePath);
+      let msg: string | null = null;
+      if (suite.prGolden === null) {
+        msg = `Suite \`${suite.name}\` removida de \`evals/config.json\`.`;
+      } else {
+        const prCases = existsSync(suite.prGolden) ? loadGolden(suite.prGolden) : [];
+        const { removed, changed } = goldenChanges(baseCases, prCases);
+        if (removed.length + changed.length > 0) {
+          msg = `Suite \`${suite.name}\`: casos do golden set ${[
+            removed.length ? `apagados (${removed.join(", ")})` : "",
+            changed.length ? `alterados (${changed.join(", ")})` : "",
+          ]
+            .filter(Boolean)
+            .join(" e ")}.`;
+        }
+      }
+      if (!msg) continue;
+      if (labels.includes(GOLDEN_APPROVAL_LABEL)) notes.push(`${msg} Aprovado pelo rótulo \`${GOLDEN_APPROVAL_LABEL}\`.`);
+      else goldenFailures.push(`${msg} Isso enfraquece o eval: só o dono aprova, com o rótulo \`${GOLDEN_APPROVAL_LABEL}\`.`);
+    }
+  }
 
   const baselines = new Map<string, SuiteResult>();
   const results: SuiteResult[] = [];
@@ -260,12 +311,29 @@ async function main(): Promise<number> {
 
   mkdirSync(values.out, { recursive: true });
   for (const r of results) writeFileSync(join(values.out, `${r.suite}.json`), JSON.stringify(r, null, 2) + "\n");
-  const summary = toMarkdown(results, baselines);
-  writeFileSync(join(values.out, "summary.md"), summary + "\n");
+  const table = toMarkdown(results, baselines);
+  const failed = goldenFailures.length > 0 || results.some((r) => r.failures.length);
+  const comment = renderEvalComment({
+    summaryTable: [...goldenFailures.map((f) => `> ❌ ${f}`), ...(goldenFailures.length ? [""] : []), table].join("\n"),
+    model,
+    calls: budget.used,
+    maxCalls: budget.max,
+    usage,
+    cost: estimateCost(priceFor(config, model), usage),
+    baselineNote: values.baseline
+      ? baselines.size
+        ? "evals da branch de destino, rodados agora com o mesmo modelo"
+        : "não foi possível rodar os evals da branch de destino (ex.: primeira versão); sem comparação"
+      : "nenhuma (execução local)",
+    notes,
+    failed,
+  });
+  writeFileSync(join(values.out, "summary.md"), comment + "\n");
 
-  console.log(summary);
-  console.log(`\nChamadas ao LLM: ${budget.used} de no máximo ${budget.max}.`);
-  return results.some((r) => r.failures.length) ? 1 : 0;
+  console.log(comment);
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, comment + "\n");
+  if (values["pr-comment"]) await upsertPrComment(comment);
+  return failed ? 1 : 0;
 }
 
 main().then(

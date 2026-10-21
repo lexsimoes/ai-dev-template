@@ -16,11 +16,6 @@ on:
 permissions:
   contents: read
 
-# Em fila, sem cancelar: um push logo depois de "pronto" não pode jogar fora uma revisão já paga.
-concurrency:
-  group: revisao-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-
 jobs:
   revisao:
     name: revisao
@@ -34,6 +29,11 @@ jobs:
        github.event.label.name == 'revisar-de-novo')
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Fila no nível do job (só entra quem passou no "if" acima, então rótulos irrelevantes não ocupam a vaga).
+    # Sem cancelar: um push logo depois de "pronto" não pode jogar fora uma revisão já paga.
+    concurrency:
+      group: revisao-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     permissions:
       contents: read
       pull-requests: write # publicar o relatório como comentário no PR
