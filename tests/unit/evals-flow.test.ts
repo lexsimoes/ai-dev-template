@@ -44,13 +44,16 @@ test("evals: caso do golden set apagado no PR falha sem o rótulo e passa com el
   const golden = join(base, "evals/golden/classify-message.jsonl");
   const original = readFileSync(golden, "utf-8");
   writeFileSync(golden, original + JSON.stringify({ id: "so-na-base", input: "x", expected: { category: "outro" } }) + "\n");
-  const r = await evals();
-  assert.equal(r.code, 1);
-  assert.match(r.out, /apagados \(so-na-base\)/);
-  const ok = await evals({ PR_LABELS: '["eval-aprovado"]' });
-  assert.equal(ok.code, 0, ok.out);
-  assert.match(ok.out, /Aprovado pelo rótulo/);
-  writeFileSync(golden, original);
+  try {
+    const r = await evals();
+    assert.equal(r.code, 1);
+    assert.match(r.out, /apagados \(so-na-base\)/);
+    const ok = await evals({ PR_LABELS: '["eval-aprovado"]' });
+    assert.equal(ok.code, 0, ok.out);
+    assert.match(ok.out, /Aprovado pelo rótulo/);
+  } finally {
+    writeFileSync(golden, original);
+  }
 });
 
 test("evals: limite da branch de destino vale, mesmo que o PR o afrouxe", async () => {
@@ -59,10 +62,13 @@ test("evals: limite da branch de destino vale, mesmo que o PR o afrouxe", async 
   const cfg = JSON.parse(original) as { suites: Array<{ thresholds: { accuracy: number } }> };
   cfg.suites[0]!.thresholds.accuracy = 1.01; // impossível de atingir
   writeFileSync(cfgPath, JSON.stringify(cfg));
-  const r = await evals();
-  assert.equal(r.code, 1, "limite da base reprova");
-  assert.match(r.out, /mínimo 101\.0%/);
-  writeFileSync(cfgPath, original);
+  try {
+    const r = await evals();
+    assert.equal(r.code, 1, "limite da base reprova");
+    assert.match(r.out, /mínimo 101\.0%/);
+  } finally {
+    writeFileSync(cfgPath, original);
+  }
 });
 
 test("evals: suite removida ou golden trocado por outro arquivo também exigem o rótulo", async () => {
@@ -74,14 +80,19 @@ test("evals: suite removida ou golden trocado por outro arquivo também exigem o
   writeFileSync(join(base, "evals/golden/antigo.jsonl"), readFileSync(first.golden, "utf-8") + JSON.stringify({ id: "so-no-antigo", input: "x", expected: { category: "outro" } }) + "\n");
   cfg.suites = [{ ...first, golden: "evals/golden/antigo.jsonl" }, { ...first, name: "removida-no-pr" }];
   writeFileSync(cfgPath, JSON.stringify(cfg));
-  const r = await evals();
-  assert.equal(r.code, 1, r.out);
-  assert.match(r.out, /apagados \(so-no-antigo\)/);
-  assert.match(r.out, /Suite `removida-no-pr` removida/);
-  writeFileSync(cfgPath, original);
+  try {
+    const r = await evals();
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /apagados \(so-no-antigo\)/);
+    assert.match(r.out, /Suite `removida-no-pr` removida/);
+  } finally {
+    writeFileSync(cfgPath, original);
+  }
 });
 
-test("evals: EVAL_MAX_CALLS inválido falha em vez de desligar o teto", async () => {
+test("evals: EVAL_MAX_CALLS inválido falha em vez de desligar o teto; vazio usa o da config", async () => {
   const r = await evals({ EVAL_MAX_CALLS: "abc" });
   assert.equal(r.code, 1);
+  const vazio = await evals({ EVAL_MAX_CALLS: "" });
+  assert.equal(vazio.code, 0, vazio.out);
 });

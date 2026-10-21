@@ -17,6 +17,8 @@
 ## Última missão
 
 - M5: evals no CI (`.github/workflows/evals.yml`), adaptador `openai-compatible` no app, canário do revisor com casos incremental e leve.
+  - Golden set protegido pela lista de suites da `main` (remover a suite ou trocar o arquivo exige `eval-aprovado`).
+  - Primeira rodada real (PR #6): 10/10 casos, 10 chamadas, ≈ US$ 0,004.
 
 ## Fila (próximos itens)
 
@@ -29,6 +31,8 @@
 - O `AGENTS.md` do template é a versão oficial do método (decisão do dono, 2026-10-21).
 - Seções 4 (Context7) e 5 (UI/UX) do `AGENTS.md` incorporam o resumo do `~/.codex/AGENTS.md` do dono enviado em 2026-10-21.
 - M7: gerar `~/.codex/AGENTS.md` e `~/.claude/CLAUDE.md` globais a partir do template, versionados num repositório de dotfiles; seções opcionais (`<!-- opcional:... -->`) ligadas pelo tipo de projeto.
+- Linha de base dos evals: se a rodada da `main` falhar, o check passa com "sem comparação" (necessário até a `main` ter o adaptador `openai-compatible`). Depois do merge do M5, exigir a linha de base é decisão do dono.
+- Canário do revisor: o filtro de caminhos do `pull_request` olha o diff inteiro do PR, então todo push num PR que toca o revisor roda os 3 casos de novo (≈ US$ 0,08 por push). Restringir a `ready_for_review` e ao rótulo é decisão do dono.
 - Modelo padrão do adaptador Anthropic: `claude-opus-5-5`. Trocar para um modelo mais barato nos evals é decisão do dono (ver `evals/README.md`, Custos).
 
 ## Decisões tomadas (dono, 2026-10-21)
@@ -44,7 +48,8 @@
 - Pushes depois da revisão não são revisados pelo modelo (decisão de economia). Com `exigir-nova-revisao`, o check fica vermelho até o rótulo `revisar-de-novo`, então nenhum commit chega ao merge sem revisão.
 
 - Segredos em workflows `pull_request`: qualquer pessoa com permissão de push pode, num PR da mesma origem, alterar um workflow e ler `REVIEW_API_KEY`. Mitigação atual: só o dono e os agentes dele têm push; `.github/` é CODEOWNERS. Avaliar no M6 (ambiente com aprovação para segredos).
-- `REVIEW_DEEP_API_KEY` (Anthropic) ainda não cadastrado: sem ele, os níveis `sensivel` e `profunda` caem para o padrão (o relatório avisa).
+- `REVIEW_DEEP_API_KEY` (Anthropic) está cadastrado: as revisões do PR #6 rodaram no nível `sensivel` com `claude-sonnet-5-5`. Sem ele, os níveis `sensivel` e `profunda` caem para o padrão (o relatório avisa).
+- `isAncestor` (revisor): o ramo "falha real do git → erro" não tem teste; o de "commit apagado por force-push → false" tem.
 
 - A trava de `.claude/settings.json` vale **só para o Claude Code**, e só em sessões iniciadas dentro do repositório. Ela bloqueia Edit, Write e redirecionamento no Bash (testado em 2026-10-21), mas não um script que grave arquivos por conta própria. Para o Codex e outros agentes valem o `AGENTS.md` e o job obrigatório do CI (M3). A garantia final é o CI + CODEOWNERS (M3/M6).
 

@@ -12,8 +12,10 @@ on:
 permissions:
   contents: read
 
+# Um push novo cancela a rodada anterior. Rótulos que não são eval-aprovado ganham um grupo só deles:
+# o job é pulado, e sem isso a execução vazia cancelaria uma rodada de evals em andamento.
 concurrency:
-  group: evals-${{ github.event.pull_request.number }}
+  group: evals-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && github.event.label.name != 'eval-aprovado' && format('-rotulo-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:

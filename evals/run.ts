@@ -237,7 +237,8 @@ async function main(): Promise<number> {
   const config = trusted.config;
   const notes = [...trusted.notes];
 
-  const envMax = process.env.EVAL_MAX_CALLS;
+  // Vazio conta como ausente: um workflow que repassa uma variável não definida entrega "".
+  const envMax = process.env.EVAL_MAX_CALLS?.trim() || undefined;
   if (envMax !== undefined && !(Number.isInteger(Number(envMax)) && Number(envMax) >= 0)) {
     throw new Error(`EVAL_MAX_CALLS inválido ("${envMax}"): use um inteiro, ex.: 20`);
   }
