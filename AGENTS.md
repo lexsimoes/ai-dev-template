@@ -81,16 +81,39 @@ Cada regra em **Inegociáveis** do PRD tem um teste em `tests/invariants/`, exig
 - Antes de usar a API de uma biblioteca ou framework, consulte a documentação atual pelo Context7 (`resolve-library-id` → `query-docs`), não a memória.
 - Confira a versão instalada (`package.json` / lockfile) e consulte a documentação dessa versão.
 - Sem Context7 disponível, use a documentação oficial e diga no PR qual fonte usou.
+- Não use Context7 para refatoração, scripts do zero, lógica de negócio, revisão de código ou conceitos gerais de programação.
 <!-- /opcional:docs-bibliotecas -->
 
 <!-- opcional:ui-ux -->
 ## 5. UI/UX (projetos com interface)
 
+**Clareza para o cliente**
 - Nada interno visível ao cliente: sem aviso de debug, ID, nome de variável, termo técnico ou mensagem crua de biblioteca.
 - Todo erro tem saída: diz o que aconteceu em linguagem simples e oferece o próximo passo.
 - Uma ação principal por tela. Sem ajuda, texto ou botão repetido.
-- Evidência de UI no PR: print ou Preview da tela funcionando.
-<!-- PENDENTE: incluir o resumo das preferências de UI/UX do ~/.codex/AGENTS.md do dono (arquivo ainda não recebido). -->
+
+**Direção visual**
+- Desenhe a partir do produto, do público, da tarefa principal, do conteúdo e da densidade de informação.
+- Defina de propósito: tipografia, escala de espaçamento, grid, papéis de cor, superfícies, bordas, raios, sombras, ícones, imagens, movimento e responsividade.
+- Evite o visual genérico de SaaS feito por IA:
+  - excesso de cards;
+  - gradientes roxo/azul decorativos e glassmorphism sem motivo;
+  - hero ou dashboard genérico e ícones aleatórios;
+  - arredondamento, bordas e sombras uniformes e exagerados.
+- shadcn é ponto de partida, não estética final.
+- Preserve o design system e as interfaces já aprovadas. Correção pequena não vira redesign não pedido.
+- Antes de recriar um componente complexo, veja o design system do projeto e as referências. Adapte, não copie.
+
+**Verificação**
+- Em mudança visual relevante, rode o app real e percorra o fluxo.
+- Capture e inspecione as telas em desktop, celular e um tamanho intermediário.
+- Confira overflow, alinhamento, espaçamento, tipografia e contraste.
+- Confira os estados: hover, foco, desabilitado, carregando, vazio, erro e sucesso.
+- Console e rede sem erros.
+- Acessibilidade WCAG 2.2 AA quando aplicável: semântica, teclado, foco visível, rótulos, contraste, alvos de toque, mensagens de erro e movimento reduzido. Checagem automática não prova conformidade total.
+- Desempenho: custo de JS, hidratação, imagens e fontes, Core Web Vitals. Separe medição de laboratório de dado real.
+- Nunca diga "pixel-perfect" sem comparação real com a referência. Separe o verificado do não testado.
+- Evidência de UI no PR: prints ou Preview da tela funcionando.
 
 | Tarefa de UI | Claude Code | Codex |
 |---|---|---|
