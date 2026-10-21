@@ -1,0 +1,12 @@
+# Arquivos que exigem a aprovação do dono do projeto em qualquer PR.
+# Só tem efeito com a regra "Require review from Code Owners" ligada na proteção da main (M6).
+# O scripts/bootstrap troca @lexsimoes pelo dono do projeto novo (M7).
+
+/tests/invariants/   @lexsimoes
+/evals/golden/       @lexsimoes
+/evals/config.json   @lexsimoes
+/specs/PRD.md        @lexsimoes
+/.github/            @lexsimoes
+/.claude/            @lexsimoes
+/AGENTS.md           @lexsimoes
+/CLAUDE.md           @lexsimoes
