@@ -45,7 +45,7 @@ Each rule under **Non-negotiables** in the PRD has a test in `tests/invariants/`
 ### 1.7 Environments and deploy
 - Each PR has a Preview (before the merge) for the owner to test.
 - If merging into `main` publishes to Production, approving the merge = approving the deploy.
-- The agent never merges or triggers a Production deploy.
+- The agent never merges, creates a release tag or publishes a release, or triggers a Production deploy.
 - Destructive or load tests only in a truly isolated environment. When in doubt, stop.
 
 ### 1.8 Stop and ask when

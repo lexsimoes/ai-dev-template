@@ -47,6 +47,10 @@ let incrementalVerdicts: Array<{ id: number; status: string; comment: string }> 
 const deletedLabels: string[] = [];
 // Labels on each PR right now (what the reviewer reads from the API). The event payload is not used.
 const prLabels = new Map<string, string[]>();
+// Head commit of each PR right now. By default, the commit of the run being simulated; a test sets it to simulate
+// an event that still carries an older commit.
+const prHeads = new Map<string, string>();
+let livePr = "";
 let server: http.Server;
 let port = 0;
 let repo = "";
@@ -98,6 +102,8 @@ function startServer(): Promise<void> {
         if (c) c.body = (JSON.parse(body) as { body: string }).body;
         return send(200, c);
       }
+      m = /^\/repos\/o\/r\/pulls\/(\d+)$/.exec(url);
+      if (m?.[1] && req.method === "GET") return send(200, { head: { sha: prHeads.get(m[1]) ?? livePr } });
       m = /^\/repos\/o\/r\/issues\/(\d+)\/labels(?:\/([^?]+))?/.exec(url);
       if (m?.[1] && req.method === "GET" && !m[2]) return send(200, (prLabels.get(m[1]) ?? []).map((name) => ({ name })));
       if (m?.[1] && m[2] && req.method === "DELETE") {
@@ -132,6 +138,7 @@ function commit(name: string, files: Record<string, string>): void {
 }
 
 async function review(pr: string, env: Record<string, string>, args: string[] = ["--mode", "ci"], script = SCRIPT): Promise<{ code: number; out: string }> {
+  livePr = env.HEAD_SHA ?? "";
   try {
     const { stdout } = await run("node", [script, ...args], {
       cwd: repo,
@@ -326,6 +333,35 @@ test("race: a push and a re-review label close together give the same verdict in
   prLabels.set("23", ["re-review"]);
   const late = await review("23", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.B! });
   assert.equal(late.code, 0, late.out);
+
+  // The label event still carries the previous commit (GitHub had not moved the PR to the pushed commit yet), as on
+  // PR #16: reviewed at A, B and C pushed, re-review applied; the label run says B while the PR is at C.
+  for (const [order, pr] of [["label run first", "24"], ["push run first", "25"]] as const) {
+    prLabels.set(pr, []);
+    await review(pr, { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.A! });
+    const before = modelCalls.length;
+    prLabels.set(pr, ["re-review"]);
+    const stale = async () => {
+      const commentBefore = comments.get(pr)?.[0]?.body;
+      prHeads.set(pr, sha.C!);
+      const r = await review(pr, { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", HEAD_SHA: sha.B! });
+      prHeads.delete(pr);
+      assert.equal(comments.get(pr)?.[0]?.body, commentBefore, `${order}: the old-commit run leaves the comment alone`);
+      return r;
+    };
+    const push = () => review(pr, { EVENT_ACTION: "synchronize", HEAD_SHA: sha.C! });
+    const [first, second] = order === "label run first" ? [stale, push] : [push, stale];
+    const r1 = await first();
+    const r2 = await second();
+    const staleRun = order === "label run first" ? r1 : r2;
+    const headRun = order === "label run first" ? r2 : r1;
+    assert.match(staleRun.out, /the PR is now at/, `${order}: the old-commit run changes nothing`);
+    assert.equal(headRun.code, 0, `${order}, run of the PR head: ${headRun.out}`);
+    assert.match(headRun.out, /incremental review/, order);
+    assert.equal(modelCalls.length, before + 1, `${order}: one model call, for the PR head`);
+    assert.deepEqual(prLabels.get(pr), [], `${order}: the label is used by the run of the PR head`);
+    assert.match(comments.get(pr)?.[0]?.body ?? "", new RegExp(`commit \`${sha.C!.slice(0, 7)}\``), `${order}: the comment reports the PR head`);
+  }
 
   // re-review applied again on a commit that was already reviewed: no model call, label removed, verdict kept.
   const calls = modelCalls.length;

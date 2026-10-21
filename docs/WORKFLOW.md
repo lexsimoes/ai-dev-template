@@ -154,7 +154,7 @@ Every **ready** PR (not drafts) gets an automated review, published as **one** c
 | PR in **draft** (the agent is still working) | Nothing | No |
 | PR marked **Ready for review** (or opened already ready) | **Full review** of the whole PR | Yes, once |
 | **Push** after the review | Does not call the model. The check stays **red** until someone applies `re-review`, and the comment lists the unreviewed commits. This is the default: `afterReviewPush: "require-re-review"` in `.github/review.json`, the owner's decision. With `"keep-verdict"`, the push keeps the previous green and only turns red on: secret, sensitive path, open blocking finding, failed review or force-push | No |
-| Label **`re-review`** (you or the agent apply it) | **Incremental review**: only the diff since the last reviewed commit, checking whether each previous finding was resolved. The label is removed on its own, so it can be applied again. A push and the label close together are safe: every run reads the labels on the PR when it starts (not the event), so the first run to start does the review and the other only recomputes the verdict, and both end with the same result (tested in `tests/unit/review-flow.test.ts`, "race") | Yes, smaller, once |
+| Label **`re-review`** (you or the agent apply it) | **Incremental review**: only the diff since the last reviewed commit, checking whether each previous finding was resolved. The label is removed on its own, so it can be applied again. A push and the label close together are safe: every run reads the labels and the head commit of the PR when it starts (not the event). The first run for the PR's head does the review and the other only recomputes the verdict; a run whose event still carries the previous commit changes nothing and leaves the label to the run of the head (tested in `tests/unit/review-flow.test.ts`, "race") | Yes, smaller, once |
 | Label `re-review` on a commit that was **already reviewed** | Recomputes the verdict and removes the label | No |
 | **Approval label** added or removed (`approvalLabels` in `.github/review.json`: `invariant-approved`, `eval-approved`) | If findings are open, or the label removed was there at the last review: **full review**, because a finding like "invariant changed without approval" depends on the label and an incremental review would leave it pending. Otherwise, only recomputes the verdict | Yes, only in that case |
 | Label **`deep-review`** (only you) | Full review with the strongest model (Opus) | Yes, more expensive |
@@ -379,7 +379,7 @@ Analogy: the template is a cake mold with a few adjustable parts. Copier asks ho
 Requires [Copier](https://copier.readthedocs.io) 9.18.2 or newer (`pipx install copier`).
 
 ```bash
-copier copy --vcs-ref HEAD gh:<template-owner>/ai-dev-template my-project
+copier copy gh:<template-owner>/ai-dev-template my-project
 ```
 
 | Question | What it changes |
@@ -398,9 +398,9 @@ What belongs to whom:
 | **Template notice** | `THIRD_PARTY_NOTICES.md` (the template's MIT notice; it does not set your project's license) | Kept and updated from the template, like the files below; do not delete it |
 | **Project** | `README.md`, `specs/PRD.md`, `docs/HANDOFF.md`, `.github/CODEOWNERS`, `.env.example`, `src/`, `tests/invariants/`, the app's unit tests, `evals/golden/`, `evals/config.json`, `evals/targets.ts` | Never overwritten (recreated only if deleted) |
 | **Template** | Workflows, reviewer, guard, direction check, `AGENTS.md`, `REVIEW.md`, `docs/WORKFLOW.md`, tooling tests | Merged: your edits are kept, template changes are added; conflicts show up as markers to resolve |
-| **Template only** | `copier.yml`, `tests/template/`, `.github/workflows/template.yml` | Never copied into projects |
+| **Template only** | `copier.yml`, `tests/template/`, `.github/workflows/template.yml`, `LICENSE`, `CHANGELOG.md`, `docs/RELEASING.md`, the release and traffic scripts | Never copied into projects |
 
-To bring template improvements into a project, on a clean working tree: `copier update --defaults`, review the diff, open a PR.
+Copier uses the template's latest **release** tag, never unreleased commits on `main` (`--vcs-ref vX.Y.Z` picks a version). To bring template improvements into a project, on a clean working tree: `copier update --defaults` (moves to the latest release), read the template's changelog for entries marked **Action needed**, review the diff, open a PR.
 
 The `Template` workflow (job `template`) proves this on every PR of the template: the `.jinja` twins render back to this repository's own files, two projects with different answers pass their checks, no owner of the template leaks into them, and `copier update` brings a template change while keeping the project's PRD, app code and invariants.
 

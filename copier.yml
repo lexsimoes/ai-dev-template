@@ -1,4 +1,5 @@
-# Copier template: `copier copy gh:<owner>/ai-dev-template <new-project>` creates a project from this repository.
+# Copier template: `copier copy gh:<owner>/ai-dev-template <new-project>` creates a project from this repository's
+# latest release tag (docs/RELEASING.md); `copier update` moves a project to the latest release.
 # Files ending in .jinja are rendered with the answers below; every other file is copied as is.
 # Docs: https://copier.readthedocs.io (pinned and tested with Copier 9.18.2).
 
@@ -81,6 +82,12 @@ _exclude:
   - .github/workflows/traffic.yml
   - scripts/traffic
   - tests/unit/traffic.test.ts
+  - CHANGELOG.md
+  - docs/RELEASING.md
+  - scripts/release
+  - tests/unit/release.test.ts
+  # The template's own missions are its history; projects get only the mission template and README.
+  - "docs/missions/[0-9]*"
 
 # Project-owned files: created once, never overwritten by `copier update` (recreated only if deleted).
 _skip_if_exists:

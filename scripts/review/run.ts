@@ -177,6 +177,16 @@ async function liveLabels(): Promise<string[]> {
   return ((await response.json()) as Array<{ name: string }>).map((l) => l.name);
 }
 
+/** The PR's head commit now. An event's head can be out of date: a label applied seconds after a push may still carry the previous commit. */
+async function liveHead(): Promise<string> {
+  const { repo, pr, headers } = githubEnv();
+  const response = await fetch(`${API}/repos/${repo}/pulls/${pr}`, { headers });
+  if (!response.ok) throw new Error(`could not read the PR head (HTTP ${response.status})`);
+  const sha = ((await response.json()) as { head?: { sha?: string } }).head?.sha;
+  if (!sha) throw new Error("the PR has no head commit in the API response");
+  return sha;
+}
+
 /** Removes the "re-review" label after using it, so it can be applied again. */
 async function removeLabel(label: string): Promise<void> {
   const { repo, pr, headers } = githubEnv();
@@ -273,6 +283,17 @@ async function main(): Promise<number> {
   const canaryCase = values.canary ?? "full";
   if (mode === "canary" && !["full", "light", "incremental"].includes(canaryCase)) throw new Error(`unknown canary case: ${canaryCase}`);
   const incrementalCanary = mode === "canary" && canaryCase === "incremental";
+
+  // A run for a commit that is no longer the PR head (e.g. "re-review" applied right after a push, before GitHub moved
+  // the PR to the new commit) changes nothing: no review, no comment, and the label stays for the run of the new head,
+  // which is the one GitHub counts for the merge. Tested in review-flow.test.ts ("race").
+  if (mode === "ci" && !values["dry-run"]) {
+    const head = await liveHead();
+    if (head !== headSha) {
+      console.log(`This run is for \`${headSha.slice(0, 7)}\`, but the PR is now at \`${head.slice(0, 7)}\`: the run of that commit decides. Nothing was reviewed or changed here.`);
+      return 0;
+    }
+  }
 
   const existing = mode === "ci" && !values["dry-run"] ? await findComment() : null;
   // Incremental canary: fake state with the case's "previous" findings.
