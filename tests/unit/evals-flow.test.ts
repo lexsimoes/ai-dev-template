@@ -43,7 +43,7 @@ test("evals: base equal to the PR passes", async () => {
 test("evals: golden set case deleted in the PR fails without the label and passes with it", async () => {
   const golden = join(base, "evals/golden/classify-message.jsonl");
   const original = readFileSync(golden, "utf-8");
-  writeFileSync(golden, original + JSON.stringify({ id: "base-only", input: "x", expected: { category: "outro" } }) + "\n");
+  writeFileSync(golden, original + JSON.stringify({ id: "base-only", input: "x", expected: { category: "other" } }) + "\n");
   try {
     const r = await evals();
     assert.equal(r.code, 1);
@@ -77,7 +77,7 @@ test("evals: a removed suite or a golden file swapped for another also require t
   const cfg = JSON.parse(original) as { suites: Array<{ name: string; golden: string }> };
   const first = cfg.suites[0]!;
   // On the base, the suite read another file (with one extra case); in the PR, it points to the current one.
-  writeFileSync(join(base, "evals/golden/old.jsonl"), readFileSync(first.golden, "utf-8") + JSON.stringify({ id: "old-only", input: "x", expected: { category: "outro" } }) + "\n");
+  writeFileSync(join(base, "evals/golden/old.jsonl"), readFileSync(first.golden, "utf-8") + JSON.stringify({ id: "old-only", input: "x", expected: { category: "other" } }) + "\n");
   cfg.suites = [{ ...first, golden: "evals/golden/old.jsonl" }, { ...first, name: "removed-in-pr" }];
   writeFileSync(cfgPath, JSON.stringify(cfg));
   try {

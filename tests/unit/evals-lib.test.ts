@@ -5,7 +5,7 @@ import type { EvalConfig, GoldenCase } from "../../evals/lib.ts";
 
 const suite = { name: "s", golden: "g.jsonl", target: "t", thresholds: { accuracy: 0.9, rulePassRate: 1 }, maxDropFromBaseline: 0.05 };
 const cfg = (over: Partial<EvalConfig> = {}): EvalConfig => ({ maxCalls: 60, aiPaths: ["src/ai/**", "evals/**"], pricing: {}, suites: [suite], ...over });
-const gc = (id: string, over: Partial<GoldenCase> = {}): GoldenCase => ({ id, input: `input ${id}`, expected: { category: "outro" }, ...over });
+const gc = (id: string, over: Partial<GoldenCase> = {}): GoldenCase => ({ id, input: `input ${id}`, expected: { category: "other" }, ...over });
 
 test("AI paths: only those listed in aiPaths trigger the evals", () => {
   assert.deepEqual(touchesAi(["README.md", "src/ai/x.ts", "evals/golden/a.jsonl"], cfg()), ["src/ai/x.ts", "evals/golden/a.jsonl"]);
@@ -24,7 +24,7 @@ test("trusted thresholds: the target branch's limits and ceiling override the PR
 
 test("golden set: deleting or changing cases is detected; adding is free", () => {
   const base = [gc("a"), gc("b"), gc("c", { mustNotContain: ["x"] })];
-  const pr = [gc("a"), gc("b", { expected: { category: "troca" } }), gc("c"), gc("new")];
+  const pr = [gc("a"), gc("b", { expected: { category: "exchange" } }), gc("c"), gc("new")];
   assert.deepEqual(goldenChanges(base, pr), { removed: [], changed: ["b", "c"] });
   assert.deepEqual(goldenChanges(base, [gc("a")]), { removed: ["b", "c"], changed: [] });
   assert.deepEqual(goldenChanges(base, [...base, gc("d")]), { removed: [], changed: [] });

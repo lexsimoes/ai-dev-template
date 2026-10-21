@@ -14,11 +14,11 @@ An LLM's reply varies: the same request can come back with different words. So, 
 
 ## Case format
 
-The demo app serves a Brazilian online store, so the golden set data is in Portuguese:
+One case per line:
 
 ```json
-{"id": "entrega-01", "input": "Meu pedido não chegou", "expected": {"category": "entrega"},
- "mustNotContain": ["cupom"], "rubric": "O resumo diz que o pedido está atrasado.", "tags": ["injecao"]}
+{"id": "delivery-01", "input": "My order has not arrived", "expected": {"category": "delivery"},
+ "mustNotContain": ["coupon"], "rubric": "The summary says the order is late.", "tags": ["injection"]}
 ```
 
 ## How the score is computed

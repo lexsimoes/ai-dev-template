@@ -27,7 +27,7 @@ Each criterion must be **verifiable**: someone (or a test) can say yes or no.
 |---|---|---|
 | CA-01 | [criterion] | [test / command / manual step] |
 | CA-02 | (example) An X% coupon reduces the total by X%, rounded to the cent | `tests/unit/pricing.test.ts` |
-| CA-03 | (example) Messages are classified as `troca`, `entrega`, `pagamento` or `outro` (exchange, delivery, payment or other) with ≥ 90% accuracy | `npm run eval` (suite `classify-message`) |
+| CA-03 | (example) Messages are classified as `exchange`, `delivery`, `payment` or `other` with ≥ 90% accuracy | `npm run eval` (suite `classify-message`) |
 
 ## 4. Non-negotiables
 

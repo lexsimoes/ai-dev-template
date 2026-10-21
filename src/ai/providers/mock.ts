@@ -4,9 +4,9 @@
 import type { LLMClient } from "../types.ts";
 
 const KEYWORDS: Array<[string, string[]]> = [
-  ["troca", ["troca", "trocar", "devolver", "devolução", "tamanho"]],
-  ["entrega", ["entrega", "chegou", "rastreio", "atrasad", "transportadora"]],
-  ["pagamento", ["pagamento", "boleto", "pix", "cartão", "cobrança", "cobrado"]],
+  ["exchange", ["exchange", "return", "refund", "size", "defect"]],
+  ["delivery", ["delivery", "deliver", "arrived", "tracking", "late", "carrier", "package"]],
+  ["payment", ["payment", "paid", "charged", "card", "invoice", "billing"]],
 ];
 
 export function createMockClient(): LLMClient {
@@ -14,12 +14,12 @@ export function createMockClient(): LLMClient {
     name: "mock",
     async complete(request) {
       // Only looks at the customer's text, which sits between the prompt tags.
-      const match = /<mensagem_do_cliente>([\s\S]*)<\/mensagem_do_cliente>/.exec(request.user);
+      const match = /<customer_message>([\s\S]*)<\/customer_message>/.exec(request.user);
       const message = (match?.[1] ?? request.user).trim();
       const lower = message.toLowerCase();
 
-      const category = KEYWORDS.find(([, words]) => words.some((w) => lower.includes(w)))?.[0] ?? "outro";
-      const summary = `Mensagem do cliente sobre: ${category}.`;
+      const category = KEYWORDS.find(([, words]) => words.some((w) => lower.includes(w)))?.[0] ?? "other";
+      const summary = `Customer message about: ${category}.`;
 
       return { text: JSON.stringify({ category, summary }), model: "mock" };
     },

@@ -12,7 +12,7 @@ export function isCouponActive(coupon: Coupon, now: Date): boolean {
   if (!coupon.expiresAt) return true;
   const end = new Date(`${coupon.expiresAt}T23:59:59.999Z`);
   if (Number.isNaN(end.getTime())) {
-    throw new RangeError(`Data de validade inválida no cupom ${coupon.code}`);
+    throw new RangeError(`Invalid expiry date on coupon ${coupon.code}`);
   }
   return now.getTime() <= end.getTime();
 }
@@ -23,12 +23,12 @@ export function isCouponActive(coupon: Coupon, now: Date): boolean {
  */
 export function applyCoupon(subtotalCents: number, coupon: Coupon | null, now: Date = new Date()): number {
   if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {
-    throw new RangeError("Subtotal deve ser um inteiro de centavos >= 0");
+    throw new RangeError("Subtotal must be an integer number of cents >= 0");
   }
   if (coupon === null) return subtotalCents;
 
   if (!Number.isFinite(coupon.percentOff) || coupon.percentOff < 0 || coupon.percentOff > 100) {
-    throw new RangeError(`Cupom ${coupon.code}: desconto deve estar entre 0 e 100%`);
+    throw new RangeError(`Coupon ${coupon.code}: the discount must be between 0 and 100%`);
   }
   if (!isCouponActive(coupon, now)) return subtotalCents;
 
