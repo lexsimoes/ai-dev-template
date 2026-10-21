@@ -35,7 +35,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - MIT license and a "Getting started" README.
    - Weekly workflow that exports GitHub traffic data (kept by GitHub for only 14 days) to a versioned file.
    - The owner's dotfiles and global CLAUDE.md stay out of the template, in a separate private repository.
-   - Restore `maxDiffChars` in `.github/review.json` to 150000 (raised temporarily for the M-EN translation PR).
+   - Restore `maxDiffChars` in `.github/review.json` to 150000. It was raised to 450000 only so that the M-EN translation PR (about 410,000 characters of diff) can be reviewed; the reviewer reads this value from `main`, so it has to be raised before that PR is marked ready.
 3. **M7b (entry point): Claude Code plugin** (marketplace in this repository):
    - `/new-project`: empty folder → discovery; existing code → audit. Talks with the person and passes the answers to Copier (`--data`), with no terminal prompts.
    - Automatic setup: labels via `gh`; protection ruleset applied via the API (first check whether the plan allows it on a private repository, and warn); keys registered by the person with `gh secret set NAME` in their own terminal, NEVER through the conversation, with a spending-limit reminder.

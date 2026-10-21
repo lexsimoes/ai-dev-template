@@ -1,6 +1,6 @@
 {
   "$comment": "Configuração do revisor automático (scripts/review). Lida da branch de destino do PR. REVIEW_API_BASE_URL e REVIEW_MODEL (variáveis do repositório) substituem baseUrl e model dos níveis 'padrao' e 'leve'.",
-  "maxDiffChars": 150000,
+  "maxDiffChars": 450000,
   "timeoutMs": 480000,
   "maxFindings": 20,
   "deepLabel": "revisão-profunda",
