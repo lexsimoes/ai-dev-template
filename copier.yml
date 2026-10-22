@@ -106,6 +106,9 @@ _skip_if_exists:
   - tests/invariants
   - tests/unit/pricing.test.ts
   - tests/unit/classify-message.test.ts
+  - tests/unit/web.test.ts
+  - "e2e/*.spec.ts"
+  - specs/e2e
   - evals/golden
   - evals/config.json
   - evals/targets.ts

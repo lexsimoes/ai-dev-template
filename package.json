@@ -14,6 +14,8 @@
     "test:invariants": "node --test \"tests/invariants/**/*.test.ts\"",
     "test:template": "node --test \"tests/template/**/*.test.ts\"",
     "guard:invariants": "node scripts/guard-invariants.ts",
+    "start": "node src/web/server.ts",
+    "e2e": "playwright test",
     "eval": "node evals/run.ts",
     "eval:mock": "node evals/run.ts --provider mock",
     "review:local": "node --env-file-if-exists=.env.local scripts/review/run.ts --mode local",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
     "@types/node": "22.20.5",
     "eslint": "10.13.0",
     "typescript": "6.0.3",

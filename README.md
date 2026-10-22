@@ -160,6 +160,7 @@ It only reads; it never asks for a key.
 | Handoff | [`docs/HANDOFF.md`](docs/HANDOFF.md) | Current state and queue |
 | Non-negotiables | [`tests/invariants/`](tests/invariants/) | Tests no agent may touch |
 | Evals | [`evals/`](evals/) | Golden set + evaluator for functions with an LLM |
+| End-to-end tests | [`e2e/`](e2e/) · [`playwright.config.ts`](playwright.config.ts) | 3 to 8 critical flows in a real browser, isolated, with a fake AI provider |
 | Reviewer | [`REVIEW.md`](REVIEW.md) · [`scripts/review/`](scripts/review/) | Independent AI review of every ready PR |
 | PR template | [`.github/pull_request_template.md`](.github/pull_request_template.md) | Requirement → evidence → status |
 
@@ -168,6 +169,7 @@ It only reads; it never asks for a key.
 So the examples have something real to test, the template ships a minimal store:
 - `src/pricing.ts`: applies a discount coupon (protected by INV-001);
 - `src/ai/classify-message.ts`: classifies customer messages with an LLM (protected by INV-002 and measured by evals).
+- `src/web/`: three pages to walk through in a browser (`npm start`): checkout with a coupon, contact form, support inbox. The end-to-end tests in `e2e/` cover their critical flows.
 
 ## Maintaining this template
 
