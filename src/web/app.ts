@@ -179,7 +179,14 @@ export function createApp(options: AppOptions): (req: IncomingMessage, res: Serv
   const messages: SupportMessage[] = [];
 
   return async (req, res) => {
-    const url = new URL(req.url ?? "/", "http://localhost");
+    let url: URL;
+    try {
+      url = new URL(req.url ?? "/", "http://localhost");
+    } catch {
+      // A malformed request line (e.g. "GET //") is the client's error, not a reason to stop the server.
+      send(res, 400, page({ title: "Bad request", path: "", body: `<h1>Bad request</h1><p class="lead">This address is not valid. <a href="/">Go to checkout</a>.</p>` }));
+      return;
+    }
     try {
       if (req.method === "GET" && url.pathname === "/") {
         send(res, 200, checkoutPage({ now: now() }).html);

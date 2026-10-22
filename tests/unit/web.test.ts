@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { connect } from "node:net";
 import type { AddressInfo } from "node:net";
 import { createApp } from "../../src/web/app.ts";
 import { escapeHtml, formatPrice } from "../../src/web/html.ts";
@@ -95,4 +96,19 @@ test("a failed or invalid model reply never loses the message: it goes to a pers
       assert.match(html, /class="flag">Needs a person/, llm.name);
     });
   }
+});
+
+test("a malformed request line answers 400 and the server keeps serving", async () => {
+  await withApp(createMockClient(), async (base) => {
+    const { port } = new URL(base);
+    const raw = await new Promise<string>((resolve, reject) => {
+      const socket = connect(Number(port), "127.0.0.1", () => socket.end("GET // HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n"));
+      let data = "";
+      socket.on("data", (chunk) => (data += chunk.toString()));
+      socket.on("end", () => resolve(data));
+      socket.on("error", reject);
+    });
+    assert.match(raw, /^HTTP\/1\.1 400/);
+    assert.equal((await fetch(base)).status, 200);
+  });
 });
