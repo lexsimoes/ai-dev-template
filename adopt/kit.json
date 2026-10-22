@@ -15,7 +15,17 @@
     ".github/workflows/adt-invariants.yml": "adopt/files/adt-invariants.yml",
     ".github/workflows/adt-evals.yml": "adopt/files/adt-evals.yml"
   },
+  "files": {
+    "scripts/review/package.json": "adopt/files/reviewer/package.json",
+    "scripts/review/package-lock.json": "adopt/files/reviewer/package-lock.json"
+  },
   "reviewConfig": ".github/review.json",
-  "templateOnlySensitivePaths": ["plugins/**", ".claude-plugin/**", "src/pricing.ts", "src/ai/**", "evals/**"],
+  "templateOnlySensitivePaths": [
+    "plugins/**",
+    ".claude-plugin/**",
+    "src/pricing.ts",
+    "src/ai/**",
+    "evals/**"
+  ],
   "agentsSection": "adopt/files/AGENTS-section.md"
 }

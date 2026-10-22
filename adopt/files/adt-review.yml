@@ -58,8 +58,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22.x"
-      - name: Install the reviewer's only dependency, next to the reviewer (the project's package.json is not used)
-        run: npm install --no-save --no-package-lock --ignore-scripts --prefix "${{ steps.source.outputs.dir }}/scripts/review" @anthropic-ai/sdk@{{ANTHROPIC_SDK_VERSION}}
+      - name: Install the reviewer's only dependency from its own lockfile, next to the reviewer (the project's package.json is not used)
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix "${{ steps.source.outputs.dir }}/scripts/review"
       - name: Review
         working-directory: pr
         env:

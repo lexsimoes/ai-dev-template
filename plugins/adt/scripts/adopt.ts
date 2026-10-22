@@ -89,17 +89,17 @@ function repoSlug(): string | null {
 function render(kitDir: string, answers: AdoptAnswers): { files: Record<string, string>; section: string; release: string } {
   const kitText = (path: string) => readFileSync(join(kitDir, path), "utf-8");
   const kit = JSON.parse(kitText("adopt/kit.json")) as Kit;
-  const pkg = JSON.parse(kitText("package.json")) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
-  const sdk = pkg.dependencies?.["@anthropic-ai/sdk"] ?? pkg.devDependencies?.["@anthropic-ai/sdk"] ?? "";
-  if (!/^\d+\.\d+\.\d+$/.test(sdk)) throw new Error("The kit does not pin the reviewer's SDK version.");
   // The kit's version: its newest release, marked "+unreleased" when it carries changes after that release.
   const changelog = kitText("CHANGELOG.md");
   const release = /^## \[(\d+\.\d+\.\d+)\]/m.exec(changelog)?.[1];
   const pending = /## \[Unreleased\]([\s\S]*?)(?=\n## \[)/.exec(changelog)?.[1]?.trim();
   const released = release ? `v${release}${pending ? "+unreleased" : ""}` : "unreleased";
-  const values = placeholderValues(answers, released, sdk);
+  const values = placeholderValues(answers, released);
   const files: Record<string, string> = {};
   for (const path of kit.copy) files[path] = path.endsWith(".md") ? adaptText(kitText(path), answers) : kitText(path);
+  // The guard's header names the template's npm script; in the project it is run directly.
+  if (files["scripts/guard-invariants.ts"]) files["scripts/guard-invariants.ts"] = files["scripts/guard-invariants.ts"].replace("npm run guard:invariants", "node scripts/guard-invariants.ts");
+  for (const [path, source] of Object.entries(kit.files)) files[path] = kitText(source);
   for (const [path, source] of Object.entries(kit.workflows)) files[path] = fill(kitText(source), values);
   files[".github/review.json"] = adaptReviewConfig(kitText(kit.reviewConfig), kit, answers);
   files[".github/adt.json"] = adtConfig(answers, template.repository, released);

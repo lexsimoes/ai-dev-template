@@ -84,11 +84,26 @@ test("reviewer config: the project's label names, without the template's own pat
   for (const own of KIT.templateOnlySensitivePaths) assert.ok(!config.sensitivePaths.includes(own), own);
   assert.ok(config.sensitivePaths.includes("tests/invariants/**") && config.sensitivePaths.includes("supabase/migrations/**"));
   assert.deepEqual(Object.values(config.tiers).map((t) => t.apiKeyEnv), ["REVIEW_API_KEY", "REVIEW_API_KEY", "REVIEW_DEEP_API_KEY", "REVIEW_DEEP_API_KEY"]);
+  const trivial = (config as unknown as { trivial: { exceptPaths: string[] } }).trivial.exceptPaths;
+  assert.ok(trivial.includes("specs/PRD.md") && trivial.includes("HANDOFF.md"), "the PRD and the HANDOFF are never reviewed as trivial");
+});
+
+test("the reviewer's dependency: the template's exact SDK version, every package locked with an integrity hash", () => {
+  const root = JSON.parse(readFileSync("package.json", "utf-8")) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+  const reviewer = JSON.parse(readFileSync(KIT.files["scripts/review/package.json"] ?? "", "utf-8")) as { dependencies: Record<string, string> };
+  const sdk = root.dependencies?.["@anthropic-ai/sdk"] ?? root.devDependencies?.["@anthropic-ai/sdk"];
+  assert.deepEqual(reviewer.dependencies, { "@anthropic-ai/sdk": sdk });
+  const lock = JSON.parse(readFileSync(KIT.files["scripts/review/package-lock.json"] ?? "", "utf-8")) as { packages: Record<string, { version?: string; integrity?: string }> };
+  const installed = Object.entries(lock.packages).filter(([path]) => path.startsWith("node_modules/"));
+  assert.ok(installed.length > 0);
+  for (const [path, p] of installed) assert.match(p.integrity ?? "", /^sha512-/, `${path} is locked with an integrity hash`);
+  assert.equal(lock.packages["node_modules/@anthropic-ai/sdk"]?.version, sdk);
 });
 
 test("copied text uses the project's label names and paths", () => {
   const text = adaptText("Apply `invariant-approved`. Update `docs/HANDOFF.md`. Read `specs/PRD.md`. Keep `re-review`.", answers());
   assert.equal(text, "Apply `invariante-aprovado`. Update `HANDOFF.md`. Read `specs/PRD.md`. Keep `revisar-de-novo`.");
+  assert.equal(adaptText("- [ ] `npm run test:invariants`:", answers()), "- [ ] the invariant tests (the project's own check command):", "no template npm script the project does not have");
 });
 
 test("CODEOWNERS: is the owner covering the invariants folder?", () => {
@@ -98,7 +113,7 @@ test("CODEOWNERS: is the owner covering the invariants folder?", () => {
 });
 
 test("rendered workflows: observe checks with the project's names, nothing left to fill, the evals only on AI paths", () => {
-  const values = placeholderValues(answers(), "v0.3.0", "0.134.0");
+  const values = placeholderValues(answers(), "v0.3.0");
   const render = (path: string) => fill(readFileSync(KIT.workflows[path] ?? "", "utf-8"), values);
   const review = render(".github/workflows/adt-review.yml");
   const guard = render(".github/workflows/adt-invariants.yml");
@@ -110,9 +125,8 @@ test("rendered workflows: observe checks with the project's names, nothing left 
     assert.match(text, /^permissions:\n {2}contents: read$/m, "least privilege by default");
   }
   assert.match(review, /name: adt-review\n/);
-  assert.match(review, /@anthropic-ai\/sdk@0\.134\.0/, "the SDK pinned to the template's exact version");
-  assert.match(review, /--ignore-scripts/, "installing the SDK runs no install script");
-  assert.doesNotMatch(review, /npm ci/, "the project's dependencies are not installed by the reviewer");
+  assert.match(review, /npm ci --ignore-scripts --no-audit --no-fund --prefix "\$\{\{ steps\.source\.outputs\.dir \}\}\/scripts\/review"/, "from the reviewer's own lockfile, with no install script");
+  assert.equal(review.match(/npm (?:ci|install)/g)?.length, 1, "the project's dependencies are not installed by the reviewer: only its own, in scripts/review");
   assert.match(guard, /INVARIANT_LABEL: "invariante-aprovado"/);
   assert.match(evals, /paths:\n {6}- "src\/lib\/ai\/\*\*"\n {6}- "tests\/evals\/\*\*"\n/);
   assert.match(evals, /run: \|\n {10}npm run eval:agent -- --mock\n/, "a block scalar: `a: b` in the arguments cannot break the YAML");
@@ -188,6 +202,9 @@ test("apply: never on the base branch, never over a different file; AGENTS.md ke
     assert.equal(readFileSync(join(root, "HANDOFF.md"), "utf-8"), "# Handoff\n", "the project's HANDOFF is untouched");
     assert.match(readFileSync(join(root, ".github/CODEOWNERS"), "utf-8"), /^\/tests\/invariants\/ @maria$/m);
     assert.match(readFileSync(join(root, "REVIEW.md"), "utf-8"), /`invariante-aprovado`/);
+    assert.ok(readFileSync(join(root, "scripts/review/package-lock.json"), "utf-8").includes('"lockfileVersion"'));
+    assert.doesNotMatch(readFileSync(join(root, "scripts/guard-invariants.ts"), "utf-8"), /npm run guard:invariants/);
+    assert.doesNotMatch(readFileSync(join(root, ".github/pull_request_template.md"), "utf-8"), /npm run test:invariants/);
     const adt = JSON.parse(readFileSync(join(root, ".github/adt.json"), "utf-8")) as { mode: string; requiredChecks: string[]; observeChecks: string[] };
     assert.deepEqual([adt.mode, adt.requiredChecks, adt.observeChecks], ["observe", ["Application and database"], ["adt-review", "adt-invariants", "adt-evals"]]);
 

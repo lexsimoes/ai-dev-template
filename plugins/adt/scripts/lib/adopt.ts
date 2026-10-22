@@ -6,6 +6,8 @@
 export interface Kit {
   copy: string[];
   workflows: Record<string, string>;
+  /** Files copied as they are from another path of the kit (the reviewer's own package.json and lockfile). */
+  files: Record<string, string>;
   reviewConfig: string;
   templateOnlySensitivePaths: string[];
   agentsSection: string;
@@ -106,10 +108,9 @@ export function fill(template: string, values: Record<string, string>): string {
   return text;
 }
 
-export function placeholderValues(answers: AdoptAnswers, release: string, sdkVersion: string): Record<string, string> {
+export function placeholderValues(answers: AdoptAnswers, release: string): Record<string, string> {
   return {
     TEMPLATE_RELEASE: release,
-    ANTHROPIC_SDK_VERSION: sdkVersion,
     INVARIANT_LABEL: answers.labels.invariantApproved,
     REREVIEW_LABEL: answers.labels.rereview,
     DEEP_LABEL: answers.labels.deep,
@@ -130,12 +131,17 @@ export function adaptReviewConfig(templateJson: string, kit: Kit, answers: Adopt
   config.approvalLabels = [answers.labels.invariantApproved, answers.labels.evalApproved];
   const base = (config.sensitivePaths ?? []).filter((p) => !kit.templateOnlySensitivePaths.includes(p) && p !== "tests/invariants/**");
   config.sensitivePaths = [...new Set([`${answers.paths.invariants}/**`, ...base, ...answers.sensitive])];
+  // Documents agents read as authority are never "trivial", wherever the project keeps them.
+  const trivial = config.trivial as { exceptPaths?: string[] } | undefined;
+  if (trivial) trivial.exceptPaths = [...new Set([...(trivial.exceptPaths ?? []), answers.paths.prd, answers.paths.handoff])];
   return `${JSON.stringify(config, null, 2)}\n`;
 }
 
-/** Markdown copied from the template, with the project's label names and paths. */
+/** Markdown copied from the template, with the project's label names, paths and commands. */
 export function adaptText(text: string, answers: AdoptAnswers): string {
   const swaps: Array<[string, string]> = [
+    // The template's own npm scripts do not exist in the project (its package.json is never changed).
+    ["`npm run test:invariants`", "the invariant tests (the project's own check command)"],
     ...Object.entries(LABEL_ROLES).map(([role, name]): [string, string] => [`\`${name}\``, `\`${answers.labels[role as LabelRole]}\``]),
     ["`docs/HANDOFF.md`", `\`${answers.paths.handoff}\``],
     ["`specs/PRD.md`", `\`${answers.paths.prd}\``],
