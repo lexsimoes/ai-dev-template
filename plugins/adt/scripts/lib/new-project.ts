@@ -174,6 +174,15 @@ export function preflight(ctx: Context, template: Template, nodeVersion: string)
 
 // ---------- create ----------
 
+/**
+ * Whether this folder is the root of its own git repository. Inside another repository (e.g. a `~/Projects` that is a
+ * repo), git answers for the parent: its commits and its `origin` are not this project's.
+ */
+function ownRepo(ctx: Context): boolean {
+  const prefix = ctx.run("git", ["rev-parse", "--show-prefix"]);
+  return prefix.code === 0 && prefix.stdout.trim() === "";
+}
+
 /** Copier into the empty folder, then the first commit. Skips what is already done. */
 export function createProject(ctx: Context, answers: Answers, template: Template, folder: Folder): Step[] {
   if (folder.kind === "code") return [{ id: "create", status: "failed", detail: "The folder has other files: nothing was changed." }];
@@ -182,14 +191,14 @@ export function createProject(ctx: Context, answers: Answers, template: Template
     steps.push({ id: "copier", status: "exists", detail: `Already a project from ${template.repository} (${folder.release}).` });
   } else {
     // A folder that looks empty but whose git repository has commits: pushing it would publish that history.
-    if (ctx.run("git", ["rev-parse", "--verify", "-q", "HEAD"]).code === 0) {
+    if (ownRepo(ctx) && ctx.run("git", ["rev-parse", "--verify", "-q", "HEAD"]).code === 0) {
       return [{ id: "copier", status: "failed", detail: "This folder's git repository already has commits: nothing was changed. Use a new, empty folder." }];
     }
     const r = ctx.run("copier", copierArgs(answers, template));
     if (r.code !== 0) return [{ id: "copier", status: "failed", detail: `Copier failed: ${firstLine(r.stderr || r.stdout)}` }];
     steps.push({ id: "copier", status: "created", detail: `Project files from ${template.repository} ${template.release}.` });
   }
-  if (ctx.run("git", ["rev-parse", "--git-dir"]).code !== 0) {
+  if (!ownRepo(ctx)) {
     const init = ctx.run("git", ["init", "-q", "-b", "main"]);
     if (init.code !== 0) return [...steps, { id: "git", status: "failed", detail: `git init failed: ${firstLine(init.stderr)}` }];
   }
@@ -219,6 +228,7 @@ function httpStatus(stderr: string): number {
 
 /** GitHub repository: create it (public or private) and push, or use the one `origin` already points to. Never pushes into a repository it did not create. */
 export function setupRepo(ctx: Context, answers: Answers, visibility: "public" | "private"): { slug: string | null; step: Step } {
+  if (!ownRepo(ctx)) return { slug: null, step: { id: "repo", status: "failed", detail: "This folder is not the root of its own git repository yet: run `create` first." } };
   const remote = ctx.run("git", ["remote", "get-url", "origin"]);
   if (remote.code === 0) {
     const slug = parseGitHubRemote(remote.stdout);
@@ -310,7 +320,9 @@ export function setupRuleset(ctx: Context, slug: string, visibility: "public" | 
   }
   const create = ctx.run("gh", ["api", "--method", "POST", `repos/${slug}/rulesets`, "--input", file]);
   if (create.code === 0) return { id: "ruleset", status: "created", detail: `${name}: \`main\` only changes through a PR with the required checks green.` };
-  if (visibility === "private" && [403, 422].includes(httpStatus(create.stderr))) return { id: "ruleset", status: "skipped", detail: planNote };
+  // Only GitHub's plan refusal is a plan limit; any other 403/422 (an invalid ruleset, a missing permission) is a failure.
+  const planRefusal = [403, 422].includes(httpStatus(create.stderr)) && /upgrade|github pro|github team|plan/i.test(create.stderr);
+  if (visibility === "private" && planRefusal) return { id: "ruleset", status: "skipped", detail: planNote };
   return { id: "ruleset", status: "failed", detail: `Could not create the ruleset: ${firstLine(create.stderr)}` };
 }
 

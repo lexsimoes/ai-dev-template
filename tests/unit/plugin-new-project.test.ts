@@ -93,7 +93,7 @@ test("preflight: each missing prerequisite comes with its command", () => {
 });
 
 test("create: Copier then the first commit; a second run changes nothing; a folder with code is never touched", () => {
-  const first = world({ "git rev-parse --git-dir": fail(), "git rev-parse --verify -q HEAD": fail() });
+  const first = world({ "git rev-parse --show-prefix": fail(), "git rev-parse --verify -q HEAD": fail() });
   const steps = createProject(first.ctx, ANSWERS, TEMPLATE, { kind: "empty" });
   assert.deepEqual(steps.map((s) => `${s.id}:${s.status}`), ["copier:created", "commit:created"]);
   assert.ok(first.calls.some((c) => c.startsWith("copier copy")));
@@ -107,6 +107,13 @@ test("create: Copier then the first commit; a second run changes nothing; a fold
   const history = world();
   assert.equal(createProject(history.ctx, ANSWERS, TEMPLATE, { kind: "empty" })[0]?.status, "failed", "an 'empty' folder whose git has commits");
   assert.ok(!history.calls.some((c) => c.startsWith("copier")), "nothing is generated, so nothing old gets pushed");
+
+  // Inside a parent repository (e.g. ~/Projects is a repo): its history is not this folder's, so it is not refused,
+  // and the project gets its own repository.
+  const nested = world({ "git rev-parse --show-prefix": ok("projects/new/\n"), "git rev-parse --verify -q HEAD": ok("abc") });
+  const nestedSteps = createProject(nested.ctx, ANSWERS, TEMPLATE, { kind: "empty" });
+  assert.equal(nestedSteps[0]?.status, "created");
+  assert.ok(nested.calls.includes("git init -q -b main"), "its own repository, not the parent's");
 
   const code = world();
   assert.equal(createProject(code.ctx, ANSWERS, TEMPLATE, { kind: "code", examples: ["src"] })[0]?.status, "failed");
@@ -134,6 +141,10 @@ test("repo: creates and pushes when free; never pushes into a repository it did 
   assert.equal(e.step.status, "failed");
   assert.match(e.step.detail, /not to maria\/loja-da-maria/);
   assert.ok(!elsewhere.calls.some((c) => c.startsWith("git push") || c.includes("--method")), "never acts on another repository through origin");
+
+  const outside = world({ "git rev-parse --show-prefix": ok("sub/\n") });
+  assert.equal(setupRepo(outside.ctx, ANSWERS, "public").step.status, "failed", "never uses a parent repository's origin");
+  assert.ok(!outside.calls.some((c) => c.startsWith("git remote") || c.startsWith("git push")));
 
   const unpushed = world({ "git remote get-url origin": ok("https://github.com/maria/loja-da-maria\n"), "gh api repos/maria/loja-da-maria/branches/main --jq .name": fail("HTTP 404") });
   assert.equal(setupRepo(unpushed.ctx, ANSWERS, "public").step.status, "created");
@@ -177,6 +188,11 @@ test("ruleset: applied from the project's file; an existing one is left alone; p
   assert.equal(skipped.status, "skipped");
   assert.match(skipped.detail, /GitHub Pro or Team/);
   assert.ok(!free.calls.some((c) => c.includes("--method POST")));
+
+  const invalid = world({ "gh api repos/org/shop/rulesets --jq .[].name": ok(""), "gh api --method POST repos/org/shop/rulesets --input .github/rulesets/protect-main.json": fail("Validation Failed: Invalid rule 'x' (HTTP 422)") }, files);
+  const inv = setupRuleset(invalid.ctx, "org/shop", "private", "maria");
+  assert.equal(inv.status, "failed", "a 422 that is not about the plan is a real failure");
+  assert.match(inv.detail, /Invalid rule/);
 
   const refused = world({ "gh api repos/org/shop/rulesets --jq .[].name": ok(""), "gh api --method POST repos/org/shop/rulesets --input .github/rulesets/protect-main.json": fail("Upgrade to GitHub Pro (HTTP 403)") }, files);
   assert.equal(setupRuleset(refused.ctx, "org/shop", "private", "maria").status, "skipped", "an org's plan cannot be read: the API refusal says it");
