@@ -20,7 +20,7 @@ import {
   reviewCost,
   triageFindings,
 } from "../../scripts/review/lib.ts";
-import type { Finding, ReportInput } from "../../scripts/review/lib.ts";
+import type { AutoFixConfig, Finding, ReportInput } from "../../scripts/review/lib.ts";
 
 const finding = (file: string, extra: Partial<Finding> = {}): Finding => ({
   severity: "important",
@@ -184,4 +184,71 @@ test("the rule is written in AGENTS.md, with the commands that check it", () => 
   assert.ok(text.includes(FIX_COMMIT_SUBJECT), "fix commit subject");
   assert.ok(text.includes("scripts/review/triage.ts findings"), "triage command");
   assert.ok(text.includes("scripts/review/triage.ts check-fix"), "check-fix command");
+});
+
+test("AGENTS.md, REVIEW.md, the invariant guard and the eval thresholds are never auto-fixed", () => {
+  for (const file of ["AGENTS.md", "REVIEW.md", "scripts/guard-invariants.ts", "evals/config.json"]) {
+    assert.equal(triageFindings([finding(file)], DEFAULT_AUTO_FIX)[0]?.bucket, "list", file);
+  }
+  const config = autoFixConfig(JSON.parse(readFileSync(".github/review.json", "utf-8")) as { autoFix?: Partial<AutoFixConfig> });
+  assert.deepEqual([...config.neverPaths].sort(), [...DEFAULT_AUTO_FIX.neverPaths].sort(), "the config mirrors the defaults");
+});
+
+/** The "Review-fix guard" step of .github/workflows/ci.yml, as the shell runs it. */
+function reviewFixStep(): string {
+  const ci = readFileSync(".github/workflows/ci.yml", "utf-8");
+  const block = /- name: Review-fix guard[\s\S]*?\n {8}run: \|\n([\s\S]*?)\n {6}(?:#|- )/.exec(ci)?.[1];
+  assert.ok(block, "the step exists in ci.yml");
+  return block.replace(/^ {10}/gm, "");
+}
+
+test("CI runs check-fix, from the target branch, on every fix commit of the PR", () => {
+  const root = process.cwd();
+  const repo = mkdtempSync(join(tmpdir(), "review-fix-ci-"));
+  const runnerTemp = mkdtempSync(join(tmpdir(), "runner-"));
+  try {
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: repo, stdio: "ignore" });
+    const step = (head: string) =>
+      spawnSync("bash", ["-e", "-c", reviewFixStep()], {
+        cwd: repo,
+        encoding: "utf-8",
+        env: { ...process.env, BASE_REF: "main", HEAD_SHA: head, RUNNER_TEMP: runnerTemp },
+      });
+    git("init", "-q", "-b", "main");
+    git("config", "user.email", "t@example.com");
+    git("config", "user.name", "t");
+    mkdirSync(join(repo, "scripts/review"), { recursive: true });
+    mkdirSync(join(repo, "tests/invariants"), { recursive: true });
+    for (const f of ["scripts/review/triage.ts", "scripts/review/lib.ts"]) writeFileSync(join(repo, f), readFileSync(join(root, f)));
+    writeFileSync(join(repo, "src.ts"), "export const a = 1;\n");
+    writeFileSync(join(repo, "tests/invariants/a.test.ts"), "// rule\n");
+    git("add", "-A");
+    git("commit", "-q", "-m", "chore: start");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    git("switch", "-q", "-c", "pr");
+
+    writeFileSync(join(repo, "src.ts"), "export const a = 2;\n");
+    git("commit", "-q", "-am", "feat: change");
+    const none = step("HEAD");
+    assert.equal(none.status, 0, none.stdout + none.stderr);
+    assert.match(none.stdout, /No "fix: address review findings" commit/);
+
+    writeFileSync(join(repo, "src.ts"), "export const a = 3;\n");
+    git("commit", "-q", "-am", FIX_COMMIT_SUBJECT);
+    const clean = step("HEAD");
+    assert.equal(clean.status, 0, clean.stdout + clean.stderr);
+    assert.match(clean.stdout, /^OK: /m);
+
+    // A planted fix commit that loosens an invariant fails the step, even with a clean fix commit after it.
+    writeFileSync(join(repo, "tests/invariants/a.test.ts"), "// rule, loosened\n");
+    git("commit", "-q", "-am", FIX_COMMIT_SUBJECT);
+    writeFileSync(join(repo, "src.ts"), "export const a = 4;\n");
+    git("commit", "-q", "-am", FIX_COMMIT_SUBJECT);
+    const planted = step("HEAD");
+    assert.equal(planted.status, 1, planted.stdout);
+    assert.match(planted.stdout, /tests\/invariants\/a\.test\.ts: protected path/);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+    rmSync(runnerTemp, { recursive: true, force: true });
+  }
 });
