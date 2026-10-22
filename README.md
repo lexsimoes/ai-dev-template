@@ -24,6 +24,13 @@ The full flow, check by check: [`docs/WORKFLOW.md`](docs/WORKFLOW.md).
 - **Leaves the API keys to you:** it tells you which ones to set and how, in your own terminal; it never asks for them in the chat.
 - **Is safe to run twice:** it only adds what is missing.
 
+Then `/adt:discover`, in the new project:
+- **Asks** about the product in one message: the problem, the main task, how you will know it works, what must never happen.
+- **Writes** a short `specs/PRD.md`: verifiable acceptance criteria, and non-negotiables with their test cases.
+- **Plans** the first mission. Each non-negotiable's test is created with the code it protects, under your `invariant-approved` label.
+- **Suggests** skills and MCPs from a fixed list, without installing them.
+- **Waits for your "ok"** before the commit, then opens a PR.
+
 `/adt:check-setup` checks everything at any time. The prerequisites are the ones in step 1 below.
 
 The steps below do the same by hand.

@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-22 · **By:** agent (M7b done: manual test results)
+**Updated on:** 2026-10-22 · **By:** agent (M7c PR 1: `/adt:discover`)
 
 ## Current state
 
@@ -22,10 +22,16 @@
 
 ## Last mission
 
+- M7c PR 1 (mission 0018): `/adt:discover`.
+  - A conversation about the product → `specs/PRD.md` and the first missions, approved by the owner before the commit, in a PR.
+  - `discover.ts check` holds the PRD and missions to the M7c rules.
+  - Skills and MCPs come from the fixed list `plugins/adt/catalog.json`.
+  - Owner decision: nothing is written in `tests/invariants/` at discovery. Each rule's cases go into the PRD, and its test is created with the code it protects, in a mission with `invariant-approved`.
+  - Rehearsed in a project generated from `v0.2.0`. The owner's manual test (`docs/PLUGIN-TEST.md`, step 7) waits for the next release.
 - Release PR for `v0.2.0` (mission 0017): CHANGELOG `[0.2.0]`, plugin `adt` version `0.2.0`, pinned template release `v0.2.0`. The owner publishes the release right after the merge (until then `/adt:new-project` from `main` reports the release as not published).
 - M7b PR 3 (mission 0015): plugin renamed `adt` (owner decision); `plugins/**` and `.claude-plugin/**` are sensitive paths for the reviewer; `/adt:new-project` (empty folder → Copier from the pinned release → GitHub repository, labels, ruleset; idempotent; folder with code → stop); manual test in `docs/PLUGIN-TEST.md`. Sandbox rehearsal `adt-sandbox-m7b` and the owner's manual test on the Mac (all ✅; permission prompts not shown because of the owner's permission mode): see the mission report.
 - M7b PR 2 (mission 0014): Claude Code plugin `adt` and marketplace in this repository; `/adt:check-setup` (read-only; secrets by name only); bridges for Gemini CLI (`.gemini/settings.json`) and Aider (`.aider.conf.yml`). The plugin pins the template release in `plugins/adt/template.json` and its version follows the CHANGELOG (bumped in release PRs).
-- `v0.1.0` released by the owner on 2026-10-21 (immutable).
+- `v0.2.0` released by the owner on 2026-10-22 (immutable, tag on the #20 merge); `v0.1.0` on 2026-10-21.
 - M7b PR 1 (mission 0013): releases. Semver tags `vX.Y.Z` from `v0.1.0`; `CHANGELOG.md`; `docs/RELEASING.md` (release PR by an agent, tag and release by the owner with `gh release create`); `scripts/release/notes.ts`; Copier and the docs use the latest release, not `main`. Agents never tag or release (`AGENTS.md` 1.7).
 - M7 PR 3: no-key mode + public release.
   - Reviewer race fixed in the reviewer itself: every run decides from the live PR (labels read from the API, review state in the comment). A push and `re-review` close together end with the same verdict in both runs, in either order, with one model call (`tests/unit/review-flow.test.ts`, "race"; the same test fails against the previous reviewer).
@@ -49,12 +55,12 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    2. Copier engine (done, PR #13): `copier.yml` (project name, GitHub owner → CODEOWNERS and the guard's owner, conversation language pt-BR/en, reviewer provider including "none", optional sections Context7 and UI/UX); no hardcoded `@lexsimoes`; 2 generated projects with CI; `copier update` brings a template change without overwriting project files (PRD, invariants, app code).
    3. No-key mode + public release (this PR): without an AI key, `quality`, `invariants` and `dependencies` run normally and `review`/`evals` pass with a clear "disabled" notice, without reopening the "skipped check counts as green" loophole for projects that do have a key; MIT license; "Getting started" README; weekly export of GitHub traffic data to a versioned file.
    - The owner's dotfiles and global CLAUDE.md stay out of the template, in a separate private repository.
-3. **M7b (entry point): Claude Code plugin** (marketplace in this repository), split by the owner into small PRs: releases (done, #16), plugin + marketplace + `/check-setup` + bridge files (done, #17), `/new-project` + sandbox rehearsal + manual install test (done, #18). **M7b is done.** Next: the `v0.2.0` release (release PR open; owner publishes), then M7c.
+3. **M7b (entry point): Claude Code plugin** (marketplace in this repository), split by the owner into small PRs: releases (done, #16), plugin + marketplace + `/check-setup` + bridge files (done, #17), `/new-project` + sandbox rehearsal + manual install test (done, #18). **M7b is done**, released in `v0.2.0`.
    - `/new-project`: empty folder → discovery; existing code → audit. Talks with the person and passes the answers to Copier (`--data`), with no terminal prompts.
    - Automatic setup: labels via `gh`; protection ruleset applied via the API (first check whether the plan allows it on a private repository, and warn); keys registered by the person with `gh secret set NAME` in their own terminal, NEVER through the conversation, with a spending-limit reminder.
    - `/check-setup`: lists what is missing (keys, active ruleset, labels, green CI) and how to fix it.
    - Bridge files for implementers that do not read AGENTS.md natively. Claude Code is the entry point; Codex, Cursor, Antigravity and others are implementers only and just need AGENTS.md.
-4. **M7c (discovery and audit):**
+4. **M7c (discovery and audit)**, 3 PRs (owner's "ok" on 2026-10-22; audit rehearsal on GoAgentic, read-only; two commands): `/adt:discover` (in progress, mission 0018), `/adt:audit` (read-only), adoption on a branch with CI in observation mode.
    - Discovery: product questions → short PRD with verifiable criteria, non-negotiables with their first tests, skills and MCPs chosen from the answers, and "test before choosing" (throwaway prototype when an idea or model is risky).
    - Audit: map stack, tests and sensitive areas; infer the PRD from the code and ask the owner to confirm; propose non-negotiables from what already exists; turn CI on in observation mode first (non-blocking) and make each check required once it is green.
 5. **M7d (tester):**
