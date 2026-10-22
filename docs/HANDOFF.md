@@ -115,6 +115,10 @@ The adoption rehearsal PR (lexsimoes/goagentic#23) was closed without merge by t
 
 ## Pending decisions (owner)
 
+- M7d PR 1 (mission 0025):
+  - after the first green `e2e` on `main`, add `e2e` to this repository's live `protect-main` ruleset;
+  - keep HTTP 422 on validation errors (the browser notes it in the console), or return 200 with the error on the page;
+  - rewrite the healer's upstream lines ("fix assertions", "mark `test.fixme()`") and drop the planner's `browser_run_code_unsafe` (proposed for PR 2, the e2e guard).
 - "Keep the GHCR authenticated-pull fix in the template CI": the template's own CI pulls no container image. Proposal: `/adt:audit` flags a project CI that uses `supabase/setup-cli` without it, and `/adt:adopt` offers the fix as a separate, owner-approved change. Waiting for the owner's choice.
 
 - Delete the test repository `lexsimoes/adt-manual-test` after reviewing (agents cannot delete repositories). `lexsimoes/adt-sandbox-m7b` stays: it is the M8 test bed.
