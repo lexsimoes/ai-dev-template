@@ -54,8 +54,8 @@
     ]
   },
   "autoFix": {
-    "$comment": "What the implementer may fix on its own after a review (AGENTS.md, \"Handle the review\"; scripts/review/triage.ts). These paths and caps only add to the defaults in scripts/review/lib.ts (invariants, golden set, migrations, .github, .claude, CODEOWNERS; 5 fixes, 10 files), never loosen them.",
-    "neverPaths": ["tests/invariants/**", "evals/golden/**", "**/migrations/**", ".github/**", ".claude/**", "**/CODEOWNERS"],
+    "$comment": "What the implementer may fix on its own after a review (AGENTS.md, \"Handle the review\"; scripts/review/triage.ts). These paths and caps only add to the defaults in scripts/review/lib.ts (invariants, golden set, eval thresholds, AGENTS.md, REVIEW.md, the invariant guard, migrations, .github, .claude, CODEOWNERS; 5 fixes, 10 files), never loosen them.",
+    "neverPaths": ["tests/invariants/**", "evals/golden/**", "evals/config.json", "AGENTS.md", "REVIEW.md", "scripts/guard-invariants.ts", "**/migrations/**", ".github/**", ".claude/**", "**/CODEOWNERS"],
     "maxFixes": 5,
     "maxFiles": 10
   },

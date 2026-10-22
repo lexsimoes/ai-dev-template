@@ -74,6 +74,34 @@ jobs:
             GUARD="$RUNNER_TEMP/guard-invariants.ts"
           fi
           node "$GUARD"
+      - name: Review-fix guard (fix commits stay out of protected paths)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # AGENTS.md, "Handle the review": every "fix: address review findings" commit in the PR must pass
+        # check-fix (no protected path, under the cap, no test weakened). A subject that only starts with it
+        # (e.g. a first paragraph of several lines, which %s joins) is selected too, and check-fix refuses it. The checker comes from the target
+        # branch, like the guard above; the PR's own copy is used only if the target has none yet. It runs
+        # before npm ci and only uses Node's built-in modules.
+        run: |
+          DIR="$RUNNER_TEMP/review-triage"
+          mkdir -p "$DIR"
+          TRIAGE=scripts/review/triage.ts
+          if git show "origin/$BASE_REF:scripts/review/triage.ts" > "$DIR/triage.ts" 2>/dev/null \
+            && git show "origin/$BASE_REF:scripts/review/lib.ts" > "$DIR/lib.ts" 2>/dev/null; then
+            TRIAGE="$DIR/triage.ts"
+          fi
+          FIXES=$(git log --format='%H%x09%s' "origin/$BASE_REF..$HEAD_SHA" | awk -F'\t' 'index($2, "fix: address review findings") == 1 { print $1 }')
+          if [ -z "$FIXES" ]; then
+            echo "No \"fix: address review findings\" commit in this PR."
+            exit 0
+          fi
+          STATUS=0
+          for SHA in $FIXES; do
+            node "$TRIAGE" check-fix --commit "$SHA" || STATUS=1
+          done
+          exit $STATUS
       # Only after the guard: npm ci runs scripts from the PR's package.json (postinstall etc.),
       # which could tamper with git or the environment before the guard decides.
       - name: Install dependencies

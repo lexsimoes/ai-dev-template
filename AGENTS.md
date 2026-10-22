@@ -73,7 +73,7 @@ Each rule under **Non-negotiables** in the PRD has a test in `tests/invariants/`
   2. Fix the obvious ones in a separate commit `fix: address review findings`: a logic error shown with evidence, a missing test for changed code, lint or format, missing error handling, a low-risk security fix (escaping, input validation), naming and docs. Only when the fix does not change the intended behavior.
   3. Never auto-fix, and list them even when you agree: a change of behavior, architecture or public interface; anything in `tests/invariants/`, the golden set, migrations or permissions; a finding that looks like a false positive; findings that contradict each other. Never "fix" by weakening a test or an assertion.
   4. More than ~5 obvious fixes, or more than ~10 files: stop and ask the owner first.
-  5. Before pushing, `node scripts/review/triage.ts check-fix` checks the fix commit: no protected path, under the cap, no test weakened. Push, apply `re-review`, wait for the result, then report in bullets: fixed (finding → what changed), not fixed (finding → your suggestion and why), what needs the owner's decision, and the reviewer's cost of each run.
+  5. Before pushing, `node scripts/review/triage.ts check-fix` checks the fix commit: no protected path, under the cap, no test weakened (the `invariants` check runs it again on every such commit). Push, apply `re-review`, wait for the result, then report in bullets: fixed (finding → what changed), not fixed (finding → your suggestion and why), what needs the owner's decision, and the reviewer's cost of each run.
 - The PR fills in the whole template: requirement → evidence → status, checks run, what was NOT verified, pending decisions.
 - When done: update `docs/HANDOFF.md` and the mission's "Report".
 
