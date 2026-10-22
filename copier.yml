@@ -90,6 +90,7 @@ _exclude:
   - .claude-plugin
   - plugins
   - "tests/unit/plugin-*.test.ts"
+  - docs/PLUGIN-TEST.md
   # The template's own missions are its history; projects get only the mission template and README.
   - "docs/missions/[0-9]*"
 

@@ -171,6 +171,8 @@ for (const p of PROJECTS) {
       "plugins",
       "tests/unit/plugin-check-setup.test.ts",
       "tests/unit/plugin-release.test.ts",
+      "tests/unit/plugin-new-project.test.ts",
+      "docs/PLUGIN-TEST.md",
     ];
     for (const f of templateOnly) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
     assert.deepEqual(readdirSync(join(dest, "docs/missions")).sort(), ["README.md", "_TEMPLATE.md"], "only the mission template and README, none of the template's missions");

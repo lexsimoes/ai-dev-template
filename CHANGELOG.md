@@ -9,6 +9,11 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ### Added
 - Claude Code plugin `adt` and its marketplace in this repository (`/plugin marketplace add lexsimoes/ai-dev-template`, then `/plugin install adt@ai-dev-template`), with `/adt:check-setup`: GitHub login, repository, labels, protection of `main`, secrets by name, reviewer and evals config versus the keys, CI on `main`, template version.
+- `/adt:new-project`:
+  - In an empty folder: asks a few questions, creates the project from the plugin's pinned template release (Copier, non-interactive), then sets it up on GitHub: repository and first push, labels, `protect-main` ruleset (skipped with the reason on a private repository whose plan does not enforce it).
+  - Idempotent: a second run adds only what is missing and never overwrites a repository, label or ruleset.
+  - Keys are set by the user with `gh secret set` in their own terminal.
+  - In a folder with other code it stops and changes nothing (audit mode comes in M7c).
 - Bridges to `AGENTS.md` for agents that do not read it on their own: `.gemini/settings.json` (Gemini CLI) and `.aider.conf.yml` (Aider).
 
 ## [0.1.0] - 2026-10-21
