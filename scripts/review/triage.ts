@@ -19,12 +19,22 @@ function run(command: string, args: string[]): string {
   return execFileSync(command, args, { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
 }
 
-/** The project's own config, if any: it can only add protected paths and lower the caps. */
+/**
+ * The project's own config: it can only add protected paths and lower the caps. No file = the defaults;
+ * a file that cannot be read or parsed stops the command, so the project's own protected paths are never dropped.
+ */
 function loadAutoFix(): AutoFixConfig {
+  let text: string;
   try {
-    return autoFixConfig(JSON.parse(readFileSync(".github/review.json", "utf-8")) as ReviewConfig);
-  } catch {
-    return autoFixConfig(null);
+    text = readFileSync(".github/review.json", "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return autoFixConfig(null);
+    throw new Error(`could not read .github/review.json: ${(error as Error).message}`, { cause: error });
+  }
+  try {
+    return autoFixConfig(JSON.parse(text) as ReviewConfig);
+  } catch (error) {
+    throw new Error(`.github/review.json is not valid JSON (${(error as Error).message}): fix it before triaging`, { cause: error });
   }
 }
 
@@ -106,11 +116,16 @@ const { positionals, values } = parseArgs({
   options: { pr: { type: "string" }, commit: { type: "string", default: "HEAD" } },
 });
 
-if (positionals[0] === "findings" && values.pr && /^\d{1,7}$/.test(values.pr)) {
-  process.exitCode = findings(values.pr);
-} else if (positionals[0] === "check-fix") {
-  process.exitCode = checkFix(values.commit);
-} else {
-  console.log("Usage: node scripts/review/triage.ts findings --pr <n> | check-fix [--commit <sha>]");
+try {
+  if (positionals[0] === "findings" && values.pr && /^\d{1,7}$/.test(values.pr)) {
+    process.exitCode = findings(values.pr);
+  } else if (positionals[0] === "check-fix") {
+    process.exitCode = checkFix(values.commit);
+  } else {
+    console.log("Usage: node scripts/review/triage.ts findings --pr <n> | check-fix [--commit <sha>]");
+    process.exitCode = 1;
+  }
+} catch (error) {
+  console.log(`Stop: ${(error as Error).message}`);
   process.exitCode = 1;
 }

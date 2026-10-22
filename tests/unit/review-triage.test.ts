@@ -46,6 +46,7 @@ test("planted obvious finding is a fix candidate; planted invariant finding is l
 test("golden set, migrations, permissions and a detected secret are listed, never fixed", () => {
   const planted = [
     finding("evals/golden/classify-message.jsonl"),
+    finding("evals/config.json", { title: "Threshold too strict" }),
     finding("supabase/migrations/0001_init.sql"),
     finding(".github/workflows/ci.yml"),
     finding(".claude/settings.json"),
@@ -147,6 +148,14 @@ test("CLI check-fix stops on a planted fix commit that touches the invariants, a
     const planted = spawnSync(process.execPath, [triage, "check-fix"], { cwd: repo, encoding: "utf-8" });
     assert.equal(planted.status, 1);
     assert.match(planted.stdout, /tests\/invariants\/a\.test\.ts: protected path/);
+
+    // A config that cannot be parsed stops the command instead of silently dropping the project's protected paths.
+    mkdirSync(join(repo, ".github"));
+    writeFileSync(join(repo, ".github/review.json"), "{ not json");
+    const broken = spawnSync(process.execPath, [triage, "check-fix", "--commit", "HEAD~1"], { cwd: repo, encoding: "utf-8" });
+    assert.equal(broken.status, 1);
+    assert.match(broken.stdout, /not valid JSON/);
+    rmSync(join(repo, ".github"), { recursive: true });
 
     // A name with accents (git quotes it by default) is still a protected path.
     writeFileSync(join(repo, "tests/invariants/autenticação.test.ts"), "// rule\n");

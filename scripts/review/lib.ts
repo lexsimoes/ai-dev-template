@@ -820,11 +820,12 @@ export interface AutoFixConfig {
 
 export const FIX_COMMIT_SUBJECT = "fix: address review findings";
 
-// Non-negotiable tests, golden set, migrations and permissions (CI, agent settings, code owners, rulesets).
+// Non-negotiable tests, golden set and eval thresholds, migrations and permissions (CI, agent settings, code owners, rulesets).
 export const DEFAULT_AUTO_FIX: AutoFixConfig = {
   neverPaths: [
     "tests/invariants/**",
     "evals/golden/**",
+    "evals/config.json",
     "**/migrations/**",
     ".github/**",
     ".claude/**",
