@@ -87,6 +87,7 @@ gh label create re-review --color 1D76DB --description "Review again, only what 
 gh label create deep-review --color 5319E7 --description "Full review with the strongest model (owner only)"
 gh label create invariant-approved --color B60205 --description "Owner approves a change to the non-negotiable tests"
 gh label create eval-approved --color D93F0B --description "Owner approves deleting or changing golden set cases"
+gh label create test-approved --color FBCA04 --description "Owner approves changing what an end-to-end test checks"
 gh label create direction-check --color 0E8A16 --description "Weekly direction check issue"
 ```
 

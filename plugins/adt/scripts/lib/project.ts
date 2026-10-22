@@ -7,6 +7,7 @@ export const LABELS = [
   { name: "deep-review", color: "5319E7", description: "Full review with the strongest model (owner only)" },
   { name: "invariant-approved", color: "B60205", description: "Owner approves a change to the non-negotiable tests" },
   { name: "eval-approved", color: "D93F0B", description: "Owner approves deleting or changing golden set cases" },
+  { name: "test-approved", color: "FBCA04", description: "Owner approves changing what an end-to-end test checks" },
   { name: "direction-check", color: "0E8A16", description: "Weekly direction check issue" },
 ];
 

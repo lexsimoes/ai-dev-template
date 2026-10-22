@@ -114,14 +114,33 @@ jobs:
     name: e2e
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read # check who applied the test-approved label
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # compare with the target branch
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Guard (assertions kept, nothing skipped, isolation untouched)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+        # Like the invariant guard: the version on the target branch runs, before any PR code (npm ci).
+        # The healer may change selectors; changing what a test checks needs the owner's test-approved label.
+        run: |
+          GUARD=scripts/guard-e2e.ts
+          if [ "$EVENT_NAME" = "pull_request" ] && git show "origin/$BASE_REF:$GUARD" > "$RUNNER_TEMP/guard-e2e.ts" 2>/dev/null; then
+            GUARD="$RUNNER_TEMP/guard-e2e.ts"
+          fi
+          node "$GUARD"
       - name: Install dependencies
         run: npm ci
       - name: Browser (the Chromium pinned by @playwright/test)

@@ -22,6 +22,7 @@ Each rule under **Non-negotiables** in the PRD has a test in `tests/invariants/`
 ### 1.3 Evidence
 - Every acceptance criterion needs evidence: a test, command output, screenshot or Preview link.
 - Do not weaken tests, eval cases or thresholds to pass. If a test is wrong, explain it in the PR and let the owner decide.
+- End-to-end tests (`e2e/`): an agent may update selectors only. Changing what a test checks, removing a test, or touching the isolation (`e2e/fixtures.ts`, `playwright.config.ts`) needs the owner's `test-approved` label; no agent applies it. Never skip, focus or `fixme` a test.
 - Report only what was verified. The rest goes under "What was NOT verified".
 - Status: ✅ verified · 🟡 partial · ⬜ not done · ❌ broken.
 

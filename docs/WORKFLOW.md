@@ -308,7 +308,16 @@ A few tests (3 to 8) walk through the **critical flows** of the PRD in a real br
 - **generator**: turns the plan into tests in `e2e/`, checking each step in the browser;
 - **healer**: repairs a failing test. It may update **selectors only**. Changing what a test asserts, or removing a test, needs your `test-approved` label; it never marks a test `fixme` or `skip`.
 
-The agents use the Playwright MCP server in `.mcp.json` (Claude Code asks you to approve it the first time). After updating `@playwright/test`, regenerate the agents and append the "Project rules" section again: `tests/unit/web.test.ts` fails if it is missing.
+**The guard** (`scripts/guard-e2e.ts`, first step of the `e2e` job, run from the target branch before any PR code) enforces it:
+- an assertion is the matcher of an `expect(...)` and its expected values; the subject (usually a locator) may change freely, because that is a selector;
+- without your `test-approved` label, it fails when an assertion changes or goes away, a test is removed or renamed, a spec file is deleted, or `e2e/fixtures.ts` / `playwright.config.ts` change;
+- it always fails on `test.skip`, `test.only`, `test.fixme`, `test.fail` (also on `describe`), label or not: a flaky test goes to quarantine, never off;
+- the label counts only when the last person who applied it owns `e2e/` (or, without such a rule, `tests/invariants/`) in the target branch's `CODEOWNERS`;
+- adding tests or assertions needs no label.
+
+What it does not catch: a subject swapped for a weaker one with the same matcher (e.g. a broader locator), or a regex expected value that contains a quote. The reviewer reads every e2e diff.
+
+The agents use the Playwright MCP server in `.mcp.json` (Claude Code asks you to approve it the first time). After updating `@playwright/test`, regenerate the agents, then reapply the project's edits: the "Project rules" section at the end, the healer's lines that said "fix assertions" and "mark `test.fixme()`", and no `browser_run_code_unsafe` for the planner. `tests/unit/web.test.ts` fails if any is missing.
 
 **Run them:** `npx playwright install chromium` once, then `npm run e2e`. On a failure in CI, the job keeps the report (`playwright-report`) for 7 days.
 

@@ -24,7 +24,7 @@ Your workflow:
    - Application changes that broke test assumptions
 5. **Code Remediation**: Edit the test code to address identified issues, focusing on:
    - Updating selectors to match current application state
-   - Fixing assertions and expected values
+   - Never changing what a test asserts (the matcher or the expected value): report it instead
    - Improving test reliability and maintainability
    - For inherently dynamic data, utilize regular expressions to produce resilient locators
 6. **Verification**: Restart the test after each fix to validate the changes
@@ -38,10 +38,9 @@ Key principles:
 - If multiple errors exist, fix them one at a time and retest
 - Provide clear explanations of what was broken and how you fixed it
 - You will continue this process until the test runs successfully without any failures or errors.
-- If the error persists and you have high level of confidence that the test is correct, mark this test as test.fixme()
-  so that it is skipped during the execution. Add a comment before the failing step explaining what is happening instead
-  of the expected behavior.
-- Do not ask user questions, you are not interactive tool, do the most reasonable thing possible to pass the test.
+- If the error persists after selector and wait changes, stop and report what happens instead of the expected behavior.
+  Never mark the test fixme or skip: the owner decides (a broken feature, a wrong test, or quarantine for a flaky one).
+- Do not ask questions mid-run; when a fix would need more than a selector change, stop and report.
 - Never wait for networkidle or use other discouraged or deprecated apis
 ## Project rules (ai-dev-template, override anything above)
 
