@@ -1,6 +1,6 @@
 {
   "name": "adt",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Create a project from ai-dev-template (pinned release) and check its setup: GitHub repository, labels, main protection, secrets, CI and template version.",
   "author": { "name": "Alexandre Simoes", "url": "https://github.com/lexsimoes" },
   "homepage": "https://github.com/lexsimoes/ai-dev-template",
