@@ -6,13 +6,13 @@
 //
 // The audited project may not be trusted, so this script runs no program at all: no git, nothing from the project.
 // Running git inside a project can execute that project's own configuration (`core.fsmonitor`, filters) or, on
-// Windows, a `git.exe` placed in it. Files are listed by walking the folder, and the branch is read from `.git/HEAD`.
+// Windows, a `git.exe` placed in it. Files are listed by walking the folder, and branches are read from git's own files.
 
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { IGNORED_DIRS, auditMap, fingerprintOf } from "./lib/audit.ts";
-import type { Entry } from "./lib/audit.ts";
+import { IGNORED_DIRS, auditMap, fingerprintOf, gitState } from "./lib/audit.ts";
+import type { Entry, GitFiles } from "./lib/audit.ts";
 
 /** Beyond this many files the map and the fingerprint are partial, and the output says so (`truncated`). */
 const MAX_ENTRIES = Math.max(1, Number(process.env.ADT_AUDIT_MAX_ENTRIES) || 50_000);
@@ -113,7 +113,57 @@ const entries = walk();
 const fingerprint = fingerprintOf(entries, (text) => createHash("sha256").update(text).digest("hex").slice(0, 16));
 if (command === "fingerprint") out({ fingerprint, truncated });
 
-const head = /^ref: refs\/heads\/([\w./-]{1,100})\s*$/.exec(read(".git/HEAD") ?? "")?.[1] ?? null;
+/** Plain files of a folder outside the walk (git's own), read with the same care: regular files only. */
+function plain(path: string): string | null {
+  try {
+    return lstatSync(path).isFile() ? readFileSync(path, "utf-8") : null;
+  } catch {
+    return null;
+  }
+}
+
+/** git's directory: `.git`, or the folder a worktree's `.git` file points to (with its `commondir` for the refs). */
+function gitFiles(): GitFiles | null {
+  const dotGit = join(target, ".git");
+  let dir: string;
+  try {
+    if (lstatSync(dotGit).isDirectory()) dir = dotGit;
+    else {
+      const pointer = /^gitdir: (.+)$/m.exec(plain(dotGit) ?? "")?.[1]?.trim();
+      if (!pointer) return null;
+      dir = resolve(target, pointer);
+    }
+  } catch {
+    return null;
+  }
+  const common = resolve(dir, plain(join(dir, "commondir"))?.trim() || ".");
+  const refs = (sub: string): string[] => {
+    const out: string[] = [];
+    const stack = [sub];
+    while (stack.length && out.length < 1000) {
+      const rel = stack.pop() ?? "";
+      let names: string[];
+      try {
+        names = readdirSync(join(common, rel));
+      } catch {
+        continue;
+      }
+      for (const name of names) {
+        const path = `${rel}/${name}`;
+        try {
+          const st = lstatSync(join(common, path));
+          if (st.isDirectory()) stack.push(path);
+          else if (st.isFile()) out.push(path);
+        } catch {
+          unreadable++;
+        }
+      }
+    }
+    return out;
+  };
+  return { read: (path) => plain(join(path === "HEAD" ? dir : common, path)), refs };
+}
+
 const files = entries.map((e) => e.path).filter((p) => !p.startsWith(".git/"));
 out({
   target: {
@@ -122,7 +172,7 @@ out({
     empty: files.length === 0,
     fromTemplate: files.includes(".copier-answers.yml") && /ai-dev-template/.test(read(".copier-answers.yml") ?? ""),
   },
-  git: { repository: existsSync(join(target, ".git")), branch: head },
+  git: gitState(gitFiles()),
   map: auditMap({ files, read, size: (path) => (regular(path) ? lstatSync(join(target, path)).size : Number.MAX_SAFE_INTEGER) }),
   fingerprint,
   /** The walk stopped at the file limit: the map and the fingerprint cover part of the folder only. */
