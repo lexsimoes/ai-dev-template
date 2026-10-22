@@ -112,3 +112,17 @@ test("a malformed request line answers 400 and the server keeps serving", async 
     assert.equal((await fetch(base)).status, 200);
   });
 });
+
+test("an oversized form answers 413 on the right page", async () => {
+  await withApp(createMockClient(), async (base) => {
+    const big = "x".repeat(20_000);
+    const contact = await post(`${base}/contact`, { message: big });
+    assert.equal(contact.status, 413);
+    assert.match(await contact.text(), /Your message is too long/);
+    const checkout = await post(`${base}/checkout`, { coupon: big });
+    assert.equal(checkout.status, 413);
+    const html = await checkout.text();
+    assert.match(html, /What you sent is too long/);
+    assert.doesNotMatch(html, /Your message/);
+  });
+});

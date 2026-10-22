@@ -117,7 +117,7 @@ function checkoutPage(input: { code?: string; now: Date }): { status: number; ht
 }
 
 function contactPage(input: { sent?: boolean; error?: string; text?: string }): string {
-  const error = input.error ? `<p class="notice error" role="alert" id="message-error">${input.error}</p>` : "";
+  const error = input.error ? `<p class="notice error" role="alert" id="message-error">${escapeHtml(input.error)}</p>` : "";
   const sent = input.sent ? `<p class="notice ok" role="status">Thanks, we got your message. Our team replies within one business day.</p>` : "";
   const body = `
 <h1>Contact us</h1>
@@ -218,7 +218,12 @@ export function createApp(options: AppOptions): (req: IncomingMessage, res: Serv
       }
     } catch (error) {
       if (error instanceof BodyTooLarge) {
-        send(res, 413, contactPage({ error: "Your message is too long. Shorten it and send it again." }));
+        // The same limit guards every form: answer on the page the customer came from.
+        const html =
+          url.pathname === "/contact"
+            ? contactPage({ error: "Your message is too long. Shorten it and send it again." })
+            : page({ title: "Too much data", path: "", body: `<h1>Too much data</h1><p class="lead">What you sent is too long. <a href="/">Go back to checkout</a> and try again.</p>` });
+        send(res, 413, html);
         return;
       }
       console.error(error);
