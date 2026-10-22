@@ -15,7 +15,7 @@ import { IGNORED_DIRS, auditMap, fingerprintOf } from "./lib/audit.ts";
 import type { Entry } from "./lib/audit.ts";
 
 /** Beyond this many files the map and the fingerprint are partial, and the output says so (`truncated`). */
-const MAX_ENTRIES = Number(process.env.ADT_AUDIT_MAX_ENTRIES) || 50_000;
+const MAX_ENTRIES = Math.max(1, Number(process.env.ADT_AUDIT_MAX_ENTRIES) || 50_000);
 
 function out(result: unknown, failed = false): never {
   console.log(JSON.stringify(result, null, 2));
@@ -49,7 +49,13 @@ function walk(): Entry[] {
     }
     for (const name of names) {
       const path = rel ? `${rel}/${name}` : name;
-      const st = lstatSync(join(target, path));
+      let st: ReturnType<typeof lstatSync>;
+      try {
+        st = lstatSync(join(target, path));
+      } catch {
+        unreadable++;
+        continue;
+      }
       if (st.isDirectory()) {
         if (!IGNORED_DIRS.has(name)) stack.push(path);
       } else entries.push({ path, size: st.size, mtimeMs: st.mtimeMs });
