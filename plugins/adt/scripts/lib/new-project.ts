@@ -247,6 +247,22 @@ export function setupLabels(ctx: Context, slug: string): Step {
   return { id: "labels", status: "created", detail: `Created: ${missing.map((l) => l.name).join(", ")}.` };
 }
 
+const DEPENDENCY_GRAPH_FIX =
+  "Turn it on by hand: **Settings → Code security → Dependency graph: Enable** (and Dependabot alerts: Enable).";
+
+/**
+ * The dependency graph, which the `dependencies` check (GitHub's dependency review) needs: without it, that required
+ * check fails on every PR. A new repository may not have it; enabling Dependabot alerts turns it on.
+ */
+export function setupDependencyGraph(ctx: Context, slug: string): Step {
+  if (ctx.run("gh", ["api", `repos/${slug}/dependency-graph/sbom`, "--jq", ".sbom.name"]).code === 0) {
+    return { id: "dependency-graph", status: "exists", detail: "The dependency graph is on (the `dependencies` check can run)." };
+  }
+  const enable = ctx.run("gh", ["api", "--method", "PUT", `repos/${slug}/vulnerability-alerts`]);
+  if (enable.code === 0) return { id: "dependency-graph", status: "created", detail: "Dependency graph and Dependabot alerts turned on (the `dependencies` check needs them)." };
+  return { id: "dependency-graph", status: "failed", detail: `Could not turn on the dependency graph (${firstLine(enable.stderr)}). ${DEPENDENCY_GRAPH_FIX}` };
+}
+
 /**
  * The protect-main ruleset from the project's own file, applied through the API. Skipped (with the reason) when one
  * named protect-main exists, or when a private repository's plan does not enforce rulesets.

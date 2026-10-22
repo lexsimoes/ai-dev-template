@@ -9,6 +9,7 @@ import {
   expectedSecrets,
   inspectFolder,
   preflight,
+  setupDependencyGraph,
   setupLabels,
   setupRepo,
   setupRuleset,
@@ -133,6 +134,17 @@ test("labels: creates only the missing ones, never edits existing labels", () =>
   const all = world({ "gh api --paginate repos/maria/shop/labels?per_page=100 --jq .[].name": ok(LABELS.map((l) => l.name).join("\n")) });
   assert.equal(setupLabels(all.ctx, "maria/shop").status, "exists");
   assert.ok(!all.calls.some((c) => c.startsWith("gh label create")));
+});
+
+test("dependency graph: turned on only when off (the dependencies check needs it)", () => {
+  const on = world();
+  assert.equal(setupDependencyGraph(on.ctx, "maria/shop").status, "exists");
+  assert.ok(!on.calls.some((c) => c.includes("--method PUT")));
+  const off = world({ "gh api repos/maria/shop/dependency-graph/sbom --jq .sbom.name": fail("HTTP 404") });
+  assert.equal(setupDependencyGraph(off.ctx, "maria/shop").status, "created");
+  assert.ok(off.calls.includes("gh api --method PUT repos/maria/shop/vulnerability-alerts"));
+  const denied = world({ "gh api repos/maria/shop/dependency-graph/sbom --jq .sbom.name": fail("HTTP 404"), "gh api --method PUT repos/maria/shop/vulnerability-alerts": fail("HTTP 403") });
+  assert.match(setupDependencyGraph(denied.ctx, "maria/shop").detail, /Settings → Code security/);
 });
 
 test("ruleset: applied from the project's file; an existing one is left alone; private + Free is skipped with the reason", () => {

@@ -178,6 +178,19 @@ function checkLabels(ctx: Context, repo: RepoInfo): Check {
   };
 }
 
+function checkDependencyGraph(ctx: Context, repo: RepoInfo): Check {
+  if (ctx.run("gh", ["api", `repos/${repo.slug}/dependency-graph/sbom`, "--jq", ".sbom.name"]).code === 0) {
+    return { id: "dependency-graph", title: "Dependency graph", status: "pass", detail: "On: the `dependencies` check can run." };
+  }
+  return {
+    id: "dependency-graph",
+    title: "Dependency graph",
+    status: "fail",
+    detail: "Off (or not built yet): the `dependencies` check fails on every PR with \"Dependency review is not supported on this repository\".",
+    fix: `**Settings → Code security → Dependency graph: Enable** (and Dependabot alerts), or in your terminal: \`gh api --method PUT repos/${repo.slug}/vulnerability-alerts\`. Then re-run the failed \`dependencies\` job.`,
+  };
+}
+
 function checkRuleset(ctx: Context, repo: RepoInfo, login: string | null): Check {
   const file = ctx.read(".github/rulesets/protect-main.json");
   const listed = file ? (requiredChecksOf(json(file)) ?? []) : [];
@@ -189,7 +202,7 @@ function checkRuleset(ctx: Context, repo: RepoInfo, login: string | null): Check
     ? ` ${ignored} required check name(s) in \`.github/rulesets/protect-main.json\` use characters this check does not accept, so they were not checked${fromFile.length ? "" : " (the template's default list was checked instead)"}.`
     : "";
   const fix =
-    "Import `.github/rulesets/protect-main.json`: **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, check that it is **Active** on the default branch, then **Create**.";
+    "Run `/adt:new-project` again in this folder (it adds only what is missing), or import `.github/rulesets/protect-main.json` by hand: **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, check that it is **Active** on the default branch, then **Create**.";
   const rules = ghApi<Array<{ type: string; parameters?: { required_status_checks?: Array<{ context: string; integration_id?: number }> } }>>(
     ctx,
     `repos/${repo.slug}/rules/branches/${encodeURIComponent(repo.defaultBranch)}`,
@@ -396,7 +409,7 @@ export function checkSetup(ctx: Context): Check[] {
   }
   const { repo, check } = checkRepo(ctx);
   results.push(check);
-  if (repo) results.push(checkLabels(ctx, repo), checkRuleset(ctx, repo, gh.login), ...checkSecretsAndConfig(ctx, repo), checkCi(ctx, repo));
+  if (repo) results.push(checkLabels(ctx, repo), checkDependencyGraph(ctx, repo), checkRuleset(ctx, repo, gh.login), ...checkSecretsAndConfig(ctx, repo), checkCi(ctx, repo));
   results.push(checkTemplateVersion(ctx, true));
   return results;
 }

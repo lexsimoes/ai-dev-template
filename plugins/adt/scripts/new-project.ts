@@ -13,7 +13,18 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
-import { createProject, expectedSecrets, inspectFolder, preflight, setupLabels, setupRepo, setupRuleset, suggestNames, validateAnswers } from "./lib/new-project.ts";
+import {
+  createProject,
+  expectedSecrets,
+  inspectFolder,
+  preflight,
+  setupDependencyGraph,
+  setupLabels,
+  setupRepo,
+  setupRuleset,
+  suggestNames,
+  validateAnswers,
+} from "./lib/new-project.ts";
 import type { Context, Template } from "./lib/new-project.ts";
 import { run } from "./lib/run.ts";
 
@@ -79,7 +90,7 @@ if (command === "setup") {
   const login = run("gh", ["api", "user", "--jq", ".login"]).stdout.trim();
   const { slug, step } = setupRepo(ctx, v.answers, visibility);
   const steps = [step];
-  if (slug) steps.push(setupLabels(ctx, slug), setupRuleset(ctx, slug, visibility, login));
+  if (slug) steps.push(setupLabels(ctx, slug), setupDependencyGraph(ctx, slug), setupRuleset(ctx, slug, visibility, login));
   out({ repository: slug ? `https://github.com/${slug}` : null, steps, secrets: expectedSecrets(ctx.read) }, steps.some((s) => s.status === "failed"));
 }
 

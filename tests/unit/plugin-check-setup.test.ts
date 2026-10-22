@@ -29,6 +29,7 @@ function world(over: { gh?: Record<string, RunResult>; files?: Record<string, st
     [`gh api repos/${SLUG}`]: ok({ private: false, default_branch: "main" }),
     [`gh api --paginate repos/${SLUG}/labels?per_page=100 --jq .[].name`]: ok(LABELS.map((l) => l.name).join("\n") + "\n"),
     [`gh api repos/${SLUG}/rules/branches/main`]: ok(RULES),
+    [`gh api repos/${SLUG}/dependency-graph/sbom --jq .sbom.name`]: ok("maria/shop"),
     [`gh secret list -R ${SLUG} --json name --jq .[].name`]: ok("REVIEW_API_KEY\nREVIEW_DEEP_API_KEY\nEVAL_API_KEY\n"),
     [`gh api repos/${SLUG}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=1`]: ok({
       workflow_runs: [{ status: "completed", conclusion: "success", html_url: "u", head_sha: "abcdef1234" }],
@@ -97,6 +98,12 @@ test("ruleset: none, incomplete, or not tied to GitHub Actions", () => {
   assert.match(byId(checkSetup(world({ gh: { [`gh api repos/${SLUG}/rules/branches/main`]: ok(forged) } })), "ruleset")?.detail ?? "", /not tied to GitHub Actions: `review`/);
   const fewer = byId(checkSetup(world({ gh: { [`gh api repos/${SLUG}/rules/branches/main`]: ok([RULES[0], { type: "required_status_checks", parameters: { required_status_checks: [{ context: "quality" }] } }]) } })), "ruleset");
   assert.match(fewer?.detail ?? "", /not required: `invariants`, `dependencies`, `review`, `evals`/, "the list comes from protect-main.json");
+});
+
+test("dependency graph off: the dependencies check would fail on every PR, with the fix", () => {
+  const r = byId(checkSetup(world({ gh: { [`gh api repos/${SLUG}/dependency-graph/sbom --jq .sbom.name`]: http(404) } })), "dependency-graph");
+  assert.equal(r?.status, "fail");
+  assert.match(r?.fix ?? "", /gh api --method PUT repos\/maria\/shop\/vulnerability-alerts/);
 });
 
 test("ruleset: check names the report cannot show are counted, never silently dropped", () => {
