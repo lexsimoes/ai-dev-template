@@ -167,9 +167,14 @@ for (const p of PROJECTS) {
       "docs/RELEASING.md",
       "scripts/release",
       "tests/unit/release.test.ts",
-      "docs/missions/0013-releases.md",
+      ".claude-plugin",
+      "plugins",
+      "tests/unit/plugin-check-setup.test.ts",
+      "tests/unit/plugin-release.test.ts",
     ];
     for (const f of templateOnly) assert.ok(!existsSync(join(dest, f)), `${f} is template-only`);
+    assert.deepEqual(readdirSync(join(dest, "docs/missions")).sort(), ["README.md", "_TEMPLATE.md"], "only the mission template and README, none of the template's missions");
+    for (const f of [".gemini/settings.json", ".aider.conf.yml"]) assert.ok(existsSync(join(dest, f)), `${f} (bridge to AGENTS.md) is in the project`);
     assert.deepEqual(filesUnder(dest).filter((f) => f.endsWith(".jinja")), [], "no .jinja file left");
     const notice = readFileSync(join(dest, "THIRD_PARTY_NOTICES.md"), "utf-8");
     assert.match(notice, /Built with ai-dev-template, © Alexandre Simoes\./);

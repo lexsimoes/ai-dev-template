@@ -86,6 +86,10 @@ _exclude:
   - docs/RELEASING.md
   - scripts/release
   - tests/unit/release.test.ts
+  # The Claude Code plugin and its marketplace are installed from this repository, not copied into projects.
+  - .claude-plugin
+  - plugins
+  - "tests/unit/plugin-*.test.ts"
   # The template's own missions are its history; projects get only the mission template and README.
   - "docs/missions/[0-9]*"
 

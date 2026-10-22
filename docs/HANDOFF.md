@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-21 · **By:** agent (M7b, PR 1: releases)
+**Updated on:** 2026-10-21 · **By:** agent (M7b, PR 2: plugin + /check-setup)
 
 ## Current state
 
@@ -18,10 +18,12 @@
 - Weekly direction check (`.github/workflows/direction-check.yml`, `scripts/direction/`): an issue every Monday with the `direction-check` label.
 - Copier template (`copier.yml`, `.jinja` twins), proven on every PR by the `template` check (`.github/workflows/template.yml`, `tests/template/`). The owner adds `template` to the live `protect-main` ruleset in the GitHub UI only, never to `protect-main.json`: that file is copied into projects, which have no `template` job, and the check would wait forever.
 - No-key mode: `disabled` in the target branch's `.github/review.json` / `evals/config.json` turns those checks into an "off" notice (secret detectors and golden set guard still run). Copier writes it for "no key" answers.
-- Template-only (not copied into projects): `LICENSE` (MIT), weekly traffic export to the `traffic` branch (`.github/workflows/traffic.yml`, `scripts/traffic/`, secret `TRAFFIC_TOKEN`), and the release flow (`CHANGELOG.md`, `docs/RELEASING.md`, `scripts/release/`, `tests/unit/release.test.ts`).
+- Template-only (not copied into projects): `LICENSE` (MIT), weekly traffic export to the `traffic` branch (`.github/workflows/traffic.yml`, `scripts/traffic/`, secret `TRAFFIC_TOKEN`), the release flow (`CHANGELOG.md`, `docs/RELEASING.md`, `scripts/release/`, `tests/unit/release.test.ts`), the template's numbered missions, and the Claude Code plugin (`.claude-plugin/`, `plugins/`, `tests/unit/plugin-*.test.ts`).
 
 ## Last mission
 
+- M7b PR 2 (mission 0014): Claude Code plugin `ai-dev` and marketplace in this repository; `/ai-dev:check-setup` (read-only; secrets by name only); bridges for Gemini CLI (`.gemini/settings.json`) and Aider (`.aider.conf.yml`). The plugin pins the template release in `plugins/ai-dev/template.json` and its version follows the CHANGELOG (bumped in release PRs).
+- `v0.1.0` released by the owner on 2026-10-21 (immutable).
 - M7b PR 1 (mission 0013): releases. Semver tags `vX.Y.Z` from `v0.1.0`; `CHANGELOG.md`; `docs/RELEASING.md` (release PR by an agent, tag and release by the owner with `gh release create`); `scripts/release/notes.ts`; Copier and the docs use the latest release, not `main`. Agents never tag or release (`AGENTS.md` 1.7).
 - M7 PR 3: no-key mode + public release.
   - Reviewer race fixed in the reviewer itself: every run decides from the live PR (labels read from the API, review state in the comment). A push and `re-review` close together end with the same verdict in both runs, in either order, with one model call (`tests/unit/review-flow.test.ts`, "race"; the same test fails against the previous reviewer).

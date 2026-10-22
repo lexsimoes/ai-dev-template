@@ -1,0 +1,413 @@
+// The checks behind /ai-dev:check-setup. Each one says pass, warn, fail or skip, and how to fix it.
+// Read-only: nothing here changes GitHub or the project. Secrets are listed by name only; values are never read.
+// The report goes into the Claude Code conversation, so text from project files or GitHub enters it only after
+// matching a closed pattern (`shown`): a crafted file or API answer cannot put instructions there.
+// Tested in tests/unit/plugin-check-setup.test.ts with a fake `gh`.
+
+import {
+  ACTIONS_APP_ID,
+  DEFAULT_REQUIRED_CHECKS,
+  LABELS,
+  SECRET_NAME_RE,
+  compareVersions,
+  parseAnswers,
+  parseGitHubRemote,
+  parseTemplateSource,
+  parseVersion,
+  requiredChecksOf,
+} from "./project.ts";
+import type { Run } from "./run.ts";
+
+export type Status = "pass" | "warn" | "fail" | "skip";
+
+export interface Check {
+  id: string;
+  title: string;
+  status: Status;
+  detail: string;
+  /** What to do, when the status is not pass. */
+  fix?: string;
+}
+
+export interface Context {
+  run: Run;
+  /** A project file (path relative to the project root), or null if it does not exist. */
+  read: (path: string) => string | null;
+}
+
+interface RepoInfo {
+  slug: string;
+  private: boolean;
+  defaultBranch: string;
+  /** The default branch as shown in the report (a safe name, or a description). */
+  branchLabel: string;
+}
+
+const COMMIT_RE = /^(?:v?\d+\.\d+\.\d+|[0-9a-f]{7,40})$/i;
+const BRANCH_RE = /^[A-Za-z0-9._/-]{1,100}$/;
+const CHECK_NAME_RE = /^[A-Za-z0-9 ._()/-]{1,100}$/;
+const LOGIN_RE = /^[A-Za-z0-9-]{1,39}$/;
+const RUN_URL_RE = /^https:\/\/github\.com\/[A-Za-z0-9._/-]+$/;
+const WORD_RE = /^[a-z_]{1,30}$/;
+
+/** A value from a project file or from GitHub, as code in the report, or `fallback` if it does not match `re`. */
+function shown(value: unknown, re: RegExp, fallback: string): string {
+  return typeof value === "string" && re.test(value) ? `\`${value}\`` : fallback;
+}
+
+const SECRET_HINT =
+  "Set it in **your own terminal**, not in the chat and not with Claude Code's `!` (its output goes into the conversation): `gh secret set NAME -R OWNER/REPO`. It asks for the value without showing it. Set a spending limit at the provider first.";
+
+function json<T>(text: string): T | null {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+/** `gh api` call: the parsed JSON, or the HTTP status GitHub answered (0 if none). The error text is ours, never GitHub's. */
+function ghApi<T>(ctx: Context, path: string): { ok: true; data: T } | { ok: false; status: number; error: string } {
+  const r = ctx.run("gh", ["api", path]);
+  if (r.code === 0) {
+    const data = json<T>(r.stdout);
+    if (data !== null) return { ok: true, data };
+    return { ok: false, status: 0, error: "the answer was not JSON" };
+  }
+  const status = Number(/HTTP (\d{3})/.exec(r.stderr)?.[1] ?? 0);
+  return { ok: false, status, error: status ? `HTTP ${status}` : "no answer from GitHub" };
+}
+
+/** A project JSON file: absent, present but invalid, or parsed. */
+function readJson<T>(ctx: Context, path: string): { state: "absent" } | { state: "invalid" } | { state: "ok"; data: T } {
+  const text = ctx.read(path);
+  if (text === null) return { state: "absent" };
+  const data = json<T>(text);
+  return data === null || typeof data !== "object" ? { state: "invalid" } : { state: "ok", data };
+}
+
+function checkGh(ctx: Context): { login: string | null; checks: Check[] } {
+  if (ctx.run("gh", ["--version"]).code !== 0) {
+    return {
+      login: null,
+      checks: [
+        {
+          id: "gh",
+          title: "GitHub CLI",
+          status: "fail",
+          detail: "`gh` is not installed or not on the PATH.",
+          fix: "Install it (Mac: `brew install gh`; others: https://cli.github.com), then run `gh auth login`.",
+        },
+      ],
+    };
+  }
+  // The API answering is the real test of being logged in (`gh auth status` can disagree, e.g. behind a proxy).
+  const user = ctx.run("gh", ["api", "user", "--jq", ".login"]);
+  const login = user.code === 0 ? user.stdout.trim() : "";
+  if (user.code === 0 && LOGIN_RE.test(login)) {
+    return { login, checks: [{ id: "gh", title: "GitHub CLI", status: "pass", detail: `Logged in as @${login}.` }] };
+  }
+  const authProblem = /HTTP 401|gh auth login|not logged|authenticat/i.test(user.stderr);
+  return {
+    login: null,
+    checks: [
+      authProblem
+        ? { id: "gh", title: "GitHub CLI", status: "fail", detail: "`gh` is not logged in to GitHub.com (or its login expired).", fix: "Run `gh auth login` and choose GitHub.com." }
+        : {
+            id: "gh",
+            title: "GitHub CLI",
+            status: "fail",
+            detail: `\`gh\` could not reach GitHub (${/HTTP (\d{3})/.exec(user.stderr)?.[0] ?? "no answer"}).`,
+            fix: "Check the internet connection (or proxy) and run the check again. `gh auth status` shows what `gh` sees.",
+          },
+    ],
+  };
+}
+
+function checkRepo(ctx: Context): { repo: RepoInfo | null; check: Check } {
+  const remote = ctx.run("git", ["remote", "get-url", "origin"]);
+  const slug = remote.code === 0 ? parseGitHubRemote(remote.stdout) : null;
+  if (!slug) {
+    return {
+      repo: null,
+      check: {
+        id: "repo",
+        title: "GitHub repository",
+        status: "fail",
+        detail: remote.code === 0 ? "The `origin` remote is not a GitHub repository." : "This folder has no `origin` remote (or is not a git repository).",
+        fix: "Create it and push the first commit: `gh repo create NAME --private --source . --push` (or `--public`).",
+      },
+    };
+  }
+  const info = ghApi<{ private: boolean; default_branch: string }>(ctx, `repos/${slug}`);
+  if (!info.ok) {
+    return {
+      repo: null,
+      check: {
+        id: "repo",
+        title: "GitHub repository",
+        status: "fail",
+        detail: `\`${slug}\` was not found, or your login cannot see it (${info.error}).`,
+        fix: "Check `git remote -v` and that `gh auth status` shows the account that owns the repository.",
+      },
+    };
+  }
+  return {
+    repo: {
+      slug,
+      private: info.data.private === true,
+      defaultBranch: info.data.default_branch,
+      branchLabel: shown(info.data.default_branch, BRANCH_RE, "the default branch"),
+    },
+    check: { id: "repo", title: "GitHub repository", status: "pass", detail: `\`${slug}\` (${info.data.private ? "private" : "public"}).` },
+  };
+}
+
+function checkLabels(ctx: Context, repo: RepoInfo): Check {
+  const r = ctx.run("gh", ["api", "--paginate", `repos/${repo.slug}/labels?per_page=100`, "--jq", ".[].name"]);
+  if (r.code !== 0) return { id: "labels", title: "Labels", status: "skip", detail: "Could not list the labels." };
+  const have = new Set(r.stdout.split("\n").map((l) => l.trim()));
+  const missing = LABELS.filter((l) => !have.has(l.name));
+  if (!missing.length) return { id: "labels", title: "Labels", status: "pass", detail: `All ${LABELS.length} labels exist.` };
+  return {
+    id: "labels",
+    title: "Labels",
+    status: "fail",
+    detail: `Missing: ${missing.map((l) => `\`${l.name}\``).join(", ")}. The reviewer and the guards need them.`,
+    fix: missing.map((l) => `\`gh label create ${l.name} -R ${repo.slug} --color ${l.color} --description "${l.description}"\``).join("\n"),
+  };
+}
+
+function checkRuleset(ctx: Context, repo: RepoInfo, login: string | null): Check {
+  const file = ctx.read(".github/rulesets/protect-main.json");
+  const fromFile = file ? requiredChecksOf(json(file))?.filter((c) => CHECK_NAME_RE.test(c)) : null;
+  const expected = fromFile?.length ? fromFile : DEFAULT_REQUIRED_CHECKS;
+  const fix =
+    "Import `.github/rulesets/protect-main.json`: **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, check that it is **Active** on the default branch, then **Create**.";
+  const rules = ghApi<Array<{ type: string; parameters?: { required_status_checks?: Array<{ context: string; integration_id?: number }> } }>>(
+    ctx,
+    `repos/${repo.slug}/rules/branches/${encodeURIComponent(repo.defaultBranch)}`,
+  );
+  if (!rules.ok) return { id: "ruleset", title: "Protection of `main`", status: "skip", detail: `Could not read the rules (${rules.error}).` };
+  const required = rules.data.filter((r) => r.type === "required_status_checks").flatMap((r) => r.parameters?.required_status_checks ?? []);
+  const hasPr = rules.data.some((r) => r.type === "pull_request");
+  if (rules.data.length === 0 && repo.private) {
+    const plan = login ? ctx.run("gh", ["api", "user", "--jq", ".plan.name"]).stdout.trim() : "";
+    const owned = login !== null && repo.slug.toLowerCase().startsWith(`${login.toLowerCase()}/`);
+    if (owned && plan === "free") {
+      return {
+        id: "ruleset",
+        title: "Protection of `main`",
+        status: "warn",
+        detail: "Private repository on the Free plan: GitHub does not enforce rulesets here. The checks still run on every PR, but nothing stops a merge with a red check.",
+        fix: "Either make the repository public, or upgrade to GitHub Pro and then import the ruleset. Until then, never merge with a red check.",
+      };
+    }
+  }
+  const missing = expected.filter((c) => !required.some((r) => r.context === c));
+  const foreign = required.filter((r) => expected.includes(r.context) && r.integration_id !== undefined && r.integration_id !== ACTIONS_APP_ID);
+  if (!rules.data.length) {
+    return {
+      id: "ruleset",
+      title: "Protection of `main`",
+      status: "fail",
+      detail: `${repo.branchLabel} has no active rules: anyone (agents included) can push to it or merge with red checks.${repo.private ? " On a private repository this needs GitHub Pro or Team." : ""}`,
+      fix,
+    };
+  }
+  if (!hasPr || missing.length || foreign.length) {
+    const problems = [
+      ...(hasPr ? [] : ["changes do not have to go through a PR"]),
+      ...(missing.length ? [`not required: ${missing.map((c) => `\`${c}\``).join(", ")}`] : []),
+      ...(foreign.length ? [`not tied to GitHub Actions: ${foreign.map((c) => `\`${c.context}\``).join(", ")}`] : []),
+    ];
+    return { id: "ruleset", title: "Protection of `main`", status: "fail", detail: `The rules on ${repo.branchLabel} are incomplete: ${problems.join("; ")}.`, fix };
+  }
+  return { id: "ruleset", title: "Protection of `main`", status: "pass", detail: `PR required; required checks: ${expected.map((c) => `\`${c}\``).join(", ")}.` };
+}
+
+function checkSecretsAndConfig(ctx: Context, repo: RepoInfo): Check[] {
+  const listed = ctx.run("gh", ["secret", "list", "-R", repo.slug, "--json", "name", "--jq", ".[].name"]);
+  const secrets = listed.code === 0 ? new Set(listed.stdout.split("\n").map((s) => s.trim()).filter((s) => SECRET_NAME_RE.test(s))) : null;
+  const out: Check[] = [
+    secrets
+      ? { id: "secrets", title: "Secrets", status: "pass", detail: secrets.size ? `Present (names only): ${[...secrets].map((s) => `\`${s}\``).join(", ")}.` : "No secrets." }
+      : { id: "secrets", title: "Secrets", status: "skip", detail: "Could not list the secrets (only the repository's admins can). The reviewer and evals checks below are skipped." },
+  ];
+  if (!secrets) return out;
+  // Functions as replacements: a `$` in a value is never read as a replacement pattern.
+  const fixFor = (name: string) => SECRET_HINT.replace("NAME", () => name).replace("OWNER/REPO", () => repo.slug);
+
+  const reviewFile = readJson<{ disabled?: string; tiers?: Record<string, { apiKeyEnv?: string }> }>(ctx, ".github/review.json");
+  const review = reviewFile.state === "ok" ? reviewFile.data : null;
+  if (reviewFile.state === "invalid") {
+    out.push(invalidJson("review-config", "Reviewer", ".github/review.json", "the `review` check fails on every PR"));
+  } else if (!review) {
+    out.push({ id: "review-config", title: "Reviewer", status: "skip", detail: "No `.github/review.json` in this project." });
+  } else if (review.disabled) {
+    out.push(
+      secrets.has("REVIEW_API_KEY")
+        ? {
+            id: "review-config",
+            title: "Reviewer",
+            status: "warn",
+            detail: "No-key mode (`disabled` in `.github/review.json`), but `REVIEW_API_KEY` exists: the key is not used.",
+            fix: "To turn the AI review on, open a PR that removes `disabled` from `.github/review.json` (docs/WORKFLOW.md, \"No-key mode\").",
+          }
+        : { id: "review-config", title: "Reviewer", status: "pass", detail: "No-key mode: the `review` check passes with an \"off\" notice; the secret detectors still run." },
+    );
+  } else if (Object.values(review.tiers ?? {}).some((t) => t.apiKeyEnv !== undefined && !SECRET_NAME_RE.test(t.apiKeyEnv))) {
+    // The names go into commands the user copies: a name that is not a valid secret name is never shown as one.
+    out.push({
+      id: "review-config",
+      title: "Reviewer",
+      status: "fail",
+      detail: "`.github/review.json` has an `apiKeyEnv` that is not a valid secret name (letters, digits and `_`).",
+      fix: "Fix `apiKeyEnv` in `.github/review.json` in a PR (e.g. `REVIEW_API_KEY`).",
+    });
+  } else {
+    const tiers = review.tiers ?? {};
+    const needed = [...new Set(["standard", "light"].map((t) => tiers[t]?.apiKeyEnv).filter((k): k is string => Boolean(k)))];
+    const optional = [...new Set(["sensitive", "deep"].map((t) => tiers[t]?.apiKeyEnv).filter((k): k is string => Boolean(k) && !needed.includes(k as string)))];
+    const missing = needed.filter((k) => !secrets.has(k));
+    const missingOptional = optional.filter((k) => !secrets.has(k));
+    if (missing.length) {
+      out.push({
+        id: "review-config",
+        title: "Reviewer",
+        status: "fail",
+        detail: `The review is on, but ${missing.map((k) => `\`${k}\``).join(", ")} is missing: the \`review\` check will be red on every PR.`,
+        fix: `${missing.map(fixFor).join("\n")}\nNo key? Turn on no-key mode instead (docs/WORKFLOW.md, "No-key mode").`,
+      });
+    } else if (missingOptional.length) {
+      out.push({
+        id: "review-config",
+        title: "Reviewer",
+        status: "warn",
+        detail: `The review is on; ${missingOptional.map((k) => `\`${k}\``).join(", ")} is missing, so sensitive paths and \`deep-review\` fall back to the standard reviewer (the report says so).`,
+        fix: missingOptional.map(fixFor).join("\n"),
+      });
+    } else {
+      out.push({ id: "review-config", title: "Reviewer", status: "pass", detail: `The review is on and its keys exist (${[...needed, ...optional].map((k) => `\`${k}\``).join(", ")}).` });
+    }
+  }
+
+  const evalsFile = readJson<{ disabled?: string }>(ctx, "evals/config.json");
+  const evals = evalsFile.state === "ok" ? evalsFile.data : null;
+  if (evalsFile.state === "invalid") {
+    out.push(invalidJson("evals-config", "Evals", "evals/config.json", "the `evals` check fails on PRs that touch AI files"));
+  } else if (!evals) {
+    out.push({ id: "evals-config", title: "Evals", status: "skip", detail: "No `evals/config.json` in this project." });
+  } else if (evals.disabled) {
+    out.push({ id: "evals-config", title: "Evals", status: "pass", detail: "No-key mode: the `evals` check passes with an \"off\" notice; the golden set guard still runs." });
+  } else if (!secrets.has("EVAL_API_KEY")) {
+    out.push({
+      id: "evals-config",
+      title: "Evals",
+      status: "fail",
+      detail: "The evals are on, but `EVAL_API_KEY` is missing: every PR that touches AI files will have a red `evals` check.",
+      fix: `${fixFor("EVAL_API_KEY")} Use a separate key from the reviewer's, for a test project.\nNo key? Turn on no-key mode instead (docs/WORKFLOW.md, "No-key mode").`,
+    });
+  } else {
+    out.push({ id: "evals-config", title: "Evals", status: "pass", detail: "The evals are on and `EVAL_API_KEY` exists." });
+  }
+  return out;
+}
+
+function invalidJson(id: string, title: string, path: string, effect: string): Check {
+  return { id, title, status: "fail", detail: `\`${path}\` exists but is not valid JSON: ${effect}.`, fix: `Fix \`${path}\` in a PR (\`node -e 'JSON.parse(require("fs").readFileSync("${path}","utf8"))'\` shows where it breaks).` };
+}
+
+function checkCi(ctx: Context, repo: RepoInfo): Check {
+  const runs = ghApi<{ workflow_runs: Array<{ status: string; conclusion: string | null; html_url: string; head_sha: string }> }>(
+    ctx,
+    `repos/${repo.slug}/actions/workflows/ci.yml/runs?branch=${encodeURIComponent(repo.defaultBranch)}&event=push&per_page=1`,
+  );
+  if (!runs.ok) {
+    return runs.status === 404
+      ? { id: "ci", title: `CI on ${repo.branchLabel}`, status: "skip", detail: "No `.github/workflows/ci.yml` on GitHub yet (push the first commit)." }
+      : { id: "ci", title: `CI on ${repo.branchLabel}`, status: "skip", detail: `Could not read the CI runs (${runs.error}).` };
+  }
+  const last = runs.data.workflow_runs[0];
+  if (!last) {
+    return {
+      id: "ci",
+      title: `CI on ${repo.branchLabel}`,
+      status: "warn",
+      detail: "CI has not run on the default branch yet.",
+      fix: "It runs on every push to the default branch; push (or merge a PR) and check again.",
+    };
+  }
+  const link = typeof last.html_url === "string" && RUN_URL_RE.test(last.html_url) ? `: ${last.html_url}` : ".";
+  if (last.status !== "completed") return { id: "ci", title: `CI on ${repo.branchLabel}`, status: "warn", detail: `The last run is still ${shown(last.status, WORD_RE, "running")}${link}`, fix: "Check again in a few minutes." };
+  if (last.conclusion === "success") return { id: "ci", title: `CI on ${repo.branchLabel}`, status: "pass", detail: `Green on ${shown(last.head_sha?.slice(0, 7), COMMIT_RE, "the latest commit")}.` };
+  return {
+    id: "ci",
+    title: `CI on ${repo.branchLabel}`,
+    status: "fail",
+    detail: `The last run ended with ${shown(last.conclusion, WORD_RE, "a failure")}${link}`,
+    fix: "Open the run, read the red job's log and fix it in a PR (never with a direct push to the default branch).",
+  };
+}
+
+function checkTemplateVersion(ctx: Context, ghReady: boolean): Check {
+  const answers = ctx.read(".copier-answers.yml");
+  if (!answers) return { id: "template", title: "Template version", status: "skip", detail: "No `.copier-answers.yml`: this project was not created with Copier." };
+  const a = parseAnswers(answers);
+  const current = a._commit ?? "";
+  const from = shown(current, COMMIT_RE, "an unrecognized version");
+  const source = parseTemplateSource(a._src_path ?? "");
+  if (!source) return { id: "template", title: "Template version", status: "skip", detail: `Created from ${from} of a template that is not on GitHub.` };
+  if (!ghReady) return { id: "template", title: "Template version", status: "skip", detail: `Created from ${from} of \`${source}\`; needs \`gh\` to look for updates.` };
+  const latest = ghApi<{ tag_name: string }>(ctx, `repos/${source}/releases/latest`);
+  if (!latest.ok) return { id: "template", title: "Template version", status: "skip", detail: `Created from ${from} of \`${source}\`; could not read its latest release (${latest.error}).` };
+  const have = parseVersion(current);
+  const want = typeof latest.data.tag_name === "string" ? parseVersion(latest.data.tag_name) : null;
+  if (!want) return { id: "template", title: "Template version", status: "skip", detail: `Created from ${from} of \`${source}\`; its latest release is not a version tag.` };
+  const tag = `v${want.join(".")}`;
+  const update = `On a clean working tree: \`copier update --defaults\`, read the template's CHANGELOG for entries marked **Action needed**, review the diff and open a PR.`;
+  if (!have) {
+    return { id: "template", title: "Template version", status: "warn", detail: `Created from ${from}, which is not a release of \`${source}\`; the latest release is \`${tag}\`.`, fix: update };
+  }
+  if (compareVersions(have, want) < 0) {
+    return { id: "template", title: "Template version", status: "warn", detail: `${from} of \`${source}\`; update available: \`${tag}\`.`, fix: update };
+  }
+  return { id: "template", title: "Template version", status: "pass", detail: `${from} of \`${source}\`, the latest release.` };
+}
+
+export function checkSetup(ctx: Context): Check[] {
+  const gh = checkGh(ctx);
+  const results: Check[] = [...gh.checks];
+  const ghReady = gh.checks.every((c) => c.status === "pass");
+  if (!ghReady) {
+    results.push({ id: "repo", title: "GitHub checks", status: "skip", detail: "Skipped: they need the GitHub CLI logged in." });
+    results.push(checkTemplateVersion(ctx, false));
+    return results;
+  }
+  const { repo, check } = checkRepo(ctx);
+  results.push(check);
+  if (repo) results.push(checkLabels(ctx, repo), checkRuleset(ctx, repo, gh.login), ...checkSecretsAndConfig(ctx, repo), checkCi(ctx, repo));
+  results.push(checkTemplateVersion(ctx, true));
+  return results;
+}
+
+const ICON: Record<Status, string> = { pass: "✅", warn: "⚠️", fail: "❌", skip: "⏭️" };
+
+const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\n/g, " ");
+
+export function renderReport(results: Check[]): string {
+  const counts = (s: Status) => results.filter((r) => r.status === s).length;
+  const lines = [
+    `## Setup check: ${counts("fail") ? `❌ ${counts("fail")} to fix` : counts("warn") ? `⚠️ ${counts("warn")} warning(s)` : "✅ all good"}`,
+    "",
+    "| | Check | Result |",
+    "|---|---|---|",
+    ...results.map((r) => `| ${ICON[r.status]} | ${cell(r.title)} | ${cell(r.detail)} |`),
+  ];
+  const toFix = results.filter((r) => r.fix && (r.status === "fail" || r.status === "warn"));
+  if (toFix.length) {
+    lines.push("", "### How to fix", "");
+    for (const r of toFix) lines.push(`**${ICON[r.status]} ${r.title}**`, "", r.fix ?? "", "");
+  }
+  return lines.join("\n").trimEnd();
+}
