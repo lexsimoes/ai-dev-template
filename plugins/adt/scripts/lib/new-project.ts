@@ -321,7 +321,7 @@ export function setupRuleset(ctx: Context, slug: string, visibility: "public" | 
   const create = ctx.run("gh", ["api", "--method", "POST", `repos/${slug}/rulesets`, "--input", file]);
   if (create.code === 0) return { id: "ruleset", status: "created", detail: `${name}: \`main\` only changes through a PR with the required checks green.` };
   // Only GitHub's plan refusal is a plan limit; any other 403/422 (an invalid ruleset, a missing permission) is a failure.
-  const planRefusal = [403, 422].includes(httpStatus(create.stderr)) && /upgrade|github pro|github team|plan/i.test(create.stderr);
+  const planRefusal = [403, 422].includes(httpStatus(create.stderr)) && /upgrade|github pro|github team/i.test(create.stderr);
   if (visibility === "private" && planRefusal) return { id: "ruleset", status: "skipped", detail: planNote };
   return { id: "ruleset", status: "failed", detail: `Could not create the ruleset: ${firstLine(create.stderr)}` };
 }

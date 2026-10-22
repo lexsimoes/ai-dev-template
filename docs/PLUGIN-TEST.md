@@ -9,6 +9,8 @@ A real run of the plugin, start to finish:
 
 About 15 minutes. It creates **one public repository** on your account (`adt-manual-test`), with no AI key, so it costs nothing.
 
+Run it only once the PR that adds `/adt:new-project` is merged: the plugin installs from `main`.
+
 ## 0. Before you start (once)
 
 In the Mac's **Terminal** (not inside Claude Code):
@@ -16,13 +18,22 @@ In the Mac's **Terminal** (not inside Claude Code):
 ```bash
 node --version            # v22.18.0 or newer
 gh auth status            # "Logged in to github.com account <you>"
-claude --version          # Claude Code
+claude --version          # Claude Code (terminal command); see below if "command not found"
 brew install pipx && pipx ensurepath
 pipx install copier==9.18.2
 copier --version          # copier 9.18.2
 ```
 
 If `pipx ensurepath` says it changed the PATH, close and reopen the Terminal.
+
+**`claude: command not found`:** the Claude Code desktop app and the VS Code extension do not install the `claude` command for the Terminal; this test needs it. Install it with the official installer (recommended in the Claude Code docs, code.claude.com/docs/en/setup), then **open a new Terminal window** and check again:
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+claude --version
+```
+
+(Alternative: `brew install --cask claude-code`.) The first time you run `claude`, it asks you to log in. Plugins installed from the Terminal are also available in the desktop app's local sessions and in VS Code.
 
 ## 1. Install the plugin from the marketplace
 
