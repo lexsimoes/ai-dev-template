@@ -12,6 +12,7 @@ An entry marked **Action needed** asks something of projects when they run `copi
   - `scripts/review/triage.ts findings --pr <n>` splits the open findings by path and origin and shows the cost; `check-fix` refuses a fix commit on a protected path, over the cap, or that weakens a test.
   - `autoFix` in `.github/review.json` can only add protected paths and lower the caps.
   - `/adt:adopt` brings the rule and the script to adopted projects, with the project's invariants folder protected.
+- The required `invariants` check runs `check-fix` on every commit titled `fix: address review findings` in a PR, with the checker from the target branch. `AGENTS.md`, `REVIEW.md`, `scripts/guard-invariants.ts` and `evals/config.json` are never auto-fixed.
 
 ### Added (M7d, end-to-end tests)
 - **Action needed** for projects created before this release: a new required check, `e2e`. Add it to your `protect-main` ruleset (**Settings → Rules → Rulesets → protect-main → Require status checks → Add checks → `e2e`**) once it has run green on `main`; `/adt:check-setup` lists it as missing until then.

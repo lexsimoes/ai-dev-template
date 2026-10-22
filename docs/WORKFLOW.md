@@ -186,8 +186,8 @@ The implementer handles the findings before reporting to you (`AGENTS.md`, "Hand
 - Then it pushes, applies `re-review`, and reports: fixed, not fixed (with its suggestion), your decisions, and the reviewer's cost.
 
 Two commands keep the boundary deterministic (`scripts/review/triage.ts`):
-- `findings --pr <n>` reads the reviewer's comment and splits the open findings into candidates and "never auto-fix", by path (`autoFix.neverPaths` in `.github/review.json`, which can only add to the defaults) and origin (a detected secret is always yours: the key must be rotated).
-- `check-fix` refuses a fix commit that touches a protected path, goes over the cap, removes assertions or skips a test, and anything it cannot read (a merge, a file name it cannot match). The test checks are a heuristic: an assertion rewritten into a weaker one, or a conditional skip such as `skipIf`, is not caught; the re-review reads the fix.
+- `findings --pr <n>` reads the reviewer's comment and splits the open findings into candidates and "never auto-fix", by path (`autoFix.neverPaths` in `.github/review.json`, which can only add to the defaults: invariants, golden set, eval thresholds, `AGENTS.md`, `REVIEW.md`, the invariant guard, migrations, `.github/`, `.claude/`, `CODEOWNERS`) and origin (a detected secret is always yours: the key must be rotated).
+- `check-fix` (run by the agent before pushing, and again by the required `invariants` check on every commit titled `fix: address review findings`, with the checker taken from the target branch) refuses a fix commit that touches a protected path, goes over the cap, removes assertions or skips a test, and anything it cannot read (a merge, a file name it cannot match). The test checks are a heuristic: an assertion rewritten into a weaker one, or a conditional skip such as `skipIf`, is not caught; the re-review reads the fix.
 
 Whether a candidate is really "obvious" stays the implementer's judgment; the re-review reads the fix commit. Tested with planted findings in `tests/unit/review-triage.test.ts`.
 
