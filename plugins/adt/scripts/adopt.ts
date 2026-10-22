@@ -145,7 +145,9 @@ if (command === "apply") {
   const problems: string[] = [];
   if (git("rev-parse", "--is-inside-work-tree").code !== 0) problems.push("This folder is not a git repository.");
   if (!/^[\w./-]{1,100}$/.test(base)) problems.push("--base: the product branch this one was made from.");
-  if (branch === base || ["main", "master", "HEAD"].includes(branch)) problems.push("Make a new branch from the product branch first: adoption never writes on the base or default branch.");
+  // The default branch as git knows it from origin (e.g. `develop`), besides the usual names.
+  const originHead = git("symbolic-ref", "--short", "refs/remotes/origin/HEAD").stdout.trim().replace(/^origin\//, "");
+  if (branch === base || ["main", "master", "HEAD", originHead].includes(branch)) problems.push("Make a new branch from the product branch first: adoption never writes on the base or default branch.");
   if (git("--no-optional-locks", "status", "--porcelain").stdout.trim()) problems.push("The working tree has changes: commit or discard them first.");
   const p = plan(kitDir as string, answers);
   const conflicts = p.actions.filter((a) => a.action === "conflict").map((a) => a.path);

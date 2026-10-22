@@ -115,7 +115,8 @@ test("rendered workflows: observe checks with the project's names, nothing left 
   assert.doesNotMatch(review, /npm ci/, "the project's dependencies are not installed by the reviewer");
   assert.match(guard, /INVARIANT_LABEL: "invariante-aprovado"/);
   assert.match(evals, /paths:\n {6}- "src\/lib\/ai\/\*\*"\n {6}- "tests\/evals\/\*\*"\n/);
-  assert.match(evals, /run: npm run eval:agent -- --mock\n/);
+  assert.match(evals, /run: \|\n {10}npm run eval:agent -- --mock\n/, "a block scalar: `a: b` in the arguments cannot break the YAML");
+  assert.match(guard, /INVARIANTS_DIR: "tests\/invariants"/);
   assert.doesNotMatch(evals, /secrets\./, "the evals in CI use no key");
 });
 

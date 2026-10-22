@@ -40,6 +40,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ github.token }}
           INVARIANT_LABEL: "{{INVARIANT_LABEL}}"
+          INVARIANTS_DIR: "{{INVARIANTS_DIR}}"
         run: |
           GUARD=scripts/guard-invariants.ts
           if git show "origin/$BASE_REF:$GUARD" > "$RUNNER_TEMP/guard-invariants.ts" 2>/dev/null; then

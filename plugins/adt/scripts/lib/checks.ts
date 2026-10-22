@@ -422,7 +422,7 @@ export function adoptedConfig(ctx: Context): Adopted | null {
   return {
     template: d.template ?? {},
     mode: "observe",
-    observeChecks: (d.observeChecks ?? []).filter((c) => c in OBSERVE_WORKFLOWS),
+    observeChecks: (d.observeChecks ?? []).filter((c) => typeof c === "string" && Object.hasOwn(OBSERVE_WORKFLOWS, c)),
     requiredChecks: (d.requiredChecks ?? []).filter((c) => typeof c === "string" && CHECK_NAME_RE.test(c)),
     labels: Object.fromEntries(Object.entries(d.labels ?? {}).filter(([, n]) => typeof n === "string" && LABEL_NAME_RE.test(n))),
   };

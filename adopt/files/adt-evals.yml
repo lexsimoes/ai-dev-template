@@ -35,4 +35,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Evals without a model (no network, no cost)
-        run: {{EVAL_COMMAND}}
+        run: |
+          {{EVAL_COMMAND}}

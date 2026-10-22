@@ -1,7 +1,7 @@
 # Mission 0021: /adt:adopt (adoption on a branch, CI in observe mode)
 
 **Status:** in review
-**Branch:** `mission/0021-adopt` · **PR:** not opened yet
+**Branch:** `mission/0021-adopt` · **PR:** see the PR of `mission/0021-adopt`
 **Created on:** 2026-10-22 · **Approved by the owner on:** 2026-10-22 (M7c criteria 6 and 7; decisions 1–5 for PR 3; rehearsal on the real GoAgentic, PR only, no merge)
 
 ## Goal
@@ -67,4 +67,42 @@ The agent may not:
 
 ## Report
 
-_(filled in by the agent at the end)_
+- **What was done:**
+  - Kit `adopt/` (template-only):
+    - `kit.json`;
+    - observe workflows `adt-review`, `adt-invariants`, `adt-evals`;
+    - the `AGENTS.md` section.
+  - Guard: approval label and folder from `INVARIANT_LABEL` and `INVARIANTS_DIR`.
+  - `adopt.ts` (`fetch`, `plan`, `apply`, `labels`) and the `/adt:adopt` skill.
+  - `/adt:check-setup` for adopted projects.
+- **Evidence:**
+  - `tests/unit/plugin-adopt.test.ts` (8 tests):
+    - closed patterns, with shell, `..` and duplicate labels refused;
+    - the plan;
+    - the reviewer config mapped;
+    - rendered workflows, with no placeholder left, only the reviewer's secrets, the SDK pinned with `--ignore-scripts`, and a YAML block for the eval step;
+    - the real script on a git project: base branch refused; a different file refused with nothing written; `AGENTS.md` keeps every line; a second run writes nothing.
+  - `tests/unit/plugin-check-setup.test.ts` (adopted):
+    - required checks from classic protection;
+    - mapped labels;
+    - green streaks;
+    - a forged `adt.json` reaches nothing.
+- **GoAgentic rehearsal** (private; details in its PR):
+  - `plan`, then `apply`, on a branch made from the top of the PR stack.
+  - The project's own `npm run check` first failed on the kit's files (Biome style, and `tsc` on the reviewer's SDK and `.ts` imports). Fix: exclude exactly those files in `biome.json` and `tsconfig.json`, listed for the owner. Afterwards it was green: 1,316 tests, and the build passed.
+  - Guard green against the base. Control: a commit to an invariant test without the label is red.
+  - Mock eval: exit 0, no calls.
+  - Draft PR, never merged. The owner keeps it open until the real test ends.
+  - The project's CI does not run on PRs to that base, so it was dispatched on the branch instead.
+  - Re-applying after the kit changed showed `scripts/guard-invariants.ts` as a conflict and wrote nothing, as designed.
+- **Security review** (diff only, a separate agent):
+  - No finding at confidence ≥ 8.
+  - Four smaller issues fixed:
+    - the guard's folder now comes from the map;
+    - `Object.hasOwn` for check names;
+    - the eval step is a YAML block;
+    - `apply` also refuses the origin's default branch.
+- **What was NOT verified:**
+  - `/adt:adopt` driven by Claude in an interactive session (the owner's manual test, step 7c, after the release).
+  - `adt-review` with real keys.
+  - `adt-evals` on GitHub, which runs only when a PR touches AI paths.
