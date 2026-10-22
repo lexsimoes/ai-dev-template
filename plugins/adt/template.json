@@ -1,6 +1,6 @@
 {
   "$comment": "The template release this plugin creates projects from. Changed only in a release PR (docs/RELEASING.md); tests/unit/plugin-release.test.ts keeps it equal to the newest version in CHANGELOG.md.",
   "repository": "lexsimoes/ai-dev-template",
-  "release": "v0.1.0",
+  "release": "v0.2.0",
   "copierVersion": "9.18.2"
 }
