@@ -247,6 +247,14 @@ test("CI runs check-fix, from the target branch, on every fix commit of the PR",
     const planted = step("HEAD");
     assert.equal(planted.status, 1, planted.stdout);
     assert.match(planted.stdout, /tests\/invariants\/a\.test\.ts: protected path/);
+
+    // A message whose first paragraph spans two lines shows on GitHub as the fix subject: it is checked, and refused.
+    git("reset", "-q", "--hard", "HEAD~2");
+    writeFileSync(join(repo, "src.ts"), "export const a = 5;\n");
+    git("commit", "-q", "-am", `${FIX_COMMIT_SUBJECT}\nsecond line`);
+    const twoLines = step("HEAD");
+    assert.equal(twoLines.status, 1, twoLines.stdout);
+    assert.match(twoLines.stdout, /subject must be exactly/);
   } finally {
     rmSync(repo, { recursive: true, force: true });
     rmSync(runnerTemp, { recursive: true, force: true });
