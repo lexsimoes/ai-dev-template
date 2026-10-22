@@ -1,0 +1,39 @@
+# ai-dev-template: evals, in OBSERVE mode (adopted with /adt:adopt).
+# Runs the project's own eval command, without network or cost, on PRs that touch the AI paths below. It is not a
+# required check, and it is not a second eval: the real acceptance stays the project's own, on request, with its own
+# budget.
+
+name: adt evals (observe)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+{{EVAL_PATHS}}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adt-evals-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  adt-evals:
+    name: adt-evals
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.x"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Evals without a model (no network, no cost)
+        run: |
+          {{EVAL_COMMAND}}

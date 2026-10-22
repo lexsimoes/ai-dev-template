@@ -1,0 +1,80 @@
+# ai-dev-template: independent AI review, in OBSERVE mode (adopted with /adt:adopt).
+# It reviews each ready PR with the criteria in REVIEW.md and comments the result. It is not a required check: a red
+# result does not block the merge. /adt:check-setup says when it has been green long enough to become required, and
+# only the owner decides that.
+#
+# Keys (set by the owner in their own terminal, never in a chat): REVIEW_API_KEY (DeepSeek: standard and light tiers)
+# and REVIEW_DEEP_API_KEY (Anthropic: sensitive paths and the deep-review label). Without them the run says so (red).
+# Labels: the names in .github/review.json (deepLabel, rereviewLabel, approvalLabels), mapped at adoption.
+
+name: adt review (observe)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  adt-review:
+    name: adt-review
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: adt-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: write # post the report as a comment on the PR
+    steps:
+      - name: Fork PR
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::PR from a fork: the automated review does not run (no access to secrets)."
+          exit 1
+      - name: PR code (only to compute the diff)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reviewer from the target branch (the PR does not change its own review)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: base
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+      - name: Choose the reviewer version
+        id: source
+        run: |
+          if [ -f base/scripts/review/run.ts ]; then
+            echo "dir=base" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=pr" >> "$GITHUB_OUTPUT"
+            echo "::warning::The reviewer does not exist on the target branch yet; using this PR's version (initial setup)."
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.x"
+      - name: Install the reviewer's only dependency from its own lockfile, next to the reviewer (the project's package.json is not used)
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix "${{ steps.source.outputs.dir }}/scripts/review"
+      - name: Review
+        working-directory: pr
+        env:
+          REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
+          REVIEW_DEEP_API_KEY: ${{ secrets.REVIEW_DEEP_API_KEY }}
+          REVIEW_API_BASE_URL: ${{ vars.REVIEW_API_BASE_URL }}
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_ACTION: ${{ github.event.action }}
+          EVENT_LABEL: ${{ github.event.label.name }}
+          REVIEW_SCRIPT: ${{ github.workspace }}/${{ steps.source.outputs.dir }}/scripts/review/run.ts
+        run: node "$REVIEW_SCRIPT" --mode ci

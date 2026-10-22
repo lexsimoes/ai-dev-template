@@ -89,6 +89,7 @@ _exclude:
   # The Claude Code plugin and its marketplace are installed from this repository, not copied into projects.
   - .claude-plugin
   - plugins
+  - adopt
   - "tests/unit/plugin-*.test.ts"
   - docs/PLUGIN-TEST.md
   # The template's own missions are its history; projects get only the mission template and README.

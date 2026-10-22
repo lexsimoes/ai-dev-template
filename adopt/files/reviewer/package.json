@@ -1,0 +1,8 @@
+{
+  "name": "adt-reviewer",
+  "private": true,
+  "description": "The automated reviewer's only dependency, installed with npm ci next to the reviewer in the adt-review workflow. Not part of the project's own dependencies.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.134.0"
+  }
+}

@@ -13,6 +13,9 @@
 //   BASE_REF    target branch of the PR (e.g. "main")
 //   PR_LABELS   JSON with the names of the PR labels
 //   PR_NUMBER, GITHUB_REPOSITORY, GITHUB_TOKEN  to check who applied or removed the label
+//   INVARIANT_LABEL  name of the approval label, when a project adopted the workflow with its own label names
+//                    (default "invariant-approved")
+//   INVARIANTS_DIR   folder of the non-negotiable tests, when a project keeps them elsewhere (default "tests/invariants")
 //
 // Local use: npm run guard:invariants  (after git fetch origin main)
 
@@ -21,8 +24,12 @@ import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const DIR = "tests/invariants";
-const APPROVAL_LABEL = "invariant-approved";
+const DIR = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]{1,100}$/.test(process.env.INVARIANTS_DIR ?? "")
+  ? (process.env.INVARIANTS_DIR as string).replace(/\/+$/, "")
+  : "tests/invariants";
+const APPROVAL_LABEL = /^[\p{L}\p{N} ._:-]{1,50}$/u.test(process.env.INVARIANT_LABEL ?? "")
+  ? (process.env.INVARIANT_LABEL as string)
+  : "invariant-approved";
 const SKIP_PATTERN = /\b(?:test|it|describe|suite|t)\s*\.\s*(?:skip|todo|only)\b|\{\s*(?:skip|todo|only)\s*:/;
 const TEST_CALL = /\b(?:test|it)\s*\(/g;
 

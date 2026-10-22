@@ -179,6 +179,19 @@ Type `/adt:audit ~/Projects/<your-project>`. Expected:
 
 Send me the report (in a private message if the project is private), and anything that differed from "Expected".
 
+## 7c. Adoption (`/adt:adopt`)
+
+Rehearsed by the agent on GoAgentic itself (a PR, no merge). On your Mac, after the same release, in a project of yours that you are ready to adopt:
+1. In the project folder, start `claude` and type `/adt:adopt`. Expected:
+   - it asks the product branch, label names, paths, eval command and required checks, in one message;
+   - it shows the plan (add, identical, conflict) and waits for your "ok".
+2. After the "ok", expected:
+   - a new branch;
+   - nothing overwritten, and `AGENTS.md` keeps every line, with a section appended;
+   - the project's own checks pass;
+   - a draft PR whose description lists the `AGENTS.md` conflicts.
+3. `/adt:check-setup` in the project shows each observe check and how many PR runs in a row it was green.
+
 ## 8. Cleaning up (when you want)
 
 ```bash
