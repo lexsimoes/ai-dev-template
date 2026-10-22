@@ -122,7 +122,7 @@ test("git state from git's files: branch, commit, other branches; odd names left
 
 test("branch names: only what git itself would accept", () => {
   for (const ok of ["main", "feat/whatsapp-self-service", "codex/v1.2_fix"]) assert.ok(validBranch(ok), ok);
-  for (const bad of ["../../outside/token.txt", "-x", "a//b", "a/.hidden", "x.lock", "x.", "/abs", "a/", "with space"]) assert.ok(!validBranch(bad), bad);
+  for (const bad of ["../../outside/token.txt", "a..b", "-x", "a//b", "a/.hidden", "x.lock", "x.lock/y", "x.", "/abs", "a/", "with space"]) assert.ok(!validBranch(bad), bad);
 });
 
 test("hostile git files: no symbolic link, no `..`, no pointer elsewhere is followed", () => {
@@ -154,7 +154,16 @@ test("hostile git files: no symbolic link, no `..`, no pointer elsewhere is foll
     tree(join(root, "p3"), { "a.ts": "", ".git": `gitdir: ${join(outside, "repo")}\n` });
     assert.deepEqual(map(join(root, "p3")), { repository: true, branch: null, commit: null, branches: [], remoteBranches: [], more: 0 });
 
-    const output = JSON.stringify([map(join(root, "p1")), map(join(root, "p2")), map(join(root, "p3"))]);
+    // 4. The layout of a worktree, but its back-pointer names another project, or is missing: not followed either.
+    const fake = join(outside, "other/.git/worktrees/wt");
+    tree(fake, { HEAD: "ref: refs/heads/stolen\n", gitdir: `${join(outside, "elsewhere/.git")}\n` });
+    tree(join(outside, "other/.git"), { "refs/heads/stolen": sha });
+    tree(join(root, "p4"), { "a.ts": "", ".git": `gitdir: ${fake}\n` });
+    assert.deepEqual([map(join(root, "p4")).branch, map(join(root, "p4")).branches], [null, []], "points back elsewhere");
+    rmSync(join(fake, "gitdir"));
+    assert.deepEqual([map(join(root, "p4")).branch, map(join(root, "p4")).branches], [null, []], "no back-pointer");
+
+    const output = JSON.stringify([map(join(root, "p1")), map(join(root, "p2")), map(join(root, "p3")), map(join(root, "p4"))]);
     for (const leaked of ["hunter2", "stolen", "bbbbbbbbbbbb", "token"]) assert.ok(!output.includes(leaked), leaked);
   } finally {
     rmSync(root, { recursive: true, force: true });

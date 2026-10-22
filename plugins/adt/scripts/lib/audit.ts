@@ -237,14 +237,17 @@ export interface GitState {
 
 const BRANCH_RE = /^[\w./-]{1,100}$/;
 
-/** A branch name git itself would accept (a subset of `git check-ref-format`): never `..`, a leading `-` or `/`, `.lock`. */
+/**
+ * A branch name git itself would accept (a subset of `git check-ref-format`): no `..` anywhere, no leading `-`, no
+ * empty part, no part starting with `.` or ending in `.lock`, no trailing `.`.
+ */
 export function validBranch(name: string): boolean {
   return (
     BRANCH_RE.test(name) &&
     !name.startsWith("-") &&
-    !name.endsWith(".lock") &&
+    !name.includes("..") &&
     !name.endsWith(".") &&
-    name.split("/").every((part) => part !== "" && !part.startsWith("."))
+    name.split("/").every((part) => part !== "" && !part.startsWith(".") && !part.endsWith(".lock"))
   );
 }
 const SHA_RE = /^[0-9a-f]{40}$/;

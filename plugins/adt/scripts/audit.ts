@@ -135,9 +135,16 @@ function safeUnder(base: string, rel: string, kind: "file" | "dir"): string | nu
   return path;
 }
 
+/** git's own files are small; a larger one (a hostile `packed-refs`, say) is not read. */
+const MAX_GIT_FILE_BYTES = 5_000_000;
+
 const readUnder = (base: string, rel: string) => {
   const path = safeUnder(base, rel, "file");
   try {
+    if (path && lstatSync(path).size > MAX_GIT_FILE_BYTES) {
+      unreadable++;
+      return null;
+    }
     return path ? readFileSync(path, "utf-8") : null;
   } catch {
     unreadable++;
@@ -148,9 +155,9 @@ const readUnder = (base: string, rel: string) => {
 /** Ref files under a folder of git's directory, without following symbolic links. */
 function refsUnder(common: string, sub: string): string[] {
   if (!safeUnder(common, sub, "dir")) return [];
-  const out: string[] = [];
+  const found: string[] = [];
   const stack = [sub];
-  while (stack.length && out.length < 1000) {
+  while (stack.length && found.length < 1000) {
     const rel = stack.pop() ?? "";
     let names: string[];
     try {
@@ -163,13 +170,13 @@ function refsUnder(common: string, sub: string): string[] {
       try {
         const st = lstatSync(join(common, path));
         if (st.isDirectory()) stack.push(path);
-        else if (st.isFile()) out.push(path);
+        else if (st.isFile()) found.push(path);
       } catch {
         unreadable++;
       }
     }
   }
-  return out;
+  return found;
 }
 
 /** git state known to exist but not readable safely: the map says "repository", with branch and commit unknown. */

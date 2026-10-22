@@ -1,7 +1,7 @@
 # Mission 0020: /adt:audit asks which branch is the product
 
 **Status:** in review
-**Branch:** `mission/0020-audit-product-branch` · **PR:** not opened yet
+**Branch:** `mission/0020-audit-product-branch` · **PR:** https://github.com/lexsimoes/ai-dev-template/pull/23
 **Created on:** 2026-10-22 · **Approved by the owner on:** 2026-10-22 (request after the GoAgentic rehearsal)
 
 ## Goal
