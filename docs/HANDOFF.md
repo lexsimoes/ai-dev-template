@@ -87,11 +87,37 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - A flaky test goes to quarantine with an issue opened, never silently disabled.
    - Exploratory session only on request, opening issues with screenshots and reproduction steps; each confirmed bug becomes a new test.
    - Breaker and newcomer modes only on request.
-6. **M8 (rehearsal):** a new project from scratch; an audit of an existing owner project (GoAgentic, read-only, on a branch); someone (or the newcomer agent) installing from the README alone; the reviewer comparisons already planned; a PR that weakens an invariant and is blocked; a real check that an unrelated label does not turn a red required check green (done on 2026-10-21 in PR #8 with a green check; repeat with a red one).
+6. **M8 (rehearsal)**, on `lexsimoes/adt-sandbox-m7b` only (owner's decision, 2026-10-22): the new-project path as is; the existing-project path (`/adt:audit` + `/adt:adopt`) against the sandbox, after adding a small realistic UI to its sample app so the M7d tester has flows to cover; someone (or the newcomer agent) installing from the README alone; the reviewer comparisons already planned; a PR that weakens an invariant and is blocked; a real check that an unrelated label does not turn a red required check green (done on 2026-10-21 in PR #8 with a green check; repeat with a red one).
+
+7. **Release `v0.4.0`** after M8.
+8. **First real-world use, after the template is done:** a full `/adt:audit` + `/adt:adopt` on GoAgentic, with the owner watching. Until then GoAgentic is not a test bed (it is under active development by Codex).
+
+## GoAgentic rehearsal: what it taught (closed, 2026-10-22)
+
+The adoption rehearsal PR (lexsimoes/goagentic#23) was closed without merge by the owner's decision. What it taught, for the template and for the first real use:
+- **Audit:**
+  - The default branch was behind the product, which lived in a stack of open PRs. `/adt:audit` now asks which branch or PRs are the product and records it (#23 of this repository).
+  - The inferred PRD needed the owner's corrections on goal, users, scope and non-negotiables. Confirming the PRD with the owner is not optional.
+  - The project's own tests covered most non-negotiables outside `tests/invariants/`; the agent's mapping of rules to tests must be confirmed by the owner (marked †).
+- **Adopt:**
+  - The project's formatter, linter and type check include every file. Exclude exactly the kit's files in the project's tool config, never a rule.
+  - The reviewer's SDK needs its own lockfile (`npm ci`).
+  - The PRD and HANDOFF are never "trivial" for the reviewer.
+  - The project's CI did not run on PRs to the product branch: dispatch it, and list the trigger as an owner decision.
+  - Map label names (keep the project's own); create new labels only after the owner confirms. Without a `re-review` label, `adt-review` stays red after every push (observe mode, not blocking).
+  - Merge `AGENTS.md` by appending a section, and list every conflict (branch prefix, HANDOFF location, language, extra rules) for the owner.
+- **CI pulls from GHCR:** `supabase/setup-cli` forces `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io`, and anonymous pulls failed with `toomanyrequests` (429). The fix:
+  - `docker login ghcr.io` with the job's `GITHUB_TOKEN` (`packages: read`), and `docker logout` after the last pull;
+  - `env -u SUPABASE_INTERNAL_IMAGE_REGISTRY` on `supabase db start`, `db reset` and `test db`, so the pinned CLI falls back from the public ECR to the authenticated GHCR and then to Docker Hub, with 3 tries and 4 s / 8 s waits (the same approach Codex used in goagentic#24);
+  - Supabase images cached with `docker save`/`docker load` and `actions/cache`.
+  - Proven by three green runs, the third with no pull at all.
+  - This repository's CI pulls no container image, so there is nothing to change here. The pattern is for adopted projects that use Supabase (see Pending decisions).
 
 ## Pending decisions (owner)
 
-- Delete the test repositories `lexsimoes/adt-sandbox-m7b` and `lexsimoes/adt-manual-test` after reviewing (agents cannot delete repositories).
+- "Keep the GHCR authenticated-pull fix in the template CI": the template's own CI pulls no container image. Proposal: `/adt:audit` flags a project CI that uses `supabase/setup-cli` without it, and `/adt:adopt` offers the fix as a separate, owner-approved change. Waiting for the owner's choice.
+
+- Delete the test repository `lexsimoes/adt-manual-test` after reviewing (agents cannot delete repositories). `lexsimoes/adt-sandbox-m7b` stays: it is the M8 test bed.
 - The template's `AGENTS.md` is the official version of the method (owner decision, 2026-10-21).
 - Sections 4 (Context7) and 5 (UI/UX) of `AGENTS.md` incorporate the summary of the owner's `~/.codex/AGENTS.md` sent on 2026-10-21.
 - M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
