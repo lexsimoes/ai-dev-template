@@ -16,6 +16,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
   - In a folder with other code it stops and changes nothing (audit mode comes in M7c).
 - Bridges to `AGENTS.md` for agents that do not read it on their own: `.gemini/settings.json` (Gemini CLI) and `.aider.conf.yml` (Aider).
 
+### Changed
+- `.gitignore` also ignores `.idea/`, `.vscode/` and `Thumbs.db`, so editor settings are not committed or published by accident.
+
 ## [0.1.0] - 2026-10-21
 
 First release: the workflow, the checks and the Copier template.

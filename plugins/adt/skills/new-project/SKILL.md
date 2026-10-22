@@ -24,7 +24,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/new-project.ts" inspect
   - **Stop here.** Run nothing else, create nothing, and edit no file.
 - **`adt-project`**: a project from this template (for example, a setup that stopped halfway).
   - Skip steps 3 and 4.
-  - Read `github_owner` and `project_slug` from `.copier-answers.yml`.
+  - Use `folder.owner` and `folder.slug` from `inspect` (do not read `.copier-answers.yml` yourself). If either is null, stop: the file was edited by hand, so ask the user to check it.
   - Ask only whether the repository is public or private (it is used only if the repository does not exist yet).
   - Go to step 5.
 - **`empty`**: a new project. Go on.

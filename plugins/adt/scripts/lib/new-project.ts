@@ -32,8 +32,12 @@ const IGNORABLE = new Set([".git", ".DS_Store", "Thumbs.db", ".idea", ".vscode"]
 
 export type Folder =
   | { kind: "empty" }
-  | { kind: "adt-project"; release: string }
+  /** owner and slug from `.copier-answers.yml`, only when they are a valid GitHub username and repository name. */
+  | { kind: "adt-project"; release: string; owner: string | null; slug: string | null }
   | { kind: "code"; examples: string[] };
+
+/** File names shown to the user (and so to the conversation): only plain names; the rest are counted. */
+const SHOWN_NAME_RE = /^[A-Za-z0-9._ -]{1,60}$/;
 
 /** What the folder holds: nothing (new project), a project from this template (continue its setup), or other code (stop). */
 export function inspectFolder(entries: string[], read: (path: string) => string | null, template: Template): Folder {
@@ -41,11 +45,19 @@ export function inspectFolder(entries: string[], read: (path: string) => string 
   if (answers) {
     const a = parseAnswers(answers);
     if (parseTemplateSource(a._src_path ?? "")?.toLowerCase() === template.repository.toLowerCase()) {
-      return { kind: "adt-project", release: parseVersion(a._commit ?? "") ? (a._commit as string) : "an unreleased commit" };
+      return {
+        kind: "adt-project",
+        release: parseVersion(a._commit ?? "") ? (a._commit as string) : "an unreleased commit",
+        owner: OWNER_RE.test(a.github_owner ?? "") ? (a.github_owner as string) : null,
+        slug: SLUG_RE.test(a.project_slug ?? "") ? (a.project_slug as string) : null,
+      };
     }
   }
   const other = entries.filter((e) => !IGNORABLE.has(e)).sort();
-  return other.length ? { kind: "code", examples: other.slice(0, 5) } : { kind: "empty" };
+  if (!other.length) return { kind: "empty" };
+  const shown = other.filter((e) => SHOWN_NAME_RE.test(e)).slice(0, 5);
+  const rest = other.length - shown.length;
+  return { kind: "code", examples: rest ? [...shown, `(${rest} more)`] : shown };
 }
 
 /** Suggested project name and slug from the folder name. */
@@ -169,6 +181,10 @@ export function createProject(ctx: Context, answers: Answers, template: Template
   if (folder.kind === "adt-project") {
     steps.push({ id: "copier", status: "exists", detail: `Already a project from ${template.repository} (${folder.release}).` });
   } else {
+    // A folder that looks empty but whose git repository has commits: pushing it would publish that history.
+    if (ctx.run("git", ["rev-parse", "--verify", "-q", "HEAD"]).code === 0) {
+      return [{ id: "copier", status: "failed", detail: "This folder's git repository already has commits: nothing was changed. Use a new, empty folder." }];
+    }
     const r = ctx.run("copier", copierArgs(answers, template));
     if (r.code !== 0) return [{ id: "copier", status: "failed", detail: `Copier failed: ${firstLine(r.stderr || r.stdout)}` }];
     steps.push({ id: "copier", status: "created", detail: `Project files from ${template.repository} ${template.release}.` });
@@ -207,6 +223,11 @@ export function setupRepo(ctx: Context, answers: Answers, visibility: "public" |
   if (remote.code === 0) {
     const slug = parseGitHubRemote(remote.stdout);
     if (!slug) return { slug: null, step: { id: "repo", status: "failed", detail: "`origin` is not a GitHub repository: nothing was pushed." } };
+    // The user approves a command that names one repository: never act on another one through `origin`.
+    const named = `${answers.owner}/${answers.slug}`;
+    if (slug.toLowerCase() !== named.toLowerCase()) {
+      return { slug: null, step: { id: "repo", status: "failed", detail: `\`origin\` points to ${slug}, not to ${named} as in this command: nothing was pushed or changed.` } };
+    }
     if (ctx.run("gh", ["api", `repos/${slug}`, "--jq", ".full_name"]).code !== 0) {
       return { slug: null, step: { id: "repo", status: "failed", detail: `\`origin\` points to ${slug}, which does not exist or you cannot see.` } };
     }
