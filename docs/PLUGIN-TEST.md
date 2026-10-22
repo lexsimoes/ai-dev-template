@@ -119,7 +119,41 @@ Run `/adt:new-project`. Expected:
 - The table from step 4.
 - Anything that differed from "Expected".
 
-## 7. Cleaning up (when you want)
+## 7. Product discovery (`/adt:discover`)
+
+About 10 minutes. It needs a project created by `/adt:new-project`. If you already deleted `adt-manual-test`, run steps 2 to 4 again first.
+
+Run it once the release that brings `/adt:discover` is published. Claude Code updates a plugin only when its version changes, and the version changes only in a release (`claude plugin update` answers "already at the latest version" otherwise). Then:
+
+```bash
+claude plugin marketplace update ai-dev-template
+claude plugin update adt@ai-dev-template
+cd ~/Projects/adt-manual-test && git switch main && git pull
+claude
+```
+
+Type `/adt:discover`. Expected:
+1. It asks **8 numbered questions in one message**, in Portuguese.
+2. Answer as a small business of your choice. In question 4, give at least one thing that must never happen. In question 8, give one doubt (for example, whether an AI understands informal messages).
+3. It writes `specs/PRD.md`, one or more missions in `docs/missions/` and `docs/HANDOFF.md`. It runs `check` until `ok`.
+   - When the demo app is still there, mission 0001 removes it.
+   - Each non-negotiable starts at `INV-003` and has a list of cases.
+4. It suggests skills and MCPs with their install command, and **installs nothing**.
+5. It shows a summary and **waits for your "ok"**. Before you answer, in another Terminal window:
+
+   ```bash
+   cd ~/Projects/adt-manual-test && git status --short   # changed PRD, HANDOFF and new missions; nothing in tests/invariants/
+   ```
+
+6. After the "ok", it creates the `mission/0000-discovery` branch and opens a PR. CI runs on it.
+
+Send me:
+- the questions;
+- the summary from item 5;
+- the PR link;
+- anything that differed from "Expected".
+
+## 8. Cleaning up (when you want)
 
 ```bash
 gh auth refresh -h github.com -s delete_repo   # once: lets gh delete repositories

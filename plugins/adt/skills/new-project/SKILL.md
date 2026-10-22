@@ -107,10 +107,6 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/check-setup.ts"
 Finish with three short parts:
 - **Created:** the repository URL, the files, the labels, the protection of `main`.
 - **Pending:** keys still to set, a `skipped` or `failed` step, and CI still running on `main` (it runs on the first push).
-- **Next step, the first PR:**
-  1. In `specs/PRD.md`, write the goal, the acceptance criteria and the non-negotiables.
-  2. Write a mission in `docs/missions/` from `_TEMPLATE.md`.
-  3. Ask the agent to carry it out. It works on a `mission/<NNNN>-<topic>` branch and opens a draft PR.
-  4. The user merges; agents never do.
+- **Next step: `/adt:discover`.** In this folder, it turns a short conversation about the product into `specs/PRD.md` and the first mission, as a PR the user approves and merges (agents never merge).
 
 Running `/adt:new-project` again in this folder only finishes what is missing. `/adt:check-setup` checks everything at any time.

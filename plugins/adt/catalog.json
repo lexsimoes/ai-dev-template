@@ -1,0 +1,38 @@
+{
+  "checked": "2026-10-22",
+  "note": "The only skills and MCPs /adt:discover suggests. Each one is documented in docs/SKILLS.md of the template; the user installs it in their own terminal, never the agent.",
+  "tools": [
+    {
+      "id": "context7",
+      "kind": "mcp",
+      "for": "Current documentation of the libraries the project uses (AGENTS.md, section 4)",
+      "when": ["libraries"],
+      "install": "npx ctx7 setup --claude",
+      "source": "https://github.com/upstash/context7"
+    },
+    {
+      "id": "frontend-design",
+      "kind": "skill",
+      "for": "Designing screens with a deliberate visual direction (AGENTS.md, section 5)",
+      "when": ["ui"],
+      "install": "npx skills add anthropics/skills --skill frontend-design -a claude-code",
+      "source": "https://github.com/anthropics/skills"
+    },
+    {
+      "id": "react-best-practices",
+      "kind": "skill",
+      "for": "React and Next.js patterns and performance",
+      "when": ["react"],
+      "install": "npx skills add vercel-labs/agent-skills --skill react-best-practices -a claude-code",
+      "source": "https://github.com/vercel-labs/agent-skills"
+    },
+    {
+      "id": "security-review",
+      "kind": "built-in",
+      "for": "/security-review on the diff after changes to authentication, user data, payments or external input (AGENTS.md, section 1.6)",
+      "when": ["sensitive"],
+      "install": null,
+      "source": "built into Claude Code"
+    }
+  ]
+}

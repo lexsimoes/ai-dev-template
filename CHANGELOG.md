@@ -7,6 +7,15 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Added
+- `/adt:discover` (plugin `adt`), for a project created by `/adt:new-project`:
+  - a short conversation about the product becomes `specs/PRD.md`: goal, verifiable acceptance criteria, and non-negotiables with test cases;
+  - it also writes the first mission(s), and a throwaway prototype first when an idea or AI model is risky;
+  - a deterministic `check` holds the PRD and missions to these rules;
+  - the owner approves before the commit, and the result arrives as a PR;
+  - skills and MCPs are suggested from a fixed list (`plugins/adt/catalog.json`, documented in `docs/SKILLS.md`), never installed;
+  - nothing is written in `tests/invariants/`: each invariant test is created with the code it protects, in a mission, under the owner's `invariant-approved` label.
+
 ## [0.2.0] - 2026-10-22
 
 Claude Code becomes the entry point: the `adt` plugin creates a project and checks its setup.

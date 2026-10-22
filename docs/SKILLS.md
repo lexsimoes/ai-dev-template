@@ -16,6 +16,17 @@ A **skill** is a package of instructions the agent loads only when the task call
 | `react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | `npx skills add vercel-labs/agent-skills --skill react-best-practices -a claude-code` | ⬜ not installed in the session |
 | Context7 | [upstash/context7](https://github.com/upstash/context7) (MCP: `resolve-library-id`, `query-docs`) | `npx ctx7 setup --claude` | ⬜ not installed in the session |
 
+### Suggested by `/adt:discover`
+
+`/adt:discover` (Claude Code plugin `adt`) suggests only these, from the answers about the product. The list is fixed (`plugins/adt/catalog.json` in the template repository). It shows the install command and never installs anything itself.
+
+| Need in the answers | Suggestion |
+|---|---|
+| External libraries or frameworks | Context7 |
+| Screens | `frontend-design` |
+| React or Next.js | `react-best-practices` |
+| Login, payments, personal data, external input | `/security-review` |
+
 ## Codex
 
 Codex loads skills from `.agents/skills/` (in the repository) and from `~/.agents/skills/` (the user's). Call a skill with `$name` or through the `/skills` menu.
