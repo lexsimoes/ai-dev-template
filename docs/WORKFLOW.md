@@ -309,13 +309,15 @@ A few tests (3 to 8) walk through the **critical flows** of the PRD in a real br
 - **healer**: repairs a failing test. It may update **selectors only**. Changing what a test asserts, or removing a test, needs your `test-approved` label; it never marks a test `fixme` or `skip`.
 
 **The guard** (`scripts/guard-e2e.ts`, first step of the `e2e` job, run from the target branch before any PR code) enforces it:
-- an assertion is the matcher of an `expect(...)` and its expected values; the subject (usually a locator) may change freely, because that is a selector;
-- without your `test-approved` label, it fails when an assertion changes or goes away, a test is removed or renamed, a spec file is deleted, or `e2e/fixtures.ts` / `playwright.config.ts` change;
-- it always fails on `test.skip`, `test.only`, `test.fixme`, `test.fail` (also on `describe`), label or not: a flaky test goes to quarantine, never off;
-- the label counts only when the last person who applied it owns `e2e/` (or, without such a rule, `tests/invariants/`) in the target branch's `CODEOWNERS`;
-- adding tests or assertions needs no label.
+- in an existing spec, only selectors may change: comments and formatting are ignored, and every locator chain (`page.getByRole(...)`, `x.locator(...).filter(...)`, `.first()`, `.nth(...)`) counts as one selector. Anything else (an assertion, an expected value, a wait, a step, an import, a `return`, a `try`, a route) needs your `test-approved` label;
+- deleting or renaming a spec, adding or changing any other file in `e2e/` (fixtures, helpers) or `playwright.config.ts` also needs it;
+- a new spec needs no label if it imports only from `./fixtures.ts` and does not route, mock or reconfigure the browser;
+- skipping, focusing or switching off a test (`.skip`, `.only`, `.fixme`, `.fail`, on any receiver, also `testInfo.skip()` or `["skip"]`) always fails, label or not: a flaky test goes to quarantine, never off;
+- the label counts only when the last person who applied it owns `e2e/` (or, without such a rule, `tests/invariants/`) in the target branch's `CODEOWNERS`.
 
-What it does not catch: a subject swapped for a weaker one with the same matcher (e.g. a broader locator), or a regex expected value that contains a quote. The reviewer reads every e2e diff.
+The job installs with `npm ci --ignore-scripts` and calls `npx --no playwright test` directly, so a PR's `package.json` cannot run code after the guard or swap the test command.
+
+What it does not catch: a locator pointed at a different element (that is what a selector change is), or a dependency swap in the lockfile (the `dependencies` check and the reviewer see it).
 
 The agents use the Playwright MCP server in `.mcp.json` (Claude Code asks you to approve it the first time). After updating `@playwright/test`, regenerate the agents, then reapply the project's edits: the "Project rules" section at the end, the healer's lines that said "fix assertions" and "mark `test.fixme()`", and no `browser_run_code_unsafe` for the planner. `tests/unit/web.test.ts` fails if any is missing.
 

@@ -1,5 +1,6 @@
-// End-to-end guard: selectors may change, what a test checks may not (without the owner's test-approved),
-// and nothing is ever skipped. The CI flow runs the script on a temporary repository with a fake GitHub API.
+// End-to-end guard: in an existing spec only selectors may change without the owner's test-approved, and nothing
+// is ever skipped. Every bypass found by the security review is planted here. The CI flow runs the script on a
+// temporary repository with a fake GitHub API.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -9,7 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { assertions, testTitles, weakened } from "../../scripts/guard-e2e.ts";
+import { newSpecProblems, normalize, skeleton } from "../../scripts/guard-e2e.ts";
 
 const run = promisify(execFile);
 const SCRIPT = resolve("scripts/guard-e2e.ts");
@@ -20,26 +21,45 @@ test("CA-02: a valid coupon lowers the total", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("total")).toHaveText("$50.00");
   await page.getByLabel("Discount code").fill("WELCOME10");
+  const response = await page.request.get("/");
+  expect(response.status()).toBe(200);
   await expect(page.getByTestId("total")).toHaveText("$45.00");
-  expect(page.url()).not.toContain("error");
 });
 `;
 
-test("assertions: the matcher and expected values count, the subject does not", () => {
-  assert.deepEqual(assertions(SPEC), ['expect().toHaveText("$50.00")', 'expect().toHaveText("$45.00")', 'expect().not.toContain("error")']);
-  assert.deepEqual(assertions('await expect.soft(\n  page.locator("a(b)"),\n).toHaveCount( 2 );'), ["expect.soft().toHaveCount(2)"]);
-  assert.deepEqual(assertions("await expect(page).toHaveURL(/\\/checkout\\?x=(1)$/);"), ["expect().toHaveURL(/\\/checkout\\?x=(1)$/)"]);
-  assert.deepEqual(testTitles(SPEC), ["CA-02: a valid coupon lowers the total"]);
+test("normalize: comments, whitespace and trailing commas do not count; strings do", () => {
+  assert.equal(normalize("a ( b , ) // c\n/* d */ 'x  y'"), "a(b)'x  y'");
+  assert.equal(normalize("return x"), "return x");
 });
 
-test("weakened: a selector change passes; a changed value, a removed assertion or a renamed test does not", () => {
-  const selector = SPEC.replaceAll('getByTestId("total")', 'getByRole("status", { name: "Total" })');
-  assert.deepEqual(weakened(SPEC, selector), []);
-  assert.deepEqual(weakened(SPEC, SPEC.replace('"$45.00"', '"$50.00"')), ['assertion changed or removed: `expect().toHaveText("$45.00")`']);
-  assert.deepEqual(weakened(SPEC, SPEC.replace('  expect(page.url()).not.toContain("error");\n', "")), ['assertion changed or removed: `expect().not.toContain("error")`']);
-  assert.match(weakened(SPEC, SPEC.replace("CA-02: a valid", "CA-02: any")).join("\n"), /test removed or renamed/);
-  // Adding a test or an assertion is fine.
-  assert.deepEqual(weakened(SPEC, `${SPEC}\ntest("CA-03: more", async () => { expect(1).toBe(1); });\n`), []);
+test("skeleton: a selector change, reformatting or a comment keep the same skeleton", () => {
+  const variants = [
+    SPEC.replaceAll('page.getByTestId("total")', 'page.getByRole("status", { name: "Total" }).first()'),
+    SPEC.replace('page.getByLabel("Discount code")', 'summary.locator("form").getByRole("textbox").nth(0)'),
+    SPEC.replaceAll("  ", "    ").replace("await page.goto", "// open the page\n  await page.goto"),
+  ];
+  for (const v of variants) assert.equal(skeleton(v), skeleton(SPEC));
+});
+
+test("skeleton: anything that is not a selector changes the skeleton (the review's bypasses)", () => {
+  const weakened = {
+    "commented assertion": SPEC.replace('await expect(page.getByTestId("total")).toHaveText("$45.00");', '// await expect(page.getByTestId("total")).toHaveText("$45.00");'),
+    "commented test": `import { test, expect } from "./fixtures.ts";\n/*\n${SPEC.split("\n").slice(1).join("\n")}*/\n`,
+    "changed value": SPEC.replace('"$45.00"', '"$50.00"'),
+    "early return": SPEC.replace('await page.goto("/");', 'return;\n  await page.goto("/");'),
+    "swallowed failures": SPEC.replace('await page.goto("/");', 'try { await page.goto("/");').replace('toHaveText("$45.00");', 'toHaveText("$45.00"); } catch {}'),
+    "fake library": SPEC.replace('"./fixtures.ts"', '"./helpers.ts"'),
+    "isolation removed": SPEC.replace('await page.goto("/");', 'await page.context().unrouteAll();\n  await page.goto("/");'),
+    "trivial subject": SPEC.replace("expect(response.status())", "expect(200)"),
+  };
+  for (const [name, source] of Object.entries(weakened)) assert.notEqual(skeleton(source), skeleton(SPEC), name);
+});
+
+test("new spec: only ./fixtures.ts imports, no routing, mocking or reconfiguring", () => {
+  assert.deepEqual(newSpecProblems(SPEC), []);
+  assert.match(newSpecProblems(SPEC.replace('"./fixtures.ts"', '"./helpers.ts"')).join(), /imports `\.\/helpers\.ts`/);
+  assert.match(newSpecProblems(SPEC.replace('await page.goto("/");', 'await page.route("**", (r) => r.fulfill({ body: "" }));')).join(), /routes, mocks/);
+  assert.match(newSpecProblems(`${SPEC}\ntest.use({ baseURL: "https://example.com" });\n`).join(), /reconfigures/);
 });
 
 let repo = "";
@@ -60,7 +80,7 @@ function write(files: Record<string, string | null>): void {
     }
   }
   git("add", "-A");
-  git("-c", "commit.gpgsign=false", "commit", "-qm", "c");
+  git("-c", "commit.gpgsign=false", "commit", "-qm", "c", "--allow-empty");
 }
 
 async function guard(labels: string[]): Promise<{ code: number; out: string }> {
@@ -118,20 +138,20 @@ after(() => {
   rmSync(repo, { recursive: true, force: true });
 });
 
-test("guard: a selector change and a new test pass without any label", async () => {
+test("guard: a selector change and a clean new spec pass without any label", async () => {
   pr({
-    "e2e/coupon.spec.ts": SPEC.replaceAll('getByTestId("total")', 'getByRole("status", { name: "Total" })'),
-    "e2e/inbox.spec.ts": 'import { test, expect } from "./fixtures.ts";\ntest("CA-03: inbox", async () => { expect(1).toBe(1); });\n',
+    "e2e/coupon.spec.ts": SPEC.replaceAll('page.getByTestId("total")', 'page.getByRole("status", { name: "Total" })'),
+    "e2e/inbox.spec.ts": 'import { test, expect } from "./fixtures.ts";\ntest("CA-03: inbox", async ({ page }) => { await page.goto("/support"); await expect(page).toHaveTitle(/Support/); });\n',
   });
   const r = await guard([]);
   assert.equal(r.code, 0, r.out);
 });
 
-test("guard: a changed expected value fails without the label, passes with the owner's", async () => {
-  pr({ "e2e/coupon.spec.ts": SPEC.replace('"$45.00"', '"$50.00"') });
+test("guard: a weakened spec fails without the label, passes with the owner's, fails with a non-owner's", async () => {
+  pr({ "e2e/coupon.spec.ts": SPEC.replace('await page.goto("/");', 'return;\n  await page.goto("/");') });
   const without = await guard([]);
   assert.equal(without.code, 1);
-  assert.match(without.out, /assertion changed or removed: `expect\(\)\.toHaveText\("\$45\.00"\)`, without a valid `test-approved` label/);
+  assert.match(without.out, /`e2e\/coupon\.spec\.ts` changes more than selectors: `…[^`]*` became `…[^`]*return;/);
   labeler = "Owner";
   const owner = await guard(["test-approved"]);
   assert.equal(owner.code, 0, owner.out);
@@ -143,23 +163,38 @@ test("guard: a changed expected value fails without the label, passes with the o
   labeler = "owner";
 });
 
-test("guard: a deleted spec, or a change to the isolation or the config, needs the label", async () => {
+test("guard: deleting a spec, adding a helper, or touching the fixtures or the config needs the label", async () => {
   pr({ "e2e/coupon.spec.ts": null });
-  assert.match((await guard([])).out, /`e2e\/coupon\.spec\.ts` deleted/);
+  assert.match((await guard([])).out, /`e2e\/coupon\.spec\.ts` deleted or renamed/);
+  pr({ "e2e/helpers.ts": "export const expect = () => ({ toHaveText: () => undefined });\n" });
+  assert.match((await guard([])).out, /`e2e\/helpers\.ts` added/);
   pr({ "e2e/fixtures.ts": "export const isolated = false;\n", "playwright.config.ts": "export default { retries: 9 };\n" });
   const r = await guard([]);
   assert.equal(r.code, 1);
-  assert.match(r.out, /`e2e\/fixtures\.ts` changed \(isolation or run setup\)/);
+  assert.match(r.out, /`e2e\/fixtures\.ts` changed/);
   assert.match(r.out, /`playwright\.config\.ts` changed/);
+  pr({ "e2e/mocked.spec.ts": SPEC.replace('await page.goto("/");', 'await page.route("**", (r) => r.fulfill({ body: "" }));') });
+  assert.match((await guard([])).out, /new `e2e\/mocked\.spec\.ts` routes, mocks or reconfigures/);
 });
 
-test("guard: skipping, focusing or fixme fails even with the owner's label", async () => {
-  for (const marker of ["test.skip", "test.fixme", "test.only", "test.describe.skip", "test.fail"]) {
-    pr({ "e2e/coupon.spec.ts": SPEC.replace('test("CA-02', `${marker}("CA-02`) });
-    labeler = "Owner";
+test("guard: skipping, focusing or fixme fails even with the owner's label, in any form", async () => {
+  const forms = {
+    "test.skip": SPEC.replace('test("CA-02', 'test.skip("CA-02'),
+    "test.only": SPEC.replace('test("CA-02', 'test.only("CA-02'),
+    "describe split over lines": `${SPEC}\ntest.describe\n  .skip("x", () => {});\n`,
+    "bracket access": `${SPEC}\ntest.describe["fixme"]("x", () => {});\n`,
+    "testInfo.skip": SPEC.replace("async ({ page }) => {", "async ({ page }, testInfo) => {\n  testInfo.skip();"),
+    "test.step.skip": SPEC.replace('await page.goto("/");', 'await test.step.skip("all", async () => { await page.goto("/"); });'),
+    "test.fail": SPEC.replace('test("CA-02', 'test.fail("CA-02'),
+  };
+  labeler = "Owner";
+  for (const [name, source] of Object.entries(forms)) {
+    pr({ "e2e/coupon.spec.ts": source });
     const r = await guard(["test-approved"]);
-    assert.equal(r.code, 1, marker);
-    assert.match(r.out, /skips, focuses or switches off a test/, marker);
+    assert.equal(r.code, 1, name);
+    assert.match(r.out, /skips, focuses or switches off a test/, name);
   }
+  pr({ "e2e/widget.spec.tsx": 'import { test } from "./fixtures.ts";\ntest.skip("x", () => {});\n' });
+  assert.match((await guard(["test-approved"])).out, /`e2e\/widget\.spec\.tsx` skips/, ".tsx files are checked too");
   labeler = "owner";
 });

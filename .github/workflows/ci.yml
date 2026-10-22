@@ -141,14 +141,16 @@ jobs:
             GUARD="$RUNNER_TEMP/guard-e2e.ts"
           fi
           node "$GUARD"
+      # --ignore-scripts and no `npm run`: a PR's package.json cannot run code after the guard (a postinstall that
+      # rewrites the specs) or swap the test command (an "e2e" script that skips them).
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Browser (the Chromium pinned by @playwright/test)
-        run: npx playwright install --with-deps chromium
+        run: npx --no playwright install --with-deps chromium
       # Isolated: the demo app runs with APP_ENV=e2e and the fake AI provider, no secret reaches this job,
       # and the browser can only reach the app (playwright.config.ts, e2e/fixtures.ts).
       - name: End-to-end tests of the critical flows
-        run: npm run e2e
+        run: npx --no playwright test --config=playwright.config.ts
       - name: Report (on failure)
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

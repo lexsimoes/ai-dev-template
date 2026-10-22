@@ -20,11 +20,13 @@ The agent may not create the label in this repository (the owner does), change t
 ## Items
 
 - [x] 1. `scripts/guard-e2e.ts`:
-  - an assertion = the matcher of an `expect(...)` and its expected values, without the subject;
-  - without `test-approved`: a changed or removed assertion, a removed or renamed test, a deleted spec, a changed `e2e/fixtures.ts` or `playwright.config.ts` fail;
-  - skip, only, fixme and fail always fail;
+  - in an existing spec, only selectors may change without `test-approved` (comments and formatting ignored; every locator chain counts as one selector);
+  - deleting a spec, adding or changing any other file in `e2e/`, or changing `playwright.config.ts` needs the label;
+  - a new spec may import only `./fixtures.ts` and may not route, mock or reconfigure;
+  - skip, only, fixme and fail in any form always fail;
   - the label counts only from an owner in the target branch's `CODEOWNERS`.
-- [x] 2. CI: first step of the `e2e` job, from the target branch, before `npm ci`.
+  - First version compared assertion fingerprints; the security review showed bypasses (commented assertions, early `return`, `try/catch`, a fake `expect` from a helper, `testInfo.skip()`, split or bracket `skip`). Rewritten to compare the whole spec with selectors masked; every bypass is a planted test.
+- [x] 2. CI: first step of the `e2e` job, from the target branch, before `npm ci`; the job installs with `--ignore-scripts` and calls `npx --no playwright test` directly (security review: a PR's `package.json` could skip the tests or rewrite them after the guard).
 - [x] 3. `test-approved` in `/adt:new-project` and `/adt:check-setup` (one list), the README commands and the reviewer's `approvalLabels`.
 - [x] 4. The healer's conflicting upstream lines rewritten; no `browser_run_code_unsafe` for the planner; tested.
 - [x] 5. `AGENTS.md` 1.3 (and its twin), `docs/WORKFLOW.md`, `CHANGELOG.md`, `docs/HANDOFF.md`.
@@ -44,9 +46,10 @@ The agent may not create the label in this repository (the owner does), change t
 ## Report
 
 - **What was done:** items 1–5.
-- **Evidence:** `tests/unit/guard-e2e.test.ts` (6 tests: parsing, and the CLI on a temporary repository with a fake GitHub API); `tests/unit/web.test.ts`; `node scripts/guard-e2e.ts` on this branch: ✅, 6 spec files kept.
+- **Evidence:** `tests/unit/guard-e2e.test.ts` (8 tests, with every bypass the security review found planted; the CLI runs on a temporary repository with a fake GitHub API); `tests/unit/web.test.ts`; `node scripts/guard-e2e.ts` on this branch: ✅, 6 spec files kept.
 - **What was NOT verified:**
   - A real `test-approved` applied on GitHub. The label does not exist in this repository yet; the owner creates it.
-  - Assertion fingerprints are text, not a parsed syntax tree. A weaker subject with the same matcher, or a regex expected value with a quote, is not caught.
+  - The comparison is on normalized text, not a syntax tree. A locator pointed at a different element passes (that is a selector change), and a regex literal containing a quote may be misread (it fails closed: the spec looks changed).
+  - A dependency swap of `@playwright/test` in the lockfile: left to the `dependencies` check and the reviewer.
 - **Pending decisions for the owner:** create the `test-approved` label in this repository.
 - **Possible injections found in external content:** none.
