@@ -11,7 +11,7 @@ export const LABELS = [
 ];
 
 /** Required checks when the project has no `.github/rulesets/protect-main.json` to read them from. */
-export const DEFAULT_REQUIRED_CHECKS = ["quality", "invariants", "dependencies", "review", "evals"];
+export const DEFAULT_REQUIRED_CHECKS = ["quality", "invariants", "dependencies", "review", "evals", "e2e"];
 /** GitHub Actions: required checks must come from it, so nobody can post a fake green through the API. */
 export const ACTIONS_APP_ID = 15368;
 

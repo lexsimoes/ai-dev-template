@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-22 · **By:** agent (mission 0023, review findings)
+**Updated on:** 2026-10-22 · **By:** agent (mission 0025, M7d PR 1)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0025 (M7d, PR 1 of 4): demo web app (`src/web/`), end-to-end tests of the critical flows (`e2e/`) written by the Playwright test agents (`.claude/agents/`, plan in `specs/e2e/`), isolated mode (`APP_ENV=e2e`, fake AI provider only, outside requests blocked), CI job `e2e`, listed as required in `protect-main.json`. The owner adds `e2e` to the live ruleset after its first green run on `main`.
 - Mission 0023: the implementer handles the automated review before reporting (owner's rule, 2026-10-22). `AGENTS.md` (and its twin, and the section adopted projects get), "Handle the review": obvious fixes in a separate `fix: address review findings` commit, everything else listed, cap ~5 fixes / ~10 files, then `re-review` and a report with the reviewer's cost. `scripts/review/triage.ts` (`findings`, `check-fix`), `autoFix` in `.github/review.json`, planted-finding tests in `tests/unit/review-triage.test.ts`. Also brought to GoAgentic's adoption PR (lexsimoes/goagentic#23).
 - Release `v0.3.0` published by the owner on 2026-10-22 (immutable, tag on `main`).
 - Release PR for `v0.3.0` (mission 0022): CHANGELOG `[0.3.0]`, plugin `adt` version `0.3.0`, pinned template release `v0.3.0`.
@@ -78,7 +79,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 4. **M7c (discovery and audit)**, 3 PRs (owner's "ok" on 2026-10-22; audit rehearsal on GoAgentic, read-only; two commands): `/adt:discover` (done, #21), `/adt:audit` (done, #22 and #23), adoption on a branch with CI in observation mode (done, #24). **M7c is done**, released in `v0.3.0`. The owner's manual tests (`docs/PLUGIN-TEST.md` steps 7, 7b, 7c) wait until GoAgentic's Phase B test ends.
    - Discovery: product questions → short PRD with verifiable criteria, non-negotiables with their first tests, skills and MCPs chosen from the answers, and "test before choosing" (throwaway prototype when an idea or model is risky).
    - Audit: map stack, tests and sensitive areas; infer the PRD from the code and ask the owner to confirm; propose non-negotiables from what already exists; turn CI on in observation mode first (non-blocking) and make each check required once it is green.
-5. **M7d (tester)**, proposed in 4 PRs plus a release (missions 0024–0027, after 0023); waiting for the owner's "ok" on the criteria:
+5. **M7d (tester)**, 4 PRs plus a release (missions 0025–0028; owner's "ok" on 2026-10-22 with the recommended decisions: demo UI on `node:http`, quarantine needs `test-approved`, `e2e` required in the ruleset file and turned on live by the owner after the first green run on `main`). PR 1 (0025) in progress:
    - Playwright test agents (planner/generator/healer) write 3 to 8 tests of the critical flows from the PRD; they become a required check.
    - They run only in an isolated environment (local, or a preview with test data), with AI calls replaced by a fake provider. AI quality stays the job of the evals.
    - The healer may update selectors; changing what a test asserts requires the owner's `test-approved` label.

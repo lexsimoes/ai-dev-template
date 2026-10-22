@@ -13,6 +13,14 @@ An entry marked **Action needed** asks something of projects when they run `copi
   - `autoFix` in `.github/review.json` can only add protected paths and lower the caps.
   - `/adt:adopt` brings the rule and the script to adopted projects, with the project's invariants folder protected.
 
+### Added (M7d, end-to-end tests)
+- **Action needed** for projects created before this release: a new required check, `e2e`. Add it to your `protect-main` ruleset (**Settings → Rules → Rulesets → protect-main → Require status checks → Add checks → `e2e`**) once it has run green on `main`; `/adt:check-setup` lists it as missing until then.
+- Demo web app (`src/web/`, `npm start`): checkout with a coupon, contact form, support inbox, server-rendered without scripts and with a strict Content-Security-Policy.
+- End-to-end tests of the critical flows (`e2e/`, `npm run e2e`, job `e2e` in CI), written by the Playwright test agents (planner, generator, healer in `.claude/agents/`, MCP server in `.mcp.json`) from the plan in `specs/e2e/`. Each title starts with its PRD requirement.
+  - Isolated: Playwright starts the app with `APP_ENV=e2e`, which accepts only the fake AI provider and refuses a real one; no secret reaches the job; every browser request outside the app fails the test.
+  - The agents carry the project's rules: the healer may update selectors only; changing an assertion needs the owner's `test-approved` label; never `fixme` or `skip`.
+- New dev dependency: `@playwright/test` 1.64.1 (exact).
+
 ## [0.3.0] - 2026-10-22
 
 Discovery and audit: a new project starts from a short PRD, and an existing project can be audited read-only and adopt the workflow in observe mode.

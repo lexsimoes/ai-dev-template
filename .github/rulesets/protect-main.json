@@ -33,7 +33,8 @@
           { "context": "invariants", "integration_id": 15368 },
           { "context": "dependencies", "integration_id": 15368 },
           { "context": "review", "integration_id": 15368 },
-          { "context": "evals", "integration_id": 15368 }
+          { "context": "evals", "integration_id": 15368 },
+          { "context": "e2e", "integration_id": 15368 }
         ]
       }
     }
