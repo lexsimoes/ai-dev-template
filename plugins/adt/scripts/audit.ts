@@ -9,12 +9,13 @@
 // Windows, a `git.exe` placed in it. Files are listed by walking the folder, and the branch is read from `.git/HEAD`.
 
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { IGNORED_DIRS, auditMap, fingerprintOf } from "./lib/audit.ts";
 import type { Entry } from "./lib/audit.ts";
 
-const MAX_ENTRIES = 50_000;
+/** Beyond this many files the map and the fingerprint are partial, and the output says so (`truncated`). */
+const MAX_ENTRIES = Number(process.env.ADT_AUDIT_MAX_ENTRIES) || 50_000;
 
 function out(result: unknown, failed = false): never {
   console.log(JSON.stringify(result, null, 2));
@@ -24,15 +25,29 @@ function out(result: unknown, failed = false): never {
 const command = process.argv[2];
 const target = resolve(process.argv[3] ?? ".");
 if (command !== "map" && command !== "fingerprint") out({ errors: ["usage: audit.ts map [path] | fingerprint [path]"] }, true);
-if (!existsSync(target) || !lstatSync(target).isDirectory()) out({ errors: ["The path is not a folder."] }, true);
+if (!existsSync(target) || !statSync(target).isDirectory()) out({ errors: ["The path is not a folder."] }, true);
+
+let truncated = false;
+let unreadable = 0;
 
 /** Every file under the folder (symbolic links not followed), without dependency and build folders, plus git's HEAD and index. */
 function walk(): Entry[] {
   const entries: Entry[] = [];
   const stack = [""];
-  while (stack.length && entries.length < MAX_ENTRIES) {
+  while (stack.length) {
+    if (entries.length >= MAX_ENTRIES) {
+      truncated = true;
+      break;
+    }
     const rel = stack.pop() ?? "";
-    for (const name of readdirSync(join(target, rel))) {
+    let names: string[];
+    try {
+      names = readdirSync(join(target, rel));
+    } catch {
+      unreadable++;
+      continue;
+    }
+    for (const name of names) {
       const path = rel ? `${rel}/${name}` : name;
       const st = lstatSync(join(target, path));
       if (st.isDirectory()) {
@@ -57,22 +72,54 @@ const regular = (path: string) => {
     return false;
   }
 };
-const read = (path: string) => (regular(path) ? readFileSync(join(target, path), "utf-8") : null);
+const read = (path: string) => {
+  if (!regular(path)) return null;
+  try {
+    return readFileSync(join(target, path), "utf-8");
+  } catch {
+    unreadable++;
+    return null;
+  }
+};
+
+/**
+ * Claude Code loads agent files from the folder it started in, from its parents, and from its subfolders on demand. The
+ * audited project must be none of them.
+ */
+function overlaps(): boolean {
+  const real = (p: string) => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return resolve(p);
+    }
+  };
+  const [here, there] = [real("."), real(target)];
+  /** `a` is `b` or a folder under it. */
+  const inside = (a: string, b: string) => {
+    const r = relative(b, a);
+    return r === "" || (r.split(sep)[0] !== ".." && !isAbsolute(r));
+  };
+  return inside(here, there) || inside(there, here);
+}
 
 const entries = walk();
 const fingerprint = fingerprintOf(entries, (text) => createHash("sha256").update(text).digest("hex").slice(0, 16));
-if (command === "fingerprint") out({ fingerprint });
+if (command === "fingerprint") out({ fingerprint, truncated });
 
 const head = /^ref: refs\/heads\/([\w./-]{1,100})\s*$/.exec(read(".git/HEAD") ?? "")?.[1] ?? null;
 const files = entries.map((e) => e.path).filter((p) => !p.startsWith(".git/"));
 out({
   target: {
-    /** The project is the folder Claude Code started in: its agent files were already loaded as instructions. */
-    isWorkingFolder: target === resolve("."),
+    /** The project is, contains or is inside the folder Claude Code started in: its agent files load as instructions. */
+    overlapsWorkingFolder: overlaps(),
     empty: files.length === 0,
     fromTemplate: files.includes(".copier-answers.yml") && /ai-dev-template/.test(read(".copier-answers.yml") ?? ""),
   },
   git: { repository: existsSync(join(target, ".git")), branch: head },
   map: auditMap({ files, read, size: (path) => (regular(path) ? lstatSync(join(target, path)).size : Number.MAX_SAFE_INTEGER) }),
   fingerprint,
+  /** The walk stopped at the file limit: the map and the fingerprint cover part of the folder only. */
+  truncated,
+  unreadable,
 });

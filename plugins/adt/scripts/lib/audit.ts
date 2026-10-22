@@ -5,7 +5,8 @@
 //   - a name from a closed list;
 //   - a plain file path;
 //   - an UPPER_CASE variable name.
-// No text from the project reaches the conversation through it, and no secret value either: `.env` files are never read.
+// No free text from the project reaches the conversation through it. File paths and names can still spell words, and the
+// skill treats them as data. No secret value appears either: `.env` files are never read.
 // Tested in tests/unit/plugin-audit.test.ts.
 
 export interface Source {
@@ -202,8 +203,9 @@ export interface Entry {
 }
 
 /**
- * Fingerprint of a folder: every file's path, size and modification time, plus git's HEAD and index. It changes if any
- * file or the git state changes. Taken before and after the audit, the two must be equal.
+ * Fingerprint of a folder: every file's path, size and modification time, plus git's HEAD and index. It changes when a
+ * file is created, deleted, resized or written, or when the git state changes. It does not see empty folders, ignored
+ * folders, or an edit that keeps both size and modification time. Taken before and after the audit, the two must be equal.
  */
 export function fingerprintOf(entries: Entry[], hash: (text: string) => string): string {
   const lines = entries.map((e) => `${e.path}\t${e.size}\t${Math.trunc(e.mtimeMs)}`).sort();

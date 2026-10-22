@@ -159,7 +159,7 @@ About 10 minutes, after the same release as step 7. Pick an existing project of 
 
 ```bash
 cd ~/Projects/<your-project> && git status --short   # note what it shows
-mkdir -p ~/Projects/audits && cd ~/Projects/audits
+mkdir -p ~/audits && cd ~/audits
 claude
 ```
 
@@ -175,7 +175,7 @@ Type `/adt:audit ~/Projects/<your-project>`. Expected:
 3. Environment variables appear **by name only**; it never asks for a value.
 4. It ends by saying the fingerprint is the same as at the start.
 5. Afterwards, `git status --short` in the project shows exactly what it showed before.
-6. Control: `cd ~/Projects/<your-project> && claude`, then `/adt:audit .`. If the project has a `CLAUDE.md`, `AGENTS.md`, `.claude/` or `.mcp.json`, it stops and asks you to start from another folder.
+6. Control: `cd ~/Projects/<your-project> && claude`, then `/adt:audit .`. It stops and asks you to start from a separate folder.
 
 Send me the report (in a private message if the project is private), and anything that differed from "Expected".
 

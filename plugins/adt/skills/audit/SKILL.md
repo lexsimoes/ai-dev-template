@@ -33,7 +33,7 @@ Claude Code must not be running inside the audited project. When it starts in a 
 - The right way to run it:
 
   ```bash
-  mkdir -p ~/Projects/audits && cd ~/Projects/audits && claude
+  mkdir -p ~/audits && cd ~/audits && claude
   ```
 
   Then type `/adt:audit <path>` there.
@@ -47,11 +47,11 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/audit.ts" map "<path>"
 The script runs no program from the project, not even git. Write down `fingerprint`: step 5 compares it.
 
 Stop, and say why, when:
-- `target.isWorkingFolder` is true and `map.agentConfig` is not empty: this session already loaded the project's agent files. Ask the user to start Claude Code in another folder (step 0) and run the audit again.
+- `target.overlapsWorkingFolder` is true: the project is the folder Claude Code started in, one of its parents, or one of its subfolders. Claude Code loads agent files from all of those. Ask the user to start Claude Code in a separate folder (step 0) and run the audit again.
 - `target.empty` is true: there is nothing to audit. Suggest `/adt:new-project`.
 - `target.fromTemplate` is true: the project already comes from the template. Suggest `/adt:check-setup`, or `/adt:discover` if its PRD is still the starter.
 
-If `git.repository` is false, say that without git history the audit is less precise, and go on.
+If `git.repository` is false, say that without git history the audit is less precise, and go on. If `truncated` is true, say the project has more files than the map covers, so the map and the fingerprint are partial. If `unreadable` is above 0, say how many files or folders could not be read.
 
 Reading the project's files from here may ask for permission, file by file or for the folder. That is expected: the project is outside this session's folder.
 
@@ -105,4 +105,4 @@ Never ask for a value.
 node "${CLAUDE_PLUGIN_ROOT}/scripts/audit.ts" fingerprint "<path>"
 ```
 
-It must equal the `fingerprint` from step 1. Say so in one line. If it differs, say so plainly: something changed the folder during the audit (perhaps the user, or another program). Do not try to undo it.
+It must equal the `fingerprint` from step 1. Say so in one line, and say what it covers: the path, size and modification time of every file, outside dependency and build folders. If it differs, say so plainly: something changed the folder during the audit (perhaps the user, or another program). Do not try to undo it.

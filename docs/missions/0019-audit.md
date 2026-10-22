@@ -62,8 +62,9 @@ The agent may not:
   - Docs: README, CHANGELOG, `docs/PLUGIN-TEST.md` step 7b.
 - **Evidence:**
   - `tests/unit/plugin-audit.test.ts` (6 tests):
-    - the real script on a git fixture leaves every file byte-for-byte the same (content and modification time), and `git status` empty;
-    - `fingerprint` matches the one from `map`, and changes when a file changes (positive control);
+    - the real script, run from another folder on a hostile git fixture, leaves every file byte-for-byte the same (content and modification time) and runs none of its programs; plain `git ls-files` there does (control);
+    - `fingerprint` matches the one from `map`, and a same-size edit changes it (positive control);
+    - it reports when the project is, contains or is inside the folder Claude Code started in (a symbolic link included), and when the walk was cut at the file limit;
     - a `.env.local` is listed but never opened;
     - a secret in a code file, `.env.example` values and project text never reach the output;
     - a symbolic link out of the project is not followed.
