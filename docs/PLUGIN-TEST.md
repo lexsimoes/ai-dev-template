@@ -43,8 +43,15 @@ claude plugin install adt@ai-dev-template
 claude plugin details adt@ai-dev-template
 ```
 
+If you had already added the marketplace before (for example, before this plugin was renamed `adt`), Claude Code keeps its earlier copy: updates of third-party marketplaces are off by default. Refresh it first, then install:
+
+```bash
+claude plugin marketplace update ai-dev-template
+```
+
 Expected:
-- `Successfully added marketplace: ai-dev-template`, then `Successfully installed plugin: adt@ai-dev-template`.
+- `Successfully added marketplace: ai-dev-template` (or the update), then `Successfully installed plugin: adt@ai-dev-template`.
+- `Plugin "adt" not found in marketplace` means the marketplace copy is older than `main`: run the update above.
 - `details` lists 2 skills: `check-setup` and `new-project`.
 
 (Inside Claude Code the same thing works with `/plugin marketplace add lexsimoes/ai-dev-template` and `/plugin install adt@ai-dev-template`, which open the plugin panel.)
