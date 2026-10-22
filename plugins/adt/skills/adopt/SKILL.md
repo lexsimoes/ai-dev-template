@@ -67,7 +67,8 @@ It writes only missing files, adds the owner to `CODEOWNERS` for the invariants 
    - If they fail only on the kit's files (the project's formatter, linter or type check do not match the template's style), exclude exactly those files in the project's tool config (for example `biome.json` `files.includes`, `tsconfig.json` `exclude`, an ESLint ignore).
    - Never change a rule.
    - List each such edit for the owner.
-4. Follow the project's own rules for a change like this one: for example a CHANGELOG entry, or a decision record if its `AGENTS.md` asks for them.
+4. Add the project's golden set (eval cases) and any migration folder outside `**/migrations/**` to `autoFix.neverPaths` in `.github/review.json`: the implementer never auto-fixes a finding there.
+5. Follow the project's own rules for a change like this one: for example a CHANGELOG entry, or a decision record if its `AGENTS.md` asks for them.
 
 ## 5. Commit and PR (never merge)
 

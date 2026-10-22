@@ -131,6 +131,9 @@ export function adaptReviewConfig(templateJson: string, kit: Kit, answers: Adopt
   config.approvalLabels = [answers.labels.invariantApproved, answers.labels.evalApproved];
   const base = (config.sensitivePaths ?? []).filter((p) => !kit.templateOnlySensitivePaths.includes(p) && p !== "tests/invariants/**");
   config.sensitivePaths = [...new Set([`${answers.paths.invariants}/**`, ...base, ...answers.sensitive])];
+  // The implementer never auto-fixes a finding in the project's invariants folder either.
+  const autoFix = config.autoFix as { neverPaths?: string[] } | undefined;
+  if (autoFix) autoFix.neverPaths = [...new Set([`${answers.paths.invariants}/**`, ...(autoFix.neverPaths ?? [])])];
   // Documents agents read as authority are never "trivial", wherever the project keeps them.
   const trivial = config.trivial as { exceptPaths?: string[] } | undefined;
   if (trivial) trivial.exceptPaths = [...new Set([...(trivial.exceptPaths ?? []), answers.paths.prd, answers.paths.handoff])];

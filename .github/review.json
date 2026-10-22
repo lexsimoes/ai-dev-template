@@ -53,6 +53,12 @@
       "docs/missions/**", "docs/HANDOFF.md", "docs/SKILLS.md", "**/SKILL.md", ".claude/**", ".cursor/**", ".agents/**"
     ]
   },
+  "autoFix": {
+    "$comment": "What the implementer may fix on its own after a review (AGENTS.md, \"Handle the review\"; scripts/review/triage.ts). These paths and caps only add to the defaults in scripts/review/lib.ts (invariants, golden set, migrations, .github, .claude, CODEOWNERS; 5 fixes, 10 files), never loosen them.",
+    "neverPaths": ["tests/invariants/**", "evals/golden/**", "**/migrations/**", ".github/**", ".claude/**", "**/CODEOWNERS"],
+    "maxFixes": 5,
+    "maxFiles": 10
+  },
   "tiers": {
     "standard": {
       "provider": "openai-compatible",

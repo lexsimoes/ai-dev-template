@@ -7,6 +7,12 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Added
+- The implementer handles the automated review before reporting to the owner (`AGENTS.md`, "Handle the review"): it fixes only obvious findings in a separate `fix: address review findings` commit, lists the rest (behavior, architecture, public interface, invariants, golden set, migrations, permissions, likely false positives, contradictions), stops above ~5 fixes or ~10 files, applies `re-review` and reports with the reviewer's cost.
+  - `scripts/review/triage.ts findings --pr <n>` splits the open findings by path and origin and shows the cost; `check-fix` refuses a fix commit on a protected path, over the cap, or that weakens a test.
+  - `autoFix` in `.github/review.json` can only add protected paths and lower the caps.
+  - `/adt:adopt` brings the rule and the script to adopted projects, with the project's invariants folder protected.
+
 ## [0.3.0] - 2026-10-22
 
 Discovery and audit: a new project starts from a short PRD, and an existing project can be audited read-only and adopt the workflow in observe mode.
