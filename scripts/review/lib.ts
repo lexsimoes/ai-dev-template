@@ -36,6 +36,8 @@ export interface ReviewConfig {
   trivial: { mode: "light" | "none"; paths: string[]; exceptPaths: string[] };
   /** Push after the review: keep the previous verdict, or require a new review (label) before green. */
   afterReviewPush: "keep-verdict" | "require-re-review";
+  /** What the implementer may fix on its own after a review (AGENTS.md); can only tighten the defaults. */
+  autoFix?: Partial<AutoFixConfig>;
   tiers: Record<TierName, Tier>;
 }
 
@@ -803,4 +805,102 @@ export function composeComment(banner: string, report: string, state: ReviewStat
 export function extractReport(commentBody: string): string {
   const withoutBanner = commentBody.replace(new RegExp(`${BANNER_START}[\\s\\S]*?${BANNER_END}`), "");
   return withoutBanner.replace(REPORT_MARKER, "").replace(STATE_RE, "").trim();
+}
+
+// ---------- triage of findings by the implementer (AGENTS.md, "Handle the review") ----------
+
+export interface AutoFixConfig {
+  /** Findings on these paths are never auto-fixed: they are listed for the owner, even when the agent agrees. */
+  neverPaths: string[];
+  /** More obvious fixes than this: stop and ask the owner first. */
+  maxFixes: number;
+  /** A fix commit touching more files than this: stop and ask the owner first. */
+  maxFiles: number;
+}
+
+export const FIX_COMMIT_SUBJECT = "fix: address review findings";
+
+// Non-negotiable tests, golden set, migrations and permissions (CI, agent settings, code owners, rulesets).
+export const DEFAULT_AUTO_FIX: AutoFixConfig = {
+  neverPaths: [
+    "tests/invariants/**",
+    "evals/golden/**",
+    "**/migrations/**",
+    ".github/**",
+    ".claude/**",
+    "**/CODEOWNERS",
+  ],
+  maxFixes: 5,
+  maxFiles: 10,
+};
+
+/** The project's config can only add protected paths and lower the caps, never loosen the defaults. */
+export function autoFixConfig(config: { autoFix?: Partial<AutoFixConfig> } | null): AutoFixConfig {
+  const own = config?.autoFix ?? {};
+  const paths = Array.isArray(own.neverPaths) ? own.neverPaths.filter((p) => typeof p === "string") : [];
+  const lower = (value: unknown, cap: number) => (Number.isInteger(value) && (value as number) >= 0 ? Math.min(value as number, cap) : cap);
+  return {
+    neverPaths: [...new Set([...DEFAULT_AUTO_FIX.neverPaths, ...paths])],
+    maxFixes: lower(own.maxFixes, DEFAULT_AUTO_FIX.maxFixes),
+    maxFiles: lower(own.maxFiles, DEFAULT_AUTO_FIX.maxFiles),
+  };
+}
+
+export interface TriagedFinding extends Finding {
+  /** "candidate": fix it only if it is obvious and keeps the intended behavior. "list": never auto-fix. */
+  bucket: "candidate" | "list";
+  reason: string;
+}
+
+/**
+ * Splits the open findings into the ones the implementer may consider fixing and the ones it only lists.
+ * Deterministic on paths and origin; whether a candidate is "obvious" stays the implementer's judgment.
+ */
+export function triageFindings(findings: Finding[], config: AutoFixConfig): TriagedFinding[] {
+  return findings.map((f) => {
+    if (f.origin === "detector") {
+      return { ...f, bucket: "list", reason: "secret found by the detector: removing it is not enough, the owner rotates the key" };
+    }
+    const glob = config.neverPaths.find((g) => globToRegExp(g).test(f.file));
+    if (glob) return { ...f, bucket: "list", reason: `protected path (${glob}): list it, never auto-fix` };
+    return { ...f, bucket: "candidate", reason: "fix only if obvious and the intended behavior does not change; otherwise list it" };
+  });
+}
+
+/** The reviewer's cost line ("- Cost: …") from its comment, or null when there is none. */
+export function reviewCost(commentBody: string): string | null {
+  return /^- Cost: (.+)$/m.exec(extractReport(commentBody))?.[1]?.replaceAll("**", "").trim() ?? null;
+}
+
+const TEST_FILE_RE = /(^|\/)(tests?|__tests__|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
+const ASSERTION_RE = /\b(assert(\.\w+)?|expect)\s*\(/;
+const SKIP_RE = /\.(skip|todo|only|fixme)\s*\(|\{\s*(skip|todo|only)\s*:\s*true|\bx(it|describe|test)\s*\(/;
+
+/**
+ * Problems with a "fix: address review findings" commit: wrong subject, a protected path,
+ * too many files, or a test weakened (fewer assertions, or a skip/only/todo/fixme added).
+ */
+export function checkFixCommit(input: { subject: string; files: string[]; diff: string }, config: AutoFixConfig): string[] {
+  const problems: string[] = [];
+  if (input.subject !== FIX_COMMIT_SUBJECT) problems.push(`the commit subject must be exactly "${FIX_COMMIT_SUBJECT}"`);
+  for (const file of input.files) {
+    const glob = config.neverPaths.find((g) => globToRegExp(g).test(file));
+    if (glob) problems.push(`${file}: protected path (${glob}); never auto-fixed, list the finding for the owner`);
+  }
+  if (input.files.length > config.maxFiles) {
+    problems.push(`${input.files.length} files changed (cap ${config.maxFiles}): stop and ask the owner first`);
+  }
+  for (const file of splitDiff(input.diff)) {
+    if (!TEST_FILE_RE.test(file.path)) continue;
+    let removed = 0;
+    let added = 0;
+    for (const line of file.text.split("\n")) {
+      if (line.startsWith("---") || line.startsWith("+++")) continue;
+      if (line.startsWith("-") && ASSERTION_RE.test(line)) removed++;
+      if (line.startsWith("+") && ASSERTION_RE.test(line)) added++;
+      if (line.startsWith("+") && SKIP_RE.test(line)) problems.push(`${file.path}: a test is skipped, focused or marked todo/fixme`);
+    }
+    if (removed > added) problems.push(`${file.path}: ${removed - added} assertion(s) removed; never fix by weakening a test`);
+  }
+  return problems;
 }

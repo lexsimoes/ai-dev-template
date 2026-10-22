@@ -86,6 +86,10 @@ test("reviewer config: the project's label names, without the template's own pat
   assert.deepEqual(Object.values(config.tiers).map((t) => t.apiKeyEnv), ["REVIEW_API_KEY", "REVIEW_API_KEY", "REVIEW_DEEP_API_KEY", "REVIEW_DEEP_API_KEY"]);
   const trivial = (config as unknown as { trivial: { exceptPaths: string[] } }).trivial.exceptPaths;
   assert.ok(trivial.includes("specs/PRD.md") && trivial.includes("HANDOFF.md"), "the PRD and the HANDOFF are never reviewed as trivial");
+  const custom = JSON.parse(adaptReviewConfig(readFileSync(".github/review.json", "utf-8"), KIT, answers({ invariants: "test/rules" }))) as {
+    autoFix: { neverPaths: string[] };
+  };
+  assert.ok(custom.autoFix.neverPaths.includes("test/rules/**"), "the implementer never auto-fixes the project's invariants folder");
 });
 
 test("the reviewer's dependency: the template's exact SDK version, every package locked with an integrity hash", () => {
@@ -218,4 +222,12 @@ test("apply: never on the base branch, never over a different file; AGENTS.md ke
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("the review-handling rule reaches adopted projects: their AGENTS section and the triage script", () => {
+  const section = readFileSync(KIT.agentsSection, "utf-8");
+  for (const needle of ["fix: address review findings", "scripts/review/triage.ts findings", "scripts/review/triage.ts check-fix", "{{INVARIANTS_DIR}}/", "{{REREVIEW_LABEL}}"]) {
+    assert.ok(section.includes(needle), needle);
+  }
+  assert.ok(KIT.copy.includes("scripts/review/triage.ts"));
 });

@@ -5,6 +5,7 @@
     "scripts/review/run.ts",
     "scripts/review/lib.ts",
     "scripts/review/providers.ts",
+    "scripts/review/triage.ts",
     "scripts/guard-invariants.ts",
     ".github/pull_request_template.md",
     "docs/missions/_TEMPLATE.md",

@@ -174,6 +174,20 @@ The reviewed commit and the open findings are stored in the reviewer's own comme
 
 The end-to-end simulation of this flow, with a fake GitHub and a fake model, runs on every `npm test` (`tests/unit/review-flow.test.ts`).
 
+### After the review: what the implementer fixes on its own
+
+The implementer handles the findings before reporting to you (`AGENTS.md`, "Handle the review"):
+- It fixes only the obvious ones, in a separate commit `fix: address review findings`, and only when the fix keeps the intended behavior.
+- It lists, never fixes, anything that changes behavior, architecture or a public interface, anything in the invariants, the golden set, migrations or permissions, likely false positives and contradicting findings.
+- More than ~5 fixes or ~10 files: it stops and asks you first.
+- Then it pushes, applies `re-review`, and reports: fixed, not fixed (with its suggestion), your decisions, and the reviewer's cost.
+
+Two commands keep the boundary deterministic (`scripts/review/triage.ts`):
+- `findings --pr <n>` reads the reviewer's comment and splits the open findings into candidates and "never auto-fix", by path (`autoFix.neverPaths` in `.github/review.json`, which can only add to the defaults) and origin (a detected secret is always yours: the key must be rotated).
+- `check-fix` refuses a fix commit that touches a protected path, goes over the cap, removes assertions or skips a test.
+
+Whether a candidate is really "obvious" stays the implementer's judgment; the re-review reads the fix commit. Tested with planted findings in `tests/unit/review-triage.test.ts`.
+
 ### How it works
 
 1. The workflow `.github/workflows/review.yml` computes the PR's diff.
