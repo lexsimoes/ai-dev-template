@@ -19,8 +19,9 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/new-project.ts" inspect
 
 `folder.kind` decides the path:
 - **`code`**: the folder already has files (`folder.examples` lists some).
-  - Tell the user that audit mode for existing code arrives in a later version (M7c), and that you changed nothing.
-  - Suggest running `/adt:new-project` in a new, empty folder instead.
+  - Tell the user you changed nothing.
+  - For this existing code, suggest `/adt:audit`: a read-only audit that maps it and proposes a PRD.
+  - For a new project, suggest running `/adt:new-project` in a new, empty folder.
   - **Stop here.** Run nothing else, create nothing, and edit no file.
 - **`adt-project`**: a project from this template (for example, a setup that stopped halfway).
   - Skip steps 3 and 4.

@@ -41,7 +41,7 @@ const command = positionals[0];
 
 if (command === "inspect") {
   const branch = run("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
-  const status = run("git", ["status", "--porcelain"]);
+  const status = run("git", ["--no-optional-locks", "status", "--porcelain"]);
   const language = parseAnswers(files.read(".copier-answers.yml") ?? "").conversation_language;
   out({
     folder: inspectFolder(readdirSync(dir), files.read, template),
