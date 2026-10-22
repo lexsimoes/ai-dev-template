@@ -109,7 +109,7 @@ claude
 ```
 
 Run `/adt:new-project`. Expected:
-- it says the folder already has files, that audit mode comes in a later version, and **stops**;
+- it says the folder already has files, suggests `/adt:audit` (read-only), and **stops**;
 - afterwards, `git status --short` shows exactly what it showed before.
 
 ## 6. Send me
@@ -152,6 +152,32 @@ Send me:
 - the summary from item 5;
 - the PR link;
 - anything that differed from "Expected".
+
+## 7b. Read-only audit (`/adt:audit`)
+
+About 10 minutes, after the same release as step 7. Pick an existing project of yours with code, for example GoAgentic. Start Claude Code in **another** folder, never inside the project: Claude Code would load the project's `CLAUDE.md` and settings as instructions.
+
+```bash
+cd ~/Projects/<your-project> && git status --short   # note what it shows
+mkdir -p ~/audits && cd ~/audits
+claude
+```
+
+Type `/adt:audit ~/Projects/<your-project>`. Expected:
+1. It maps the project and reads a few files of each sensitive area. It may ask permission to read files there, because the project is outside the folder Claude Code started in.
+2. In one message, it shows:
+   - stack and scripts;
+   - the tests that exist;
+   - the sensitive areas, each with an example file;
+   - the risks found;
+   - an inferred PRD (criteria with existing tests, non-negotiables with evidence and cases);
+   - its questions.
+3. Environment variables appear **by name only**; it never asks for a value.
+4. It ends by saying the fingerprint is the same as at the start.
+5. Afterwards, `git status --short` in the project shows exactly what it showed before.
+6. Control: `cd ~/Projects/<your-project> && claude`, then `/adt:audit .`. It stops and asks you to start from a separate folder.
+
+Send me the report (in a private message if the project is private), and anything that differed from "Expected".
 
 ## 8. Cleaning up (when you want)
 

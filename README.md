@@ -31,6 +31,11 @@ Then `/adt:discover`, in the new project:
 - **Suggests** skills and MCPs from a fixed list, without installing them.
 - **Waits for your "ok"** before the commit, then opens a PR.
 
+**Existing code?** Start Claude Code in a folder of your own, not in the project, and run `/adt:audit <path to the project>`. That way the project's own `CLAUDE.md` and settings are not loaded as instructions. It is a read-only audit:
+- it maps the stack, the tests and the sensitive areas (login, payments, personal data, AI, webhooks);
+- it shows an inferred PRD for you to confirm or correct;
+- it changes nothing, and proves it with a fingerprint of the folder taken before and after.
+
 `/adt:check-setup` checks everything at any time. The prerequisites are the ones in step 1 below.
 
 The steps below do the same by hand.

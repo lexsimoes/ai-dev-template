@@ -19,7 +19,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" inspect
 
 Stop, change nothing, and say why, when:
 - `folder.kind` is `empty`: run `/adt:new-project` first.
-- `folder.kind` is `code`: this is not a project from the template. Auditing existing code comes in a later version.
+- `folder.kind` is `code`: this is not a project from the template. Suggest `/adt:audit`, a read-only audit of existing code.
 - `state.prd` is `filled`: discovery already ran. Changing the PRD is a mission like any other: propose one.
 - `git.clean` is false: there are uncommitted changes. Ask the user to commit or discard them first.
 - `git.branch` is not `main`: ask the user to switch to `main` and update it (`git switch main && git pull`).
