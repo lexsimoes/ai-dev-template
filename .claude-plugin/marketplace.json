@@ -4,8 +4,8 @@
   "owner": { "name": "Alexandre Simoes", "url": "https://github.com/lexsimoes" },
   "plugins": [
     {
-      "name": "ai-dev",
-      "source": "./plugins/ai-dev",
+      "name": "adt",
+      "source": "./plugins/adt",
       "description": "Create a project from ai-dev-template (pinned release) and check its setup: GitHub repository, labels, main protection, secrets, CI and template version."
     }
   ]

@@ -22,7 +22,7 @@
 
 ## Last mission
 
-- M7b PR 2 (mission 0014): Claude Code plugin `ai-dev` and marketplace in this repository; `/ai-dev:check-setup` (read-only; secrets by name only); bridges for Gemini CLI (`.gemini/settings.json`) and Aider (`.aider.conf.yml`). The plugin pins the template release in `plugins/ai-dev/template.json` and its version follows the CHANGELOG (bumped in release PRs).
+- M7b PR 2 (mission 0014): Claude Code plugin `adt` and marketplace in this repository; `/adt:check-setup` (read-only; secrets by name only); bridges for Gemini CLI (`.gemini/settings.json`) and Aider (`.aider.conf.yml`). The plugin pins the template release in `plugins/adt/template.json` and its version follows the CHANGELOG (bumped in release PRs).
 - `v0.1.0` released by the owner on 2026-10-21 (immutable).
 - M7b PR 1 (mission 0013): releases. Semver tags `vX.Y.Z` from `v0.1.0`; `CHANGELOG.md`; `docs/RELEASING.md` (release PR by an agent, tag and release by the owner with `gh release create`); `scripts/release/notes.ts`; Copier and the docs use the latest release, not `main`. Agents never tag or release (`AGENTS.md` 1.7).
 - M7 PR 3: no-key mode + public release.

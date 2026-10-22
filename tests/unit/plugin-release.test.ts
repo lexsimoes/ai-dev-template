@@ -1,4 +1,4 @@
-// The Claude Code plugin (plugins/ai-dev, template-only) stays consistent with the release flow and works when installed:
+// The Claude Code plugin (plugins/adt, template-only) stays consistent with the release flow and works when installed:
 // Claude Code copies only the plugin folder into its cache, so nothing in it may reach outside that folder.
 
 import { test } from "node:test";
@@ -6,9 +6,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { releasedVersions } from "../../scripts/release/lib.ts";
-import { LABELS } from "../../plugins/ai-dev/scripts/lib/project.ts";
+import { LABELS } from "../../plugins/adt/scripts/lib/project.ts";
 
-const PLUGIN = resolve("plugins/ai-dev");
+const PLUGIN = resolve("plugins/adt");
 const readJson = <T>(path: string) => JSON.parse(readFileSync(path, "utf-8")) as T;
 
 test("the plugin creates projects from the newest release, and its version follows it", () => {

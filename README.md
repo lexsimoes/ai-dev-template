@@ -106,14 +106,14 @@ It moves the project to the latest release. Your PRD, HANDOFF, app code, invaria
 
 ### 9. Check the setup (Claude Code)
 
-The `ai-dev` plugin checks a project's setup and says how to fix each problem. Install it once, in Claude Code:
+The `adt` plugin checks a project's setup and says how to fix each problem. Install it once, in Claude Code:
 
 ```
 /plugin marketplace add lexsimoes/ai-dev-template
-/plugin install ai-dev@ai-dev-template
+/plugin install adt@ai-dev-template
 ```
 
-(On Claude Code 2.1.275 or later, one step: `/plugin install ai-dev --marketplace lexsimoes/ai-dev-template`.) Then, in the project folder, run `/ai-dev:check-setup`. It checks:
+(On Claude Code 2.1.275 or later, one step: `/plugin install adt --marketplace lexsimoes/ai-dev-template`.) Then, in the project folder, run `/adt:check-setup`. It checks:
 - the GitHub CLI login and the repository;
 - the labels and the protection of `main` with its required checks;
 - the secrets, by name only, and whether the reviewer and evals settings match them (or no-key mode);
@@ -150,7 +150,7 @@ These parts exist only in this repository; Copier does not copy them into projec
 | `copier.yml`, `*.jinja` files | The questions and the files that change with the answers |
 | `tests/template/`, check `template` | Proves on every PR that the `.jinja` twins match this repository's files, that two projects with different answers pass their own checks, and that `copier update` keeps project files |
 | `.github/workflows/traffic.yml`, `scripts/traffic/` | **Traffic export**, below |
-| `.claude-plugin/marketplace.json`, `plugins/ai-dev/` | The Claude Code plugin and its marketplace (installed from this repository). `plugins/ai-dev/template.json` pins the release it creates projects from |
+| `.claude-plugin/marketplace.json`, `plugins/adt/` | The Claude Code plugin and its marketplace (installed from this repository). `plugins/adt/template.json` pins the release it creates projects from |
 | `CHANGELOG.md`, `docs/RELEASING.md`, `scripts/release/` | Versions and the release flow: projects are created and updated only from release tags |
 | `LICENSE` | The template's license. Projects get its notice in `THIRD_PARTY_NOTICES.md` instead (from `THIRD_PARTY_NOTICES.md.jinja`), which does not set the project's own license |
 

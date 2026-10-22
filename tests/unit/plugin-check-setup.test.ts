@@ -1,11 +1,11 @@
-// /ai-dev:check-setup (plugins/ai-dev, template-only): every check with a fake `gh` and fake project files.
+// /adt:check-setup (plugins/adt, template-only): every check with a fake `gh` and fake project files.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkSetup, renderReport } from "../../plugins/ai-dev/scripts/lib/checks.ts";
-import type { Check, Context } from "../../plugins/ai-dev/scripts/lib/checks.ts";
-import { LABELS, compareVersions, parseAnswers, parseGitHubRemote, parseTemplateSource, parseVersion, requiredChecksOf } from "../../plugins/ai-dev/scripts/lib/project.ts";
-import type { RunResult } from "../../plugins/ai-dev/scripts/lib/run.ts";
+import { checkSetup, renderReport } from "../../plugins/adt/scripts/lib/checks.ts";
+import type { Check, Context } from "../../plugins/adt/scripts/lib/checks.ts";
+import { LABELS, compareVersions, parseAnswers, parseGitHubRemote, parseTemplateSource, parseVersion, requiredChecksOf } from "../../plugins/adt/scripts/lib/project.ts";
+import type { RunResult } from "../../plugins/adt/scripts/lib/run.ts";
 
 const SLUG = "maria/shop";
 const ok = (stdout: unknown): RunResult => ({ code: 0, stdout: typeof stdout === "string" ? stdout : JSON.stringify(stdout), stderr: "" });
@@ -97,6 +97,15 @@ test("ruleset: none, incomplete, or not tied to GitHub Actions", () => {
   assert.match(byId(checkSetup(world({ gh: { [`gh api repos/${SLUG}/rules/branches/main`]: ok(forged) } })), "ruleset")?.detail ?? "", /not tied to GitHub Actions: `review`/);
   const fewer = byId(checkSetup(world({ gh: { [`gh api repos/${SLUG}/rules/branches/main`]: ok([RULES[0], { type: "required_status_checks", parameters: { required_status_checks: [{ context: "quality" }] } }]) } })), "ruleset");
   assert.match(fewer?.detail ?? "", /not required: `invariants`, `dependencies`, `review`, `evals`/, "the list comes from protect-main.json");
+});
+
+test("ruleset: check names the report cannot show are counted, never silently dropped", () => {
+  const rules = JSON.parse(JSON.stringify(RULES)) as typeof RULES;
+  (rules[1]!.parameters as { required_status_checks: Array<{ context: string }> }).required_status_checks.push({ context: "build: linux" });
+  const r = byId(checkSetup(world({ files: { ".github/rulesets/protect-main.json": JSON.stringify({ rules }) } })), "ruleset");
+  assert.equal(r?.status, "warn");
+  assert.match(r?.detail ?? "", /1 required check name\(s\) .* were not checked/);
+  assert.doesNotMatch(r?.detail ?? "", /build: linux/);
 });
 
 test("ruleset on a private repository of a Free account: a warning that explains, not a failure", () => {

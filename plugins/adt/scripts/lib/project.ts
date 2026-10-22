@@ -1,5 +1,5 @@
 // What a project created from ai-dev-template is expected to have, and parsers for the files that say so.
-// Shared by /ai-dev:check-setup and /ai-dev:new-project. Tested in tests/unit/plugin-check-setup.test.ts.
+// Shared by /adt:check-setup and /adt:new-project. Tested in tests/unit/plugin-check-setup.test.ts.
 
 /** Labels the bots use. Same list as the README's `gh label create` commands (a test keeps them equal). */
 export const LABELS = [

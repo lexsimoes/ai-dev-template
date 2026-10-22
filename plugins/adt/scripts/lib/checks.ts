@@ -1,4 +1,4 @@
-// The checks behind /ai-dev:check-setup. Each one says pass, warn, fail or skip, and how to fix it.
+// The checks behind /adt:check-setup. Each one says pass, warn, fail or skip, and how to fix it.
 // Read-only: nothing here changes GitHub or the project. Secrets are listed by name only; values are never read.
 // The report goes into the Claude Code conversation, so text from project files or GitHub enters it only after
 // matching a closed pattern (`shown`): a crafted file or API answer cannot put instructions there.
@@ -180,8 +180,14 @@ function checkLabels(ctx: Context, repo: RepoInfo): Check {
 
 function checkRuleset(ctx: Context, repo: RepoInfo, login: string | null): Check {
   const file = ctx.read(".github/rulesets/protect-main.json");
-  const fromFile = file ? requiredChecksOf(json(file))?.filter((c) => CHECK_NAME_RE.test(c)) : null;
-  const expected = fromFile?.length ? fromFile : DEFAULT_REQUIRED_CHECKS;
+  const listed = file ? (requiredChecksOf(json(file)) ?? []) : [];
+  const fromFile = listed.filter((c) => CHECK_NAME_RE.test(c));
+  const expected = fromFile.length ? fromFile : DEFAULT_REQUIRED_CHECKS;
+  // Names that cannot be shown safely are not checked; the report says how many, so a gap is never silent.
+  const ignored = listed.length - fromFile.length;
+  const ignoredNote = ignored
+    ? ` ${ignored} required check name(s) in \`.github/rulesets/protect-main.json\` use characters this check does not accept, so they were not checked${fromFile.length ? "" : " (the template's default list was checked instead)"}.`
+    : "";
   const fix =
     "Import `.github/rulesets/protect-main.json`: **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, check that it is **Active** on the default branch, then **Create**.";
   const rules = ghApi<Array<{ type: string; parameters?: { required_status_checks?: Array<{ context: string; integration_id?: number }> } }>>(
@@ -223,7 +229,11 @@ function checkRuleset(ctx: Context, repo: RepoInfo, login: string | null): Check
     ];
     return { id: "ruleset", title: "Protection of `main`", status: "fail", detail: `The rules on ${repo.branchLabel} are incomplete: ${problems.join("; ")}.`, fix };
   }
-  return { id: "ruleset", title: "Protection of `main`", status: "pass", detail: `PR required; required checks: ${expected.map((c) => `\`${c}\``).join(", ")}.` };
+  const passed = `PR required; required checks: ${expected.map((c) => `\`${c}\``).join(", ")}.`;
+  if (ignoredNote) {
+    return { id: "ruleset", title: "Protection of `main`", status: "warn", detail: passed + ignoredNote, fix: "Check those names on GitHub (**Settings → Rules → Rulesets → protect-main**): letters, digits, spaces and `._()/-` only." };
+  }
+  return { id: "ruleset", title: "Protection of `main`", status: "pass", detail: passed };
 }
 
 function checkSecretsAndConfig(ctx: Context, repo: RepoInfo): Check[] {

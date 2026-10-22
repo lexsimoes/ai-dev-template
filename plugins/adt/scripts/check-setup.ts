@@ -1,4 +1,4 @@
-// /ai-dev:check-setup: checks a project created from ai-dev-template and says how to fix each problem.
+// /adt:check-setup: checks a project created from ai-dev-template and says how to fix each problem.
 // Read-only: changes nothing on GitHub or in the project; secrets are listed by name, never read.
 //
 // Use, in the project folder: node <plugin>/scripts/check-setup.ts [--json]

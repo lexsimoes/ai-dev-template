@@ -24,7 +24,7 @@ Every PR that changes what projects get adds a line under `## [Unreleased]` in [
 
 ## Releasing a version
 
-1. **Release PR** (an agent may prepare it): in `CHANGELOG.md`, turn `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD`, open a new empty `## [Unreleased]` above it, and update the link lines at the end. Set the Claude Code plugin to the same version: `version` in `plugins/ai-dev/.claude-plugin/plugin.json` (`X.Y.Z`) and `release` in `plugins/ai-dev/template.json` (`vX.Y.Z`, the release it creates projects from). `npm run check` fails if any of these does not match (`tests/unit/release.test.ts`, `tests/unit/plugin-release.test.ts`).
+1. **Release PR** (an agent may prepare it): in `CHANGELOG.md`, turn `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD`, open a new empty `## [Unreleased]` above it, and update the link lines at the end. Set the Claude Code plugin to the same version: `version` in `plugins/adt/.claude-plugin/plugin.json` (`X.Y.Z`) and `release` in `plugins/adt/template.json` (`vX.Y.Z`, the release it creates projects from). `npm run check` fails if any of these does not match (`tests/unit/release.test.ts`, `tests/unit/plugin-release.test.ts`).
 2. **You merge** the release PR, and publish the release right after (step 3): until the tag exists, the plugin on `main` points at a release that is not there yet.
 3. **You publish the release.** Agents never create tags or releases (`AGENTS.md`, 1.7). In your own terminal, in this repository:
 
