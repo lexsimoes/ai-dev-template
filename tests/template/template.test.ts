@@ -169,6 +169,8 @@ for (const p of PROJECTS) {
       "tests/unit/release.test.ts",
       ".claude-plugin",
       "plugins",
+      "adopt",
+      "tests/unit/plugin-adopt.test.ts",
       "tests/unit/plugin-check-setup.test.ts",
       "tests/unit/plugin-release.test.ts",
       "tests/unit/plugin-new-project.test.ts",

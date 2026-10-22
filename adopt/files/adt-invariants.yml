@@ -1,0 +1,48 @@
+# ai-dev-template: invariant guard, in OBSERVE mode (adopted with /adt:adopt).
+# Red when a PR changes {{INVARIANTS_DIR}}/ without the "{{INVARIANT_LABEL}}" label applied by an owner of that folder in
+# .github/CODEOWNERS, skips or isolates a test there, or lowers their number. It is not a required check: a red result
+# does not block the merge. The invariant tests themselves keep running in the project's own CI.
+
+name: adt invariants (observe)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adt-invariants-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  adt-invariants:
+    name: adt-invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # check who applied the approval label
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.x"
+      - name: Guard (from the target branch; the PR's own copy only on first setup)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          INVARIANT_LABEL: "{{INVARIANT_LABEL}}"
+        run: |
+          GUARD=scripts/guard-invariants.ts
+          if git show "origin/$BASE_REF:$GUARD" > "$RUNNER_TEMP/guard-invariants.ts" 2>/dev/null; then
+            GUARD="$RUNNER_TEMP/guard-invariants.ts"
+          fi
+          node "$GUARD"

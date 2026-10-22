@@ -36,6 +36,11 @@ Then `/adt:discover`, in the new project:
 - it shows an inferred PRD for you to confirm or correct;
 - it changes nothing, and proves it with a fingerprint of the folder taken before and after.
 
+After the audit, `/adt:adopt` (run inside the project) brings the workflow on a branch, as a PR you review:
+- **Adds**, never overwrites or renames: an existing file that differs is shown to you as a conflict, and `AGENTS.md` gets a section appended.
+- **Keeps** your label names (mapped) and your required checks.
+- **Observes first:** the AI review, the invariant guard and your own evals without a model run on every PR, but they block nothing. `/adt:check-setup` tells you when each one has been green long enough to become required; you decide.
+
 `/adt:check-setup` checks everything at any time. The prerequisites are the ones in step 1 below.
 
 The steps below do the same by hand.
@@ -174,6 +179,7 @@ These parts exist only in this repository; Copier does not copy them into projec
 | `tests/template/`, check `template` | Proves on every PR that the `.jinja` twins match this repository's files, that two projects with different answers pass their own checks, and that `copier update` keeps project files |
 | `.github/workflows/traffic.yml`, `scripts/traffic/` | **Traffic export**, below |
 | `.claude-plugin/marketplace.json`, `plugins/adt/`, `docs/PLUGIN-TEST.md` | The Claude Code plugin and its marketplace (installed from this repository), and its manual test. `plugins/adt/template.json` pins the release it creates projects from |
+| `adopt/` | What `/adt:adopt` brings into an existing project: the kit list and the observe-mode workflows |
 | `CHANGELOG.md`, `docs/RELEASING.md`, `scripts/release/` | Versions and the release flow: projects are created and updated only from release tags |
 | `LICENSE` | The template's license. Projects get its notice in `THIRD_PARTY_NOTICES.md` instead (from `THIRD_PARTY_NOTICES.md.jinja`), which does not set the project's own license |
 

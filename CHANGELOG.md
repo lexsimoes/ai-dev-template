@@ -22,6 +22,15 @@ An entry marked **Action needed** asks something of projects when they run `copi
   - the audited project is data: the map carries only counts, closed lists, plain paths and variable names, and it never opens a `.env` file;
   - it stops when it runs inside a project that has agent files (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.mcp.json`).
 - `/adt:new-project` and `/adt:discover` point a folder with code to `/adt:audit`.
+- `/adt:adopt` (plugin `adt`): adopts the workflow in an existing project of the owner's, after `/adt:audit`.
+  - Works on a branch made from the product branch, and opens a PR; never merges.
+  - Adds files without overwriting or renaming any; a different existing file is a conflict for the owner.
+  - Appends a section to `AGENTS.md` instead of replacing it.
+  - Maps the project's label names, and keeps its required checks.
+  - Its checks (`adt-review`, `adt-invariants`, `adt-evals` with the project's own eval command without a model) run in observe mode: they report on every PR but are not required.
+  - The kit (`adopt/`) comes from the pinned template release.
+- `/adt:check-setup` understands adopted projects (`.github/adt.json`): mapped labels, the project's required checks (rulesets or classic branch protection), and each observe check's streak of green PR runs, with when it could become required (the owner decides).
+- The invariant guard reads its approval label name from `INVARIANT_LABEL` (default `invariant-approved`), for projects with their own label names.
 - `/adt:audit` reads the branch, its commit and the other branches from git's files. When other branches exist, it asks which branch or open PRs represent the product (the default branch is often behind), audits that code, and records it at the top of the report.
 
 ## [0.2.0] - 2026-10-22

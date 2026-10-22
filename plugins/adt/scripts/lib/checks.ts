@@ -398,6 +398,128 @@ function checkTemplateVersion(ctx: Context, ghReady: boolean): Check {
   return { id: "template", title: "Template version", status: "pass", detail: `${from} of \`${source}\`, the latest release.` };
 }
 
+// ---------- projects that adopted the workflow (/adt:adopt), in observe mode ----------
+
+export interface Adopted {
+  template: { repository?: string; release?: string };
+  mode: string;
+  observeChecks: string[];
+  requiredChecks: string[];
+  labels: Record<string, string>;
+}
+
+const LABEL_NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._:-]{0,49}$/u;
+/** Workflow file of each observe check, as /adt:adopt writes them. */
+const OBSERVE_WORKFLOWS: Record<string, string> = { "adt-review": "adt-review.yml", "adt-invariants": "adt-invariants.yml", "adt-evals": "adt-evals.yml" };
+/** Consecutive green runs before an observe check is worth making required (the owner decides). */
+export const STABLE_RUNS = 5;
+
+/** `.github/adt.json`, when the project adopted the workflow; values that do not match closed patterns are dropped. */
+export function adoptedConfig(ctx: Context): Adopted | null {
+  const file = readJson<Partial<Adopted>>(ctx, ".github/adt.json");
+  if (file.state !== "ok" || file.data.mode !== "observe") return null;
+  const d = file.data;
+  return {
+    template: d.template ?? {},
+    mode: "observe",
+    observeChecks: (d.observeChecks ?? []).filter((c) => c in OBSERVE_WORKFLOWS),
+    requiredChecks: (d.requiredChecks ?? []).filter((c) => typeof c === "string" && CHECK_NAME_RE.test(c)),
+    labels: Object.fromEntries(Object.entries(d.labels ?? {}).filter(([, n]) => typeof n === "string" && LABEL_NAME_RE.test(n))),
+  };
+}
+
+function checkAdoptedLabels(ctx: Context, repo: RepoInfo, adopted: Adopted): Check {
+  const r = ctx.run("gh", ["api", "--paginate", `repos/${repo.slug}/labels?per_page=100`, "--jq", ".[].name"]);
+  if (r.code !== 0) return { id: "labels", title: "Labels", status: "skip", detail: "Could not list the labels." };
+  const have = new Set(r.stdout.split("\n").map((l) => l.trim()));
+  const names = Object.values(adopted.labels);
+  const missing = names.filter((n) => !have.has(n));
+  if (!missing.length) return { id: "labels", title: "Labels", status: "pass", detail: `The ${names.length} mapped labels exist (\`.github/adt.json\`).` };
+  return {
+    id: "labels",
+    title: "Labels",
+    status: "warn",
+    detail: `Mapped in \`.github/adt.json\` but missing on GitHub: ${missing.map((n) => `\`${n}\``).join(", ")}. The observe checks still run; the labels are only needed to approve or to review again.`,
+    fix: missing.map((n) => `\`gh label create "${n}" -R ${repo.slug}\``).join("\n"),
+  };
+}
+
+/** The project's own required checks stay required, from rulesets or classic branch protection; the observe checks are not. */
+function checkAdoptedProtection(ctx: Context, repo: RepoInfo, adopted: Adopted): Check {
+  const title = `Protection of ${repo.branchLabel}`;
+  const rules = ghApi<Array<{ type: string; parameters?: { required_status_checks?: Array<{ context: string }> } }>>(ctx, `repos/${repo.slug}/rules/branches/${encodeURIComponent(repo.defaultBranch)}`);
+  const classic = ghApi<{ contexts?: string[]; checks?: Array<{ context: string }> }>(
+    ctx,
+    `repos/${repo.slug}/branches/${encodeURIComponent(repo.defaultBranch)}/protection/required_status_checks`,
+  );
+  if (!rules.ok && !classic.ok) return { id: "ruleset", title, status: "skip", detail: `Could not read the protection (${rules.error}).` };
+  const required = new Set([
+    ...(rules.ok ? rules.data.filter((r) => r.type === "required_status_checks").flatMap((r) => r.parameters?.required_status_checks ?? []).map((c) => c.context) : []),
+    ...(classic.ok ? [...(classic.data.contexts ?? []), ...(classic.data.checks ?? []).map((c) => c.context)] : []),
+  ]);
+  const missing = adopted.requiredChecks.filter((c) => !required.has(c));
+  const promoted = adopted.observeChecks.filter((c) => required.has(c));
+  const list = (names: string[]) => names.map((c) => `\`${c}\``).join(", ");
+  if (missing.length) {
+    return {
+      id: "ruleset",
+      title,
+      status: "fail",
+      detail: `Not required any more: ${list(missing)} (listed as required in \`.github/adt.json\`).`,
+      fix: "Make them required again in **Settings → Branches** (or **Rules**), or update `requiredChecks` in `.github/adt.json` in a PR if that was your decision.",
+    };
+  }
+  const note = promoted.length ? ` Made required by the owner: ${list(promoted)}.` : " The adopted checks are in observe mode (not required).";
+  return { id: "ruleset", title, status: "pass", detail: `Required: ${list(adopted.requiredChecks)}.${note}` };
+}
+
+/** How each observe check has done on recent PRs: green often enough to become required, or not yet. Never decides it. */
+function checkObserve(ctx: Context, repo: RepoInfo, adopted: Adopted): Check[] {
+  return adopted.observeChecks.map((name): Check => {
+    const title = `Observe: \`${name}\``;
+    const runs = ghApi<{ workflow_runs: Array<{ status: string; conclusion: string | null }> }>(
+      ctx,
+      `repos/${repo.slug}/actions/workflows/${OBSERVE_WORKFLOWS[name]}/runs?event=pull_request&per_page=20`,
+    );
+    if (!runs.ok) return { id: `observe-${name}`, title, status: "skip", detail: runs.status === 404 ? "Its workflow is not on GitHub yet (it arrives with the adoption PR)." : `Could not read its runs (${runs.error}).` };
+    const done = runs.data.workflow_runs.filter((r) => r.status === "completed" && r.conclusion !== "skipped" && r.conclusion !== "cancelled");
+    if (!done.length) return { id: `observe-${name}`, title, status: "warn", detail: "It has not run on a PR yet.", fix: "It runs on the next ready PR (the evals only when the PR touches AI code)." };
+    const streak = done.findIndex((r) => r.conclusion !== "success");
+    const greenInARow = streak === -1 ? done.length : streak;
+    const green = done.filter((r) => r.conclusion === "success").length;
+    if (greenInARow >= STABLE_RUNS) {
+      return {
+        id: `observe-${name}`,
+        title,
+        status: "pass",
+        detail: `Green in the last ${greenInARow} PR runs (${green} of ${done.length} overall): it can become a required check, if you decide so.`,
+      };
+    }
+    return {
+      id: `observe-${name}`,
+      title,
+      status: "warn",
+      detail: `${green} of the last ${done.length} PR runs green; ${greenInARow} in a row (${STABLE_RUNS} needed before suggesting it as required).`,
+      fix: "Keep observing: read the red runs, fix what is real, and leave it not required until it is consistently green.",
+    };
+  });
+}
+
+function checkAdoptedVersion(ctx: Context, adopted: Adopted): Check {
+  const release = adopted.template.release ?? "";
+  const from = shown(release.replace(/\+unreleased$/, ""), COMMIT_RE, "an unrecognized version");
+  const source = typeof adopted.template.repository === "string" && /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(adopted.template.repository) ? adopted.template.repository : null;
+  if (!source) return { id: "template", title: "Template version", status: "skip", detail: "Adopted from a template that is not on GitHub." };
+  const latest = ghApi<{ tag_name: string }>(ctx, `repos/${source}/releases/latest`);
+  const have = parseVersion(release.replace(/\+unreleased$/, ""));
+  const want = latest.ok && typeof latest.data.tag_name === "string" ? parseVersion(latest.data.tag_name) : null;
+  if (!want || !have) return { id: "template", title: "Template version", status: "skip", detail: `Adopted from ${from} of \`${source}\`.` };
+  if (compareVersions(have, want) < 0 || release.endsWith("+unreleased")) {
+    return { id: "template", title: "Template version", status: "warn", detail: `Adopted from ${from} of \`${source}\`; the latest release is \`v${want.join(".")}\`.`, fix: "Run `/adt:adopt` again from the latest release: it adds only what is missing and lists what differs." };
+  }
+  return { id: "template", title: "Template version", status: "pass", detail: `Adopted from ${from} of \`${source}\`, the latest release.` };
+}
+
 export function checkSetup(ctx: Context): Check[] {
   const gh = checkGh(ctx);
   const results: Check[] = [...gh.checks];
@@ -409,6 +531,15 @@ export function checkSetup(ctx: Context): Check[] {
   }
   const { repo, check } = checkRepo(ctx);
   results.push(check);
+  const adopted = adoptedConfig(ctx);
+  if (adopted) {
+    if (repo) {
+      results.push(checkAdoptedLabels(ctx, repo, adopted), checkAdoptedProtection(ctx, repo, adopted), ...checkObserve(ctx, repo, adopted));
+      results.push(...checkSecretsAndConfig(ctx, repo).filter((c) => c.id !== "evals-config"));
+    }
+    results.push(checkAdoptedVersion(ctx, adopted));
+    return results;
+  }
   if (repo) results.push(checkLabels(ctx, repo), checkDependencyGraph(ctx, repo), checkRuleset(ctx, repo, gh.login), ...checkSecretsAndConfig(ctx, repo), checkCi(ctx, repo));
   results.push(checkTemplateVersion(ctx, true));
   return results;

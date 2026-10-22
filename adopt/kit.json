@@ -1,0 +1,21 @@
+{
+  "$comment": "What /adt:adopt brings into an existing project, from this release of the template. Nothing is ever overwritten: an existing file that differs is a conflict for the owner. Read by plugins/adt/scripts/adopt.ts.",
+  "copy": [
+    "REVIEW.md",
+    "scripts/review/run.ts",
+    "scripts/review/lib.ts",
+    "scripts/review/providers.ts",
+    "scripts/guard-invariants.ts",
+    ".github/pull_request_template.md",
+    "docs/missions/_TEMPLATE.md",
+    "docs/missions/README.md"
+  ],
+  "workflows": {
+    ".github/workflows/adt-review.yml": "adopt/files/adt-review.yml",
+    ".github/workflows/adt-invariants.yml": "adopt/files/adt-invariants.yml",
+    ".github/workflows/adt-evals.yml": "adopt/files/adt-evals.yml"
+  },
+  "reviewConfig": ".github/review.json",
+  "templateOnlySensitivePaths": ["plugins/**", ".claude-plugin/**", "src/pricing.ts", "src/ai/**", "evals/**"],
+  "agentsSection": "adopt/files/AGENTS-section.md"
+}
