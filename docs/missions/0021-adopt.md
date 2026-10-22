@@ -95,6 +95,7 @@ The agent may not:
   - Draft PR, never merged. The owner keeps it open until the real test ends.
   - The project's CI does not run on PRs to that base, so it was dispatched on the branch instead.
   - Re-applying after the kit changed showed `scripts/guard-invariants.ts` as a conflict and wrote nothing, as designed.
+- **`adt-review` with the owner's real keys** ran on the GoAgentic PR: 0 blocking findings, 1 important, 4 suggestions. Three suggestions were kit defects, fixed in `b30ff72`: the reviewer's dependency locked, the PRD and HANDOFF never trivial, no template npm scripts in copied text.
 - **Security review** (diff only, a separate agent):
   - No finding at confidence ≥ 8.
   - Four smaller issues fixed:
@@ -104,5 +105,4 @@ The agent may not:
     - `apply` also refuses the origin's default branch.
 - **What was NOT verified:**
   - `/adt:adopt` driven by Claude in an interactive session (the owner's manual test, step 7c, after the release).
-  - `adt-review` with real keys.
   - `adt-evals` on GitHub, which runs only when a PR touches AI paths.

@@ -112,7 +112,7 @@ function plan(kitDir: string, answers: AdoptAnswers) {
   const owners = read(".github/CODEOWNERS");
   const agents = read("AGENTS.md");
   const slug = repoSlug();
-  const existing = slug ? run("gh", ["api", `repos/${slug}/labels?per_page=100`, "--jq", ".[].name"]) : null;
+  const existing = slug ? run("gh", ["api", "--paginate", `repos/${slug}/labels?per_page=100`, "--jq", ".[].name"]) : null;
   const names = existing?.code === 0 ? existing.stdout.split("\n").filter(Boolean) : null;
   return {
     release,
@@ -173,7 +173,7 @@ if (command === "labels") {
   const answers = answersOrExit();
   const slug = repoSlug();
   if (!slug) out({ errors: ["The origin remote is not a GitHub repository."] }, true);
-  const existing = run("gh", ["api", `repos/${slug}/labels?per_page=100`, "--jq", ".[].name"]);
+  const existing = run("gh", ["api", "--paginate", `repos/${slug}/labels?per_page=100`, "--jq", ".[].name"]);
   if (existing.code !== 0) out({ errors: ["Could not list the repository's labels."] }, true);
   const names = existing.stdout.split("\n").filter(Boolean);
   const steps = Object.values(answers.labels).map((name) => {
