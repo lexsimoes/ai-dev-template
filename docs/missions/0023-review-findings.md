@@ -37,7 +37,7 @@ The agent may not:
 - [x] 3. `autoFix` in `.github/review.json` (and its twin): it can only add protected paths and lower the caps; `/adt:adopt` adds the project's invariants folder.
 - [x] 4. Tests with planted findings (`tests/unit/review-triage.test.ts`), plus kit checks in `tests/unit/plugin-adopt.test.ts`.
 - [x] 5. Docs: `docs/WORKFLOW.md`, `CHANGELOG.md`, `docs/HANDOFF.md`.
-- [ ] 6. GoAgentic: the rule, the script and the `autoFix` config in lexsimoes/goagentic#23.
+- [x] 6. GoAgentic: the rule, the script and the `autoFix` config in lexsimoes/goagentic#23 (commit `12b8947`).
 
 ## Review stops
 
@@ -57,4 +57,9 @@ The agent may not:
 
 ## Report
 
-_(filled in by the agent at the end)_
+- **What was done:** the rule in `AGENTS.md`, its twin and the adopted section; `scripts/review/triage.ts` (`findings`, `check-fix`); `autoFix` in `.github/review.json`; `/adt:adopt` protects the project's invariants folder; tests with planted findings; the same rule in GoAgentic's adoption PR, with its golden set protected. The adopted reviewer package is marked as an ES module (Node warned on every run).
+- **Evidence:** `tests/unit/review-triage.test.ts` (10 tests; with the default invariants path switched off, 3 of them fail); `node scripts/review/triage.ts findings --pr 25` and `--pr 23` in GoAgentic on real reviewer comments; `npm run check` and `npm run test:template` green locally.
+- **Security review:** two findings, both fixed (`check-fix` let through a protected file whose name has accents, because git quoted it, and a merge commit). Now git runs with `core.quotePath=false` and `-z`, only one-parent commits are compared, and a file missing from the parsed diff is a problem.
+- **What was NOT verified:** whether an agent judges "obvious" correctly. That is judgment; the scripts only make the boundary (paths, cap, weakened tests) deterministic, and the re-review reads the fix. The weakened-test check is a heuristic: an assertion rewritten into a weaker one, or `skipIf`, is not caught. `check-fix` is not run by CI (it would be a CI change: owner's decision).
+- **Pending decisions for the owner:** run `check-fix` in CI on commits titled `fix: address review findings`?
+- **Possible injections found in external content:** none.
