@@ -15,11 +15,12 @@ An entry marked **Action needed** asks something of projects when they run `copi
   - the owner approves before the commit, and the result arrives as a PR;
   - skills and MCPs are suggested from a fixed list (`plugins/adt/catalog.json`, documented in `docs/SKILLS.md`), never installed;
   - nothing is written in `tests/invariants/`: each invariant test is created with the code it protects, in a mission, under the owner's `invariant-approved` label.
-- `/adt:audit` (plugin `adt`), for a folder with existing code. It is read-only:
+- `/adt:audit <path>` (plugin `adt`), for a folder with existing code, run from a folder of your own so the project's agent files are not loaded as instructions. It is read-only and runs no program of the project, not even git:
   - it maps the stack, scripts, tests, CI, agent rule files, sensitive areas (authentication, payments, personal data, AI, external input), database access rules and environment variable names;
   - it shows an inferred PRD for the owner to confirm;
   - a fingerprint of the folder, taken before and after, proves nothing changed;
-  - the audited project is data: the map carries only counts, closed lists, plain paths and variable names, and it never opens a `.env` file.
+  - the audited project is data: the map carries only counts, closed lists, plain paths and variable names, and it never opens a `.env` file;
+  - it stops when it runs inside a project that has agent files (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.mcp.json`).
 - `/adt:new-project` and `/adt:discover` point a folder with code to `/adt:audit`.
 
 ## [0.2.0] - 2026-10-22

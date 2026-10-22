@@ -6,7 +6,7 @@
 
 ## Goal
 
-In a folder with existing code, `/adt:audit` maps the stack, the tests and the sensitive areas, and shows an inferred PRD for the owner to confirm. It changes nothing.
+For a folder with existing code, `/adt:audit <path>` maps the stack, the tests and the sensitive areas, and shows an inferred PRD for the owner to confirm. It runs from a folder of the owner's own, never inside the project, and it changes nothing.
 
 ## Context
 
@@ -44,7 +44,7 @@ The agent may not:
 - [x] 3. `/adt:new-project` and `/adt:discover` point a folder with code to `/adt:audit`.
 - [x] 4. Unit tests, including "folder intact" and "no secret value in the output".
 - [x] 5. Rehearsal on GoAgentic (read-only); the report goes to the owner.
-- [ ] 6. Docs, security review, HANDOFF, report.
+- [x] 6. Docs, security review, HANDOFF, report.
 
 ## Acceptance
 
@@ -67,9 +67,18 @@ The agent may not:
     - a `.env.local` is listed but never opened;
     - a secret in a code file, `.env.example` values and project text never reach the output;
     - a symbolic link out of the project is not followed.
-  - Found by that test and fixed: `git status` refreshes `.git/index` on its own. The script now uses `git --no-optional-locks status`, which writes nothing (`discover.ts` too).
+  - Found by that test and fixed: `git status` refreshes `.git/index` on its own. `discover.ts` now uses `git --no-optional-locks status`, which writes nothing. `audit.ts` no longer runs git at all (below).
+- **Security review** (diff only, a separate agent): 3 findings at confidence ≥ 8, all fixed by a redesign.
+  1. On Windows, `git` run inside the audited folder could start a `git.exe` placed there.
+  2. git can run the project's own configuration (`core.fsmonitor`, verified), for example in a project received as an archive with its `.git`.
+  3. Starting Claude Code inside the audited project loads its `CLAUDE.md`, `AGENTS.md` and `.claude/` settings as instructions, before the skill can call them data. `--add-dir` still loads that folder's skills and agents (checked in the current Claude Code docs).
+  - **Fix:**
+    - `audit.ts` runs no program at all: it walks the folder and reads `.git/HEAD`.
+    - The skill runs from a folder of the owner's own, with `/adt:audit <path>`.
+    - It stops when it runs inside a project that has agent files.
+  - **Test:** a hostile project (fsmonitor set, a fake `git` at its root and first on PATH) runs nothing, and the control shows git itself would run it.
 - **GoAgentic rehearsal** (private repository, read-only shallow clone; its contents stay out of this public repository):
-  - `map` on 460 tracked files;
+  - `map` run from another folder, on 460 files;
   - the files of the flagged areas were read as data;
   - fingerprint and `git status` were the same before and after;
   - the report and inferred PRD went to the owner in the conversation.

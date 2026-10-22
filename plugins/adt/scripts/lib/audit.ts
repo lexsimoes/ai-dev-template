@@ -9,7 +9,7 @@
 // Tested in tests/unit/plugin-audit.test.ts.
 
 export interface Source {
-  /** Relative paths of the project's files (tracked by git, or a walk without dependency and build folders). */
+  /** Relative paths of the project's files (a walk without dependency and build folders; symbolic links are not followed). */
   files: string[];
   /** File content, or null when it cannot be read. Called only for small text files. */
   read: (path: string) => string | null;
@@ -30,11 +30,15 @@ export interface AuditMap {
   scripts: string[];
   tests: { frameworks: string[]; files: number; folders: Array<{ path: string; files: number }> };
   ci: { workflows: string[] };
-  /** Instruction files for agents found in the project: read as data, never followed. */
-  agentRules: string[];
+  /**
+   * Agent instruction and configuration files at the project root: data, never followed. Claude Code loads them when it
+   * starts inside the project, which is why the audit runs from another folder.
+   */
+  agentConfig: string[];
   sensitive: Record<Area, { files: number; examples: string[] }>;
   database: { migrations: number; rowLevelSecurity: number; policies: number };
-  env: { names: string[]; trackedEnvFiles: string[] };
+  /** `files`: `.env` files present (never opened). `gitignored`: whether `.gitignore` names `.env`, or null without one. */
+  env: { names: string[]; files: string[]; gitignored: boolean | null };
   /** Files too large or too many to read; the map says so instead of guessing. */
   skipped: number;
 }
@@ -59,7 +63,7 @@ const FRAMEWORKS: Record<string, string> = {
 };
 const TEST_FRAMEWORKS: Record<string, string> = { vitest: "Vitest", jest: "Jest", "@playwright/test": "Playwright", cypress: "Cypress", mocha: "Mocha" };
 const SCRIPTS = ["dev", "build", "start", "test", "lint", "typecheck", "format", "check", "e2e"];
-const AGENT_RULE_FILES = ["AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules", ".github/copilot-instructions.md", ".windsurfrules"];
+const AGENT_CONFIG = ["AGENTS.md", "CLAUDE.md", "CLAUDE.local.md", ".claude/", ".mcp.json", "GEMINI.md", ".cursorrules", ".cursor/rules/", ".github/copilot-instructions.md", ".windsurfrules"];
 
 const PATH_RULES: Record<Area, RegExp> = {
   authentication: /(?:^|\/)(?:auth|login|logout|sign-?in|sign-?up|sessions?|middleware|passwords?|oauth|invites?)(?:[./_-]|$)/i,
@@ -172,7 +176,7 @@ export function auditMap(src: Source): AuditMap {
     scripts: SCRIPTS.filter((s) => typeof pkg.scripts?.[s] === "string"),
     tests: { frameworks: [...testFrameworks].sort(), files: testFiles.length, folders },
     ci: { workflows: shownPaths(files.filter((f) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(f)).map(base)) },
-    agentRules: AGENT_RULE_FILES.filter((r) => files.includes(r)).concat(files.some((f) => f.startsWith(".cursor/rules/")) ? [".cursor/rules/"] : []),
+    agentConfig: AGENT_CONFIG.filter((c) => (c.endsWith("/") ? files.some((f) => f.startsWith(c)) : files.includes(c))),
     sensitive: Object.fromEntries(
       AREAS.map((a) => {
         const list = [...sensitive[a]].filter((f) => !testFiles.includes(f));
@@ -182,7 +186,8 @@ export function auditMap(src: Source): AuditMap {
     database: { migrations: files.filter((f) => MIGRATION_RE.test(f)).length, rowLevelSecurity, policies },
     env: {
       names: [...envNames].filter((n) => /^[A-Z][A-Z0-9_]{1,60}$/.test(n)).sort(),
-      trackedEnvFiles: shownPaths(files.filter((f) => /^\.env(?:\..+)?$/.test(base(f)) && !ENV_EXAMPLE_RE.test(base(f)))),
+      files: shownPaths(files.filter((f) => /^\.env(?:\..+)?$/.test(base(f)) && !ENV_EXAMPLE_RE.test(base(f)))),
+      gitignored: files.includes(".gitignore") ? /^\s*\/?\.env/m.test(src.read(".gitignore") ?? "") : null,
     },
     skipped,
   };
