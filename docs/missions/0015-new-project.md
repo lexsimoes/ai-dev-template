@@ -1,6 +1,6 @@
 # Mission 0015: /adt:new-project, sandbox rehearsal, manual install test
 
-**Status:** in review
+**Status:** done (merged in #18; manual test run by the owner on 2026-10-22)
 **Branch:** `mission/0015-new-project` · **PR:** https://github.com/lexsimoes/ai-dev-template/pull/18
 **Created on:** 2026-10-22 · **Approved by the owner on:** 2026-10-21 (M7b brief, items 3 and 6) and 2026-10-22 (rename to `adt`, plugin paths sensitive)
 
@@ -58,5 +58,13 @@ The agent may not: read or ask for API keys; create other repositories; delete t
 - **What was NOT verified:**
   - `/adt:new-project` and `/adt:check-setup` driven by Claude inside an interactive session, including the `allowed-tools` pre-approval (owner's manual test).
   - The script's own `gh repo create` step and the private + Free plan path on a real account.
-- **Pending decisions for the owner:** delete `adt-sandbox-m7b` after reviewing; whether test PR #1 there should stay open.
+- **Owner's manual test** (`docs/PLUGIN-TEST.md`, Mac Studio, 2026-10-22):
+  - Install from the marketplace: ✅. Two fixes to the test doc came from it: install the `claude` terminal command, and refresh a marketplace added before the rename.
+  - `/adt:new-project` in an empty folder (`lexsimoes/adt-manual-test`, public, no key): ✅ repository and push, labels, dependency graph, ruleset; the summary in three parts.
+  - Second run: ✅ nothing changed.
+  - `/adt:check-setup`: ✅ all green, including secrets listed by name (not testable from the agent's session).
+  - Folder with code: ✅ refused, nothing changed.
+  - Language: English, because the owner only typed commands (as designed: it follows the language the user writes in).
+  - Permissions: **no command asked for approval**, not even `create` and `setup`, which the skill does not pre-approve. This is most likely the owner's Claude Code permission mode (auto / bypass). The pre-approval of the read-only commands is therefore not disproven, but the prompt for `create` and `setup` is not shown either. The safeguard that holds in any mode is the skill's explicit "ok" before creating anything.
+- **Pending decisions for the owner:** delete `adt-sandbox-m7b` and `adt-manual-test` after reviewing.
 - **Possible injections found in external content:** none.

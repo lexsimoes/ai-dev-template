@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-22 · **By:** agent (M7b, PR 3: /adt:new-project)
+**Updated on:** 2026-10-22 · **By:** agent (M7b done: manual test results)
 
 ## Current state
 
@@ -22,7 +22,7 @@
 
 ## Last mission
 
-- M7b PR 3 (mission 0015): plugin renamed `adt` (owner decision); `plugins/**` and `.claude-plugin/**` are sensitive paths for the reviewer; `/adt:new-project` (empty folder → Copier from the pinned release → GitHub repository, labels, ruleset; idempotent; folder with code → stop); manual test in `docs/PLUGIN-TEST.md`. Sandbox rehearsal `adt-sandbox-m7b`: see the mission report.
+- M7b PR 3 (mission 0015): plugin renamed `adt` (owner decision); `plugins/**` and `.claude-plugin/**` are sensitive paths for the reviewer; `/adt:new-project` (empty folder → Copier from the pinned release → GitHub repository, labels, ruleset; idempotent; folder with code → stop); manual test in `docs/PLUGIN-TEST.md`. Sandbox rehearsal `adt-sandbox-m7b` and the owner's manual test on the Mac (all ✅; permission prompts not shown because of the owner's permission mode): see the mission report.
 - M7b PR 2 (mission 0014): Claude Code plugin `adt` and marketplace in this repository; `/adt:check-setup` (read-only; secrets by name only); bridges for Gemini CLI (`.gemini/settings.json`) and Aider (`.aider.conf.yml`). The plugin pins the template release in `plugins/adt/template.json` and its version follows the CHANGELOG (bumped in release PRs).
 - `v0.1.0` released by the owner on 2026-10-21 (immutable).
 - M7b PR 1 (mission 0013): releases. Semver tags `vX.Y.Z` from `v0.1.0`; `CHANGELOG.md`; `docs/RELEASING.md` (release PR by an agent, tag and release by the owner with `gh release create`); `scripts/release/notes.ts`; Copier and the docs use the latest release, not `main`. Agents never tag or release (`AGENTS.md` 1.7).
@@ -48,7 +48,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    2. Copier engine (done, PR #13): `copier.yml` (project name, GitHub owner → CODEOWNERS and the guard's owner, conversation language pt-BR/en, reviewer provider including "none", optional sections Context7 and UI/UX); no hardcoded `@lexsimoes`; 2 generated projects with CI; `copier update` brings a template change without overwriting project files (PRD, invariants, app code).
    3. No-key mode + public release (this PR): without an AI key, `quality`, `invariants` and `dependencies` run normally and `review`/`evals` pass with a clear "disabled" notice, without reopening the "skipped check counts as green" loophole for projects that do have a key; MIT license; "Getting started" README; weekly export of GitHub traffic data to a versioned file.
    - The owner's dotfiles and global CLAUDE.md stay out of the template, in a separate private repository.
-3. **M7b (entry point): Claude Code plugin** (marketplace in this repository), split by the owner into small PRs: releases (done, #16), plugin + marketplace + `/check-setup` + bridge files (done, #17), `/new-project` + sandbox rehearsal (`adt-sandbox-m7b`) + manual install test (this PR).
+3. **M7b (entry point): Claude Code plugin** (marketplace in this repository), split by the owner into small PRs: releases (done, #16), plugin + marketplace + `/check-setup` + bridge files (done, #17), `/new-project` + sandbox rehearsal + manual install test (done, #18). **M7b is done.** Next: a `v0.2.0` release so the plugin ships in a pinned version (agent prepares the release PR, owner publishes), then M7c.
    - `/new-project`: empty folder → discovery; existing code → audit. Talks with the person and passes the answers to Copier (`--data`), with no terminal prompts.
    - Automatic setup: labels via `gh`; protection ruleset applied via the API (first check whether the plan allows it on a private repository, and warn); keys registered by the person with `gh secret set NAME` in their own terminal, NEVER through the conversation, with a spending-limit reminder.
    - `/check-setup`: lists what is missing (keys, active ruleset, labels, green CI) and how to fix it.
@@ -67,6 +67,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 
 ## Pending decisions (owner)
 
+- Delete the test repositories `lexsimoes/adt-sandbox-m7b` and `lexsimoes/adt-manual-test` after reviewing (agents cannot delete repositories).
 - The template's `AGENTS.md` is the official version of the method (owner decision, 2026-10-21).
 - Sections 4 (Context7) and 5 (UI/UX) of `AGENTS.md` incorporate the summary of the owner's `~/.codex/AGENTS.md` sent on 2026-10-21.
 - M7: generate global `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` from the template, versioned in a dotfiles repository; optional sections (`<!-- optional:... -->`) turned on by project type.
