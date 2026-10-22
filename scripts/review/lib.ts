@@ -877,12 +877,18 @@ const ASSERTION_RE = /\b(assert(\.\w+)?|expect)\s*\(/;
 const SKIP_RE = /\.(skip|todo|only|fixme)\s*\(|\{\s*(skip|todo|only)\s*:\s*true|\bx(it|describe|test)\s*\(/;
 
 /**
- * Problems with a "fix: address review findings" commit: wrong subject, a protected path,
- * too many files, or a test weakened (fewer assertions, or a skip/only/todo/fixme added).
+ * Problems with a "fix: address review findings" commit: wrong subject, not exactly one parent, a protected path,
+ * too many files, a file the diff does not show by its plain name, or a test weakened (fewer assertions,
+ * or a skip/only/todo/fixme added). Anything it cannot read is a problem, never a pass.
  */
-export function checkFixCommit(input: { subject: string; files: string[]; diff: string }, config: AutoFixConfig): string[] {
+export function checkFixCommit(input: { subject: string; parents: number; files: string[]; diff: string }, config: AutoFixConfig): string[] {
   const problems: string[] = [];
   if (input.subject !== FIX_COMMIT_SUBJECT) problems.push(`the commit subject must be exactly "${FIX_COMMIT_SUBJECT}"`);
+  if (input.parents !== 1) problems.push(`the fix must be a plain commit with one parent (this one has ${input.parents}): no merge`);
+  const chunks = new Set(splitDiff(input.diff).map((f) => f.path));
+  for (const file of input.files) {
+    if (!chunks.has(file)) problems.push(`${JSON.stringify(file)}: not readable in the diff by its plain name; stop and ask the owner`);
+  }
   for (const file of input.files) {
     const glob = config.neverPaths.find((g) => globToRegExp(g).test(file));
     if (glob) problems.push(`${file}: protected path (${glob}); never auto-fixed, list the finding for the owner`);

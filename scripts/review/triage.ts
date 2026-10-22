@@ -82,11 +82,16 @@ function checkFix(commit: string): number {
     console.log(`Invalid commit: ${commit}`);
     return 1;
   }
-  const sha = run("git", ["rev-parse", "--verify", "--end-of-options", `${commit}^{commit}`]).trim();
-  const subject = run("git", ["show", "-s", "--format=%s", sha]).trim();
-  const files = run("git", ["diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha]).split("\n").filter(Boolean);
-  const diff = run("git", ["show", "--format=", "--unified=0", "--no-ext-diff", "--no-textconv", sha]);
-  const problems = checkFixCommit({ subject, files, diff }, loadAutoFix());
+  // core.quotePath=false: names with accents come out as they are. --no-renames: a rename shows both paths.
+  const git = (...args: string[]) => run("git", ["-c", "core.quotePath=false", ...args]);
+  const sha = git("rev-parse", "--verify", "--end-of-options", `${commit}^{commit}`).trim();
+  const subject = git("show", "-s", "--format=%s", sha).trim();
+  const parents = git("rev-list", "--parents", "-n", "1", sha).trim().split(" ").slice(1);
+  // Only a commit with one parent is compared (a merge shows no files by default; a root commit has no parent).
+  const parent = parents.length === 1 ? (parents[0] ?? "") : null;
+  const files = parent ? git("diff", "-z", "--name-only", "--no-renames", parent, sha).split("\0").filter(Boolean) : [];
+  const diff = parent ? git("diff", "--unified=0", "--no-ext-diff", "--no-textconv", "--no-renames", parent, sha) : "";
+  const problems = checkFixCommit({ subject, parents: parents.length, files, diff }, loadAutoFix());
   if (problems.length === 0) {
     console.log(`OK: ${sha.slice(0, 7)} "${subject}" touches ${files.length} file(s), none protected, no test weakened.`);
     return 0;

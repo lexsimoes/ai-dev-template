@@ -92,7 +92,9 @@ test("findings and the reviewer's cost are read from a real reviewer comment", (
   assert.equal(reviewCost("no report here"), null);
 });
 
-const fix = (files: string[], diff = "") => checkFixCommit({ subject: FIX_COMMIT_SUBJECT, files, diff }, DEFAULT_AUTO_FIX);
+const chunk = (path: string, lines = "+x") => [`diff --git a/${path} b/${path}`, `--- a/${path}`, `+++ b/${path}`, lines].join("\n");
+const fix = (files: string[], diff = files.map((f) => chunk(f)).join("\n")) =>
+  checkFixCommit({ subject: FIX_COMMIT_SUBJECT, parents: 1, files, diff }, DEFAULT_AUTO_FIX);
 
 test("a fix commit on ordinary code passes", () => {
   assert.deepEqual(fix(["src/pricing.ts", "tests/unit/pricing.test.ts"]), []);
@@ -101,11 +103,17 @@ test("a fix commit on ordinary code passes", () => {
 test("a fix commit touching a protected path, over the file cap or with another subject is refused", () => {
   assert.match(fix(["tests/invariants/pricing.invariant.test.ts"]).join("\n"), /protected path/);
   assert.match(fix(Array.from({ length: 11 }, (_, i) => `src/f${i}.ts`)).join("\n"), /stop and ask the owner/);
-  assert.match(checkFixCommit({ subject: "fix: other", files: [], diff: "" }, DEFAULT_AUTO_FIX).join("\n"), /subject/);
+  assert.match(checkFixCommit({ subject: "fix: other", parents: 1, files: [], diff: "" }, DEFAULT_AUTO_FIX).join("\n"), /subject/);
 });
 
-const testDiff = (lines: string) =>
-  ["diff --git a/tests/unit/pricing.test.ts b/tests/unit/pricing.test.ts", "--- a/tests/unit/pricing.test.ts", "+++ b/tests/unit/pricing.test.ts", lines].join("\n");
+test("a merge, a root commit, or a file the diff does not show by its plain name is refused, never passed", () => {
+  assert.match(checkFixCommit({ subject: FIX_COMMIT_SUBJECT, parents: 2, files: [], diff: "" }, DEFAULT_AUTO_FIX).join("\n"), /one parent/);
+  assert.match(checkFixCommit({ subject: FIX_COMMIT_SUBJECT, parents: 0, files: [], diff: "" }, DEFAULT_AUTO_FIX).join("\n"), /one parent/);
+  const quoted = '"tests/invariants/a\\303\\247.test.ts"';
+  assert.match(fix([quoted], `diff --git "a/x" "b/x"\n-  expect(a).toBe(1);`).join("\n"), /not readable in the diff/);
+});
+
+const testDiff = (lines: string) => chunk("tests/unit/pricing.test.ts", lines);
 
 test("a fix that weakens a test is refused: an assertion removed, or a test skipped", () => {
   assert.match(fix(["tests/unit/pricing.test.ts"], testDiff("-  assert.equal(applyCoupon(100, c), 90);")).join("\n"), /assertion\(s\) removed/);
@@ -139,6 +147,24 @@ test("CLI check-fix stops on a planted fix commit that touches the invariants, a
     const planted = spawnSync(process.execPath, [triage, "check-fix"], { cwd: repo, encoding: "utf-8" });
     assert.equal(planted.status, 1);
     assert.match(planted.stdout, /tests\/invariants\/a\.test\.ts: protected path/);
+
+    // A name with accents (git quotes it by default) is still a protected path.
+    writeFileSync(join(repo, "tests/invariants/autenticação.test.ts"), "// rule\n");
+    git("add", "-A");
+    git("commit", "-q", "-m", FIX_COMMIT_SUBJECT);
+    const accented = spawnSync(process.execPath, [triage, "check-fix"], { cwd: repo, encoding: "utf-8" });
+    assert.equal(accented.status, 1);
+    assert.match(accented.stdout, /autenticação\.test\.ts: protected path/);
+
+    // A merge that brings a change to the invariants is refused, not passed with "0 files".
+    git("switch", "-q", "-c", "side", "HEAD~1");
+    writeFileSync(join(repo, "tests/invariants/a.test.ts"), "// rule, emptied\n");
+    git("commit", "-q", "-am", "chore: side");
+    git("switch", "-q", "main");
+    git("merge", "-q", "--no-ff", "-X", "theirs", "-m", FIX_COMMIT_SUBJECT, "side");
+    const merge = spawnSync(process.execPath, [triage, "check-fix"], { cwd: repo, encoding: "utf-8" });
+    assert.equal(merge.status, 1);
+    assert.match(merge.stdout, /one parent/);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }

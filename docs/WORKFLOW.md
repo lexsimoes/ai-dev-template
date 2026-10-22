@@ -184,7 +184,7 @@ The implementer handles the findings before reporting to you (`AGENTS.md`, "Hand
 
 Two commands keep the boundary deterministic (`scripts/review/triage.ts`):
 - `findings --pr <n>` reads the reviewer's comment and splits the open findings into candidates and "never auto-fix", by path (`autoFix.neverPaths` in `.github/review.json`, which can only add to the defaults) and origin (a detected secret is always yours: the key must be rotated).
-- `check-fix` refuses a fix commit that touches a protected path, goes over the cap, removes assertions or skips a test.
+- `check-fix` refuses a fix commit that touches a protected path, goes over the cap, removes assertions or skips a test, and anything it cannot read (a merge, a file name it cannot match). The test checks are a heuristic: an assertion rewritten into a weaker one, or a conditional skip such as `skipIf`, is not caught; the re-review reads the fix.
 
 Whether a candidate is really "obvious" stays the implementer's judgment; the re-review reads the fix commit. Tested with planted findings in `tests/unit/review-triage.test.ts`.
 
