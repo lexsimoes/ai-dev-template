@@ -196,10 +196,20 @@ test("AGENTS.md, REVIEW.md, the invariant guard and the eval thresholds are neve
 
 /** The "Review-fix guard" step of .github/workflows/ci.yml, as the shell runs it. */
 function reviewFixStep(): string {
-  const ci = readFileSync(".github/workflows/ci.yml", "utf-8");
-  const block = /- name: Review-fix guard[\s\S]*?\n {8}run: \|\n([\s\S]*?)\n {6}(?:#|- )/.exec(ci)?.[1];
-  assert.ok(block, "the step exists in ci.yml");
-  return block.replace(/^ {10}/gm, "");
+  const lines = readFileSync(".github/workflows/ci.yml", "utf-8").split("\n");
+  const start = lines.findIndex((l) => /- name: Review-fix guard/.test(l));
+  assert.ok(start >= 0, "the step exists in ci.yml");
+  const run = lines.findIndex((l, i) => i > start && /^\s*run: \|\s*$/.test(l));
+  assert.ok(run > start, "the step has a run block");
+  // The block is every following line indented deeper than `run:` (blank lines included), whatever the indentation.
+  const keyIndent = (lines[run] ?? "").search(/\S/);
+  const body: string[] = [];
+  for (const line of lines.slice(run + 1)) {
+    if (line.trim() !== "" && line.search(/\S/) <= keyIndent) break;
+    body.push(line);
+  }
+  const indent = Math.min(...body.filter((l) => l.trim() !== "").map((l) => l.search(/\S/)));
+  return body.map((l) => l.slice(indent)).join("\n");
 }
 
 test("CI runs check-fix, from the target branch, on every fix commit of the PR", () => {
