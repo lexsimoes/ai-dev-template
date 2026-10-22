@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-22 · **By:** agent (M7c PR 3: `/adt:adopt`)
+**Updated on:** 2026-10-22 · **By:** agent (release `v0.3.0` PR)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Release PR for `v0.3.0` (mission 0022): CHANGELOG `[0.3.0]`, plugin `adt` version `0.3.0`, pinned template release `v0.3.0`. The owner publishes the release right after the merge (until then, `/adt:new-project` and `/adt:adopt fetch` from `main` report the release as not published).
 - M7c PR 3 (mission 0021): `/adt:adopt`.
   - Adoption on a branch, add-only.
   - `AGENTS.md` merged by appending a section.
@@ -72,7 +73,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - Automatic setup: labels via `gh`; protection ruleset applied via the API (first check whether the plan allows it on a private repository, and warn); keys registered by the person with `gh secret set NAME` in their own terminal, NEVER through the conversation, with a spending-limit reminder.
    - `/check-setup`: lists what is missing (keys, active ruleset, labels, green CI) and how to fix it.
    - Bridge files for implementers that do not read AGENTS.md natively. Claude Code is the entry point; Codex, Cursor, Antigravity and others are implementers only and just need AGENTS.md.
-4. **M7c (discovery and audit)**, 3 PRs (owner's "ok" on 2026-10-22; audit rehearsal on GoAgentic, read-only; two commands): `/adt:discover` (done, #21), `/adt:audit` (done, #22 and #23), adoption on a branch with CI in observation mode (mission 0021). Next: release `v0.3.0` after PR 3.
+4. **M7c (discovery and audit)**, 3 PRs (owner's "ok" on 2026-10-22; audit rehearsal on GoAgentic, read-only; two commands): `/adt:discover` (done, #21), `/adt:audit` (done, #22 and #23), adoption on a branch with CI in observation mode (done, #24). **M7c is done.** Next: release `v0.3.0` (release PR open; owner publishes), then the owner's manual tests (`docs/PLUGIN-TEST.md` steps 7, 7b, 7c) and M7d.
    - Discovery: product questions → short PRD with verifiable criteria, non-negotiables with their first tests, skills and MCPs chosen from the answers, and "test before choosing" (throwaway prototype when an idea or model is risky).
    - Audit: map stack, tests and sensitive areas; infer the PRD from the code and ask the owner to confirm; propose non-negotiables from what already exists; turn CI on in observation mode first (non-blocking) and make each check required once it is green.
 5. **M7d (tester):**

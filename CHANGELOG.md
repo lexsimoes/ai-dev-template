@@ -7,6 +7,10 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-22
+
+Discovery and audit: a new project starts from a short PRD, and an existing project can be audited read-only and adopt the workflow in observe mode.
+
 ### Added
 - `/adt:discover` (plugin `adt`), for a project created by `/adt:new-project`:
   - a short conversation about the product becomes `specs/PRD.md`: goal, verifiable acceptance criteria, and non-negotiables with test cases;
@@ -30,7 +34,7 @@ An entry marked **Action needed** asks something of projects when they run `copi
   - Its checks (`adt-review`, `adt-invariants`, `adt-evals` with the project's own eval command without a model) run in observe mode: they report on every PR but are not required.
   - The kit (`adopt/`) comes from the pinned template release.
 - `/adt:check-setup` understands adopted projects (`.github/adt.json`): mapped labels, the project's required checks (rulesets or classic branch protection), and each observe check's streak of green PR runs, with when it could become required (the owner decides).
-- The invariant guard reads its approval label name from `INVARIANT_LABEL` (default `invariant-approved`), for projects with their own label names.
+- The invariant guard reads its approval label name from `INVARIANT_LABEL` (default `invariant-approved`) and its folder from `INVARIANTS_DIR` (default `tests/invariants`), for projects with their own names. The defaults are unchanged.
 - `/adt:audit` reads the branch, its commit and the other branches from git's files. When other branches exist, it asks which branch or open PRs represent the product (the default branch is often behind), audits that code, and records it at the top of the report.
 
 ## [0.2.0] - 2026-10-22
@@ -67,6 +71,7 @@ First release: the workflow, the checks and the Copier template.
 - No-key mode: `review` and `evals` pass with an "off" notice when the project has no AI key.
 - MIT license; generated projects get `THIRD_PARTY_NOTICES.md`.
 
-[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/lexsimoes/ai-dev-template/releases/tag/v0.1.0
