@@ -1,6 +1,6 @@
 ---
 name: check-setup
-description: Check that a project created from ai-dev-template is fully set up (GitHub CLI login, repository, labels, protection of main with its required checks, secrets by name, reviewer and evals config versus the keys, CI on main, template version and available update) and explain how to fix each problem. Use when the user asks to check the setup, after /ai-dev:new-project, or when a required check behaves unexpectedly.
+description: Check that a project created from ai-dev-template is fully set up (GitHub CLI login, repository, labels, protection of main with its required checks, secrets by name, reviewer and evals config versus the keys, CI on main, template version and available update) and explain how to fix each problem. Use when the user asks to check the setup, after /adt:new-project, or when a required check behaves unexpectedly.
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-setup.ts")
 ---
 
