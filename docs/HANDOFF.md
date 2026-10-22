@@ -60,7 +60,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - Automatic setup: labels via `gh`; protection ruleset applied via the API (first check whether the plan allows it on a private repository, and warn); keys registered by the person with `gh secret set NAME` in their own terminal, NEVER through the conversation, with a spending-limit reminder.
    - `/check-setup`: lists what is missing (keys, active ruleset, labels, green CI) and how to fix it.
    - Bridge files for implementers that do not read AGENTS.md natively. Claude Code is the entry point; Codex, Cursor, Antigravity and others are implementers only and just need AGENTS.md.
-4. **M7c (discovery and audit)**, 3 PRs (owner's "ok" on 2026-10-22; audit rehearsal on GoAgentic, read-only; two commands): `/adt:discover` (in progress, mission 0018), `/adt:audit` (read-only), adoption on a branch with CI in observation mode.
+4. **M7c (discovery and audit)**, 3 PRs (owner's "ok" on 2026-10-22; audit rehearsal on GoAgentic, read-only; two commands): `/adt:discover` (PR #21, mission 0018), `/adt:audit` (read-only), adoption on a branch with CI in observation mode.
    - Discovery: product questions → short PRD with verifiable criteria, non-negotiables with their first tests, skills and MCPs chosen from the answers, and "test before choosing" (throwaway prototype when an idea or model is risky).
    - Audit: map stack, tests and sensitive areas; infer the PRD from the code and ask the owner to confirm; propose non-negotiables from what already exists; turn CI on in observation mode first (non-blocking) and make each check required once it is green.
 5. **M7d (tester):**

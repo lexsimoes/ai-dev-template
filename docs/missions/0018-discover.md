@@ -1,7 +1,7 @@
 # Mission 0018: /adt:discover (product discovery → PRD)
 
-**Status:** in progress
-**Branch:** `mission/0018-discover` · **PR:** [link once it exists]
+**Status:** in review
+**Branch:** `mission/0018-discover` · **PR:** https://github.com/lexsimoes/ai-dev-template/pull/21
 **Created on:** 2026-10-22 · **Approved by the owner on:** 2026-10-22 (M7c criteria 1–4 and 8; GoAgentic for the audit rehearsal; two commands; invariant tests created with the first mission)
 
 ## Goal
@@ -28,20 +28,20 @@ The agent may not:
 
 ## Items
 
-- [ ] 1. `plugins/adt/scripts/lib/discover.ts` + `scripts/discover.ts`:
+- [x] 1. `plugins/adt/scripts/lib/discover.ts` + `scripts/discover.ts`:
   - `inspect`: project state (starter or filled PRD, demo app, next invariant ID and mission number, branch and clean tree);
   - `suggest`: skills and MCPs from the fixed catalog `plugins/adt/catalog.json`;
   - `check`: deterministic checks of the written PRD and missions.
-- [ ] 2. Skill `/adt:discover`:
+- [x] 2. Skill `/adt:discover`:
   - questions in one message;
   - writes the PRD, the first mission(s) and the HANDOFF;
   - `check` until clean;
   - the owner's explicit "ok" before the commit;
   - branch `mission/0000-discovery`, draft PR.
-- [ ] 3. Unit tests.
-- [ ] 4. Rehearsal in a project generated from `v0.2.0` with simulated answers. Afterwards: `check`, the project's `npm run check` and its weekly direction check.
-- [ ] 5. Docs: README, `docs/SKILLS.md` (catalog), `docs/PLUGIN-TEST.md` (manual test), CHANGELOG, `/adt:new-project` next step.
-- [ ] 6. Security review on the diff; HANDOFF; report.
+- [x] 3. Unit tests.
+- [x] 4. Rehearsal in a project generated from `v0.2.0` with simulated answers. Afterwards: `check`, the project's `npm run check` and its weekly direction check.
+- [x] 5. Docs: README, `docs/SKILLS.md` (catalog), `docs/PLUGIN-TEST.md` (manual test), CHANGELOG, `/adt:new-project` next step.
+- [x] 6. Security review on the diff; HANDOFF; report.
 
 ## Acceptance
 
@@ -56,4 +56,21 @@ The agent may not:
 
 ## Report
 
-_(filled in by the agent at the end)_
+- **What was done:**
+  - `/adt:discover`: skill, `discover.ts` (`inspect`, `suggest`, `check`), the fixed catalog `plugins/adt/catalog.json` (documented in `docs/SKILLS.md`, kept in sync by a test).
+  - Docs: README, CHANGELOG, `docs/PLUGIN-TEST.md` step 7, and the next step of `/adt:new-project`.
+- **Evidence:**
+  - `tests/unit/plugin-discover.test.ts` (12 tests). `npm run check` green; template test 6/6 locally; `claude plugin validate` passed.
+  - Rehearsal in a project generated from `v0.2.0` (PR #21 description):
+    - the untouched starter fails `check`;
+    - the written PRD and 3 missions pass;
+    - the project's `npm run check` and weekly direction check pass;
+    - nothing changed in `tests/invariants/`.
+- **Security review** (diff only, a separate agent):
+  - No finding at confidence ≥ 8.
+  - One optional hardening applied: invariant file names reach the conversation only when they are plain names, the same rule as `check-setup`.
+- **What was NOT verified:**
+  - `/adt:discover` driven by Claude in an interactive session (the owner's manual test, after the next release: `claude plugin update` only updates when the plugin version changes).
+  - The `allowed-tools` wildcards pre-approving in a real session.
+- **Pending decisions for the owner:** none.
+- **Possible injections found in external content:** none.

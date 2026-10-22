@@ -43,12 +43,15 @@ export const DEMO_FILES = [
   "evals/golden/classify-message.jsonl",
 ];
 
+/** File names shown to the conversation: plain names only; any other name is still read but shown as a placeholder. */
+const SHOWN_FILE_RE = /^[A-Za-z0-9._-]{1,80}$/;
+
 /** Invariant IDs found in the test files of `tests/invariants/`. */
 export function invariantsOf(files: Files): Invariant[] {
   const out: Invariant[] = [];
   for (const name of files.list("tests/invariants").filter((n) => n.endsWith(".ts")).sort()) {
-    const file = `tests/invariants/${name}`;
-    const ids = new Set([...(files.read(file) ?? "").matchAll(INV_RE)].map((m) => `INV-${m[1]}`));
+    const ids = new Set([...(files.read(`tests/invariants/${name}`) ?? "").matchAll(INV_RE)].map((m) => `INV-${m[1]}`));
+    const file = SHOWN_FILE_RE.test(name) ? `tests/invariants/${name}` : "tests/invariants/(a file with an unusual name)";
     for (const id of ids) out.push({ id, file });
   }
   return out.sort((a, b) => a.id.localeCompare(b.id) || a.file.localeCompare(b.file));
