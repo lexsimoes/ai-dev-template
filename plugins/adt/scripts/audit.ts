@@ -6,13 +6,13 @@
 //
 // The audited project may not be trusted, so this script runs no program at all: no git, nothing from the project.
 // Running git inside a project can execute that project's own configuration (`core.fsmonitor`, filters) or, on
-// Windows, a `git.exe` placed in it. Files are listed by walking the folder, and the branch is read from `.git/HEAD`.
+// Windows, a `git.exe` placed in it. Files are listed by walking the folder, and branches are read from git's own files.
 
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { IGNORED_DIRS, auditMap, fingerprintOf } from "./lib/audit.ts";
-import type { Entry } from "./lib/audit.ts";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { IGNORED_DIRS, auditMap, fingerprintOf, gitState } from "./lib/audit.ts";
+import type { Entry, GitFiles } from "./lib/audit.ts";
 
 /** Beyond this many files the map and the fingerprint are partial, and the output says so (`truncated`). */
 const MAX_ENTRIES = Math.max(1, Number(process.env.ADT_AUDIT_MAX_ENTRIES) || 50_000);
@@ -113,7 +113,105 @@ const entries = walk();
 const fingerprint = fingerprintOf(entries, (text) => createHash("sha256").update(text).digest("hex").slice(0, 16));
 if (command === "fingerprint") out({ fingerprint, truncated });
 
-const head = /^ref: refs\/heads\/([\w./-]{1,100})\s*$/.exec(read(".git/HEAD") ?? "")?.[1] ?? null;
+/**
+ * A path under `base` in which no part is a symbolic link and no part is `.` or `..`, ending in a regular file or a
+ * folder. Anything else is null: git's files are read without ever leaving their folder.
+ */
+function safeUnder(base: string, rel: string, kind: "file" | "dir"): string | null {
+  const parts = rel.split("/").filter(Boolean);
+  if (parts.some((p) => p === "." || p === "..")) return null;
+  let path = base;
+  try {
+    if (!lstatSync(base).isDirectory()) return null;
+    for (const [i, part] of parts.entries()) {
+      path = join(path, part);
+      const st = lstatSync(path);
+      const ok = i < parts.length - 1 || kind === "dir" ? st.isDirectory() : st.isFile();
+      if (!ok) return null;
+    }
+  } catch {
+    return null;
+  }
+  return path;
+}
+
+/** git's own files are small; a larger one (a hostile `packed-refs`, say) is not read. */
+const MAX_GIT_FILE_BYTES = 5_000_000;
+
+const readUnder = (base: string, rel: string) => {
+  const path = safeUnder(base, rel, "file");
+  try {
+    if (path && lstatSync(path).size > MAX_GIT_FILE_BYTES) {
+      unreadable++;
+      return null;
+    }
+    return path ? readFileSync(path, "utf-8") : null;
+  } catch {
+    unreadable++;
+    return null;
+  }
+};
+
+/** Ref files under a folder of git's directory, without following symbolic links. */
+function refsUnder(common: string, sub: string): string[] {
+  if (!safeUnder(common, sub, "dir")) return [];
+  const found: string[] = [];
+  const stack = [sub];
+  while (stack.length && found.length < 1000) {
+    const rel = stack.pop() ?? "";
+    let names: string[];
+    try {
+      names = readdirSync(join(common, rel));
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      const path = `${rel}/${name}`;
+      try {
+        const st = lstatSync(join(common, path));
+        if (st.isDirectory()) stack.push(path);
+        else if (st.isFile()) found.push(path);
+      } catch {
+        unreadable++;
+      }
+    }
+  }
+  return found;
+}
+
+/** git state known to exist but not readable safely: the map says "repository", with branch and commit unknown. */
+const UNKNOWN: GitFiles = { read: () => null, refs: () => [] };
+
+/**
+ * git's directory: the project's own `.git` folder; or, for a worktree, the folder its `.git` file points to. A
+ * worktree's pointer is accepted only when it is `<repo>/.git/worktrees/<name>` and points back to this project, and its
+ * refs come from that `<repo>/.git`. A pointer anywhere else is not followed.
+ */
+function gitFiles(): GitFiles | null {
+  const dotGit = join(target, ".git");
+  let st: ReturnType<typeof lstatSync>;
+  try {
+    st = lstatSync(dotGit);
+  } catch {
+    return null;
+  }
+  if (st.isDirectory()) return { read: (path) => readUnder(dotGit, path), refs: (sub) => refsUnder(dotGit, sub) };
+  if (!st.isFile()) return UNKNOWN;
+  const pointer = /^gitdir: (.+)$/m.exec(readUnder(target, ".git") ?? "")?.[1]?.trim();
+  if (!pointer) return UNKNOWN;
+  try {
+    const dir = realpathSync(resolve(target, pointer));
+    const worktrees = dirname(dir);
+    const common = dirname(worktrees);
+    const back = readUnder(dir, "gitdir")?.trim();
+    const pointsBack = back ? realpathSync(resolve(dir, back)) === realpathSync(dotGit) : false;
+    if (basename(worktrees) !== "worktrees" || basename(common) !== ".git" || !pointsBack) return UNKNOWN;
+    return { read: (path) => (path === "HEAD" ? readUnder(dir, "HEAD") : readUnder(common, path)), refs: (sub) => refsUnder(common, sub) };
+  } catch {
+    return UNKNOWN;
+  }
+}
+
 const files = entries.map((e) => e.path).filter((p) => !p.startsWith(".git/"));
 out({
   target: {
@@ -122,7 +220,7 @@ out({
     empty: files.length === 0,
     fromTemplate: files.includes(".copier-answers.yml") && /ai-dev-template/.test(read(".copier-answers.yml") ?? ""),
   },
-  git: { repository: existsSync(join(target, ".git")), branch: head },
+  git: gitState(gitFiles()),
   map: auditMap({ files, read, size: (path) => (regular(path) ? lstatSync(join(target, path)).size : Number.MAX_SAFE_INTEGER) }),
   fingerprint,
   /** The walk stopped at the file limit: the map and the fingerprint cover part of the folder only. */

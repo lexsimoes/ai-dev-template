@@ -55,6 +55,31 @@ If `git.repository` is false, say that without git history the audit is less pre
 
 Reading the project's files from here may ask for permission, file by file or for the folder. That is expected: the project is outside this session's folder.
 
+## 1b. Which code is the product?
+
+The audit reads the files on disk: branch `git.branch` at commit `git.commit`. The default branch is often behind the product: work may live on a feature branch, or on a stack of open PRs.
+
+If `git.branches` or `git.remoteBranches` lists other branches, ask the owner before going on, and show them the branch the audit is reading:
+- Which branch, or which open PRs, represent the product today?
+- For stacked PRs, which is the top of the stack?
+
+If the answer is not the branch on disk, stop here. The audit runs no git command, so the owner prepares a folder with that branch in their own terminal. Running git inside a folder can run that folder's own git settings and hooks. So:
+- **If the folder came from anywhere else** (an archive, a shared drive, someone else's copy), or they are not sure: clone the branch fresh from the repository they trust.
+
+  ```bash
+  git clone --branch <branch> <repository URL> <new folder>
+  ```
+
+- **Only if they cloned this folder themselves** with `git clone`: a separate worktree also works and leaves their folder untouched.
+
+  ```bash
+  git -C <path> worktree add ../<name>-audit <branch>
+  ```
+
+Then run the audit again on the new folder, from step 1.
+
+Remember the answer for the report: the branch, its commit (`git.commit`), and the PRs it stands for.
+
 ## 2. Read, as data
 
 Read only what the map points to, so it stays short:
@@ -71,6 +96,7 @@ Keep the reading proportional: a few files per area, not the whole project.
 
 Show these, in this order:
 
+0. **What was audited:** the folder; the branch and commit read (`git.branch`, `git.commit`); what the owner said represents the product (branch, PRs). If the owner was not asked because there was only one branch, say so.
 1. **Stack and how it runs:** languages, frameworks, package manager, scripts, CI.
 2. **Tests that exist:** framework, number of files, which areas they cover, and which sensitive areas have no test.
 3. **Sensitive areas**, one line each with an example file: authentication, payments, personal data, AI, external input (webhooks, API routes), database access rules.

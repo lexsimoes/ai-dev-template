@@ -132,7 +132,8 @@ export function auditMap(src: Source): AuditMap {
   const testFiles = files.filter((f) => TEST_FILE_RE.test(f));
 
   for (const f of files) {
-    for (const area of AREAS) if (PATH_RULES[area].test(f)) sensitive[area].add(f);
+    // Only code counts for an area: screenshots and documents about login are not login.
+    if (CODE_EXT_RE.test(f)) for (const area of AREAS) if (PATH_RULES[area].test(f)) sensitive[area].add(f);
     const name = base(f);
     if (ENV_EXAMPLE_RE.test(name)) {
       for (const m of (src.read(f) ?? "").matchAll(/^\s*([A-Z][A-Z0-9_]{1,60})\s*=/gm)) envNames.add(m[1] ?? "");
@@ -210,4 +211,77 @@ export interface Entry {
 export function fingerprintOf(entries: Entry[], hash: (text: string) => string): string {
   const lines = entries.map((e) => `${e.path}\t${e.size}\t${Math.trunc(e.mtimeMs)}`).sort();
   return hash(lines.join("\n"));
+}
+
+// ---------- git, read from its files ----------
+
+export interface GitFiles {
+  /** A file of the git directory (`HEAD`, `packed-refs`, `refs/heads/main`…), or null. */
+  read: (path: string) => string | null;
+  /** Ref files under a folder of the git directory, as paths like `refs/heads/feat/x`. */
+  refs: (dir: string) => string[];
+}
+
+export interface GitState {
+  repository: boolean;
+  /** The branch checked out, i.e. the code the audit reads; null when detached or unknown. */
+  branch: string | null;
+  /** Its commit (12 characters), from the ref files; null when unknown. */
+  commit: string | null;
+  /** Other local and remote (`origin`) branches: the product may live on one of them, so the skill asks. */
+  branches: string[];
+  remoteBranches: string[];
+  /** Branches left out of the two lists above (more than 30). */
+  more: number;
+}
+
+const BRANCH_RE = /^[\w./-]{1,100}$/;
+
+/**
+ * A branch name git itself would accept (a subset of `git check-ref-format`): no `..` anywhere, no leading `-`, no
+ * empty part, no part starting with `.` or ending in `.lock`, no trailing `.`.
+ */
+export function validBranch(name: string): boolean {
+  return (
+    BRANCH_RE.test(name) &&
+    !name.startsWith("-") &&
+    !name.includes("..") &&
+    !name.endsWith(".") &&
+    name.split("/").every((part) => part !== "" && !part.startsWith(".") && !part.endsWith(".lock"))
+  );
+}
+const SHA_RE = /^[0-9a-f]{40}$/;
+const MAX_BRANCHES = 30;
+
+/** Branches and the checked-out commit, read from git's files without running git. */
+export function gitState(git: GitFiles | null): GitState {
+  if (!git) return { repository: false, branch: null, commit: null, branches: [], remoteBranches: [], more: 0 };
+  const packed = new Map<string, string>();
+  for (const line of (git.read("packed-refs") ?? "").split("\n")) {
+    const m = /^([0-9a-f]{40}) (refs\/\S+)$/.exec(line.trim());
+    if (m?.[1] && m[2]) packed.set(m[2], m[1]);
+  }
+  const shaOf = (ref: string) => {
+    const loose = git.read(ref)?.trim() ?? "";
+    return SHA_RE.test(loose) ? loose : (packed.get(ref) ?? null);
+  };
+  const names = (prefix: string) =>
+    [...new Set([...git.refs(prefix), ...packed.keys()].filter((r) => r.startsWith(`${prefix}/`)).map((r) => r.slice(prefix.length + 1)))]
+      .filter((n) => validBranch(n) && n !== "HEAD")
+      .sort();
+
+  const head = git.read("HEAD")?.trim() ?? "";
+  const symbolic = /^ref: refs\/heads\/(\S+)$/.exec(head)?.[1] ?? null;
+  const branch = symbolic && validBranch(symbolic) ? symbolic : null;
+  const commit = branch ? shaOf(`refs/heads/${branch}`) : SHA_RE.test(head) ? head : null;
+  const local = names("refs/heads").filter((n) => n !== branch);
+  const remote = names("refs/remotes/origin");
+  return {
+    repository: true,
+    branch,
+    commit: commit ? commit.slice(0, 12) : null,
+    branches: local.slice(0, MAX_BRANCHES),
+    remoteBranches: remote.slice(0, MAX_BRANCHES),
+    more: Math.max(0, local.length - MAX_BRANCHES) + Math.max(0, remote.length - MAX_BRANCHES),
+  };
 }

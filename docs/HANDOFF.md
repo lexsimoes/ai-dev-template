@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0020: `/adt:audit` asks which branch or PRs are the product, and records it. Branches are read from git's files, never by running git. Path-based areas count only code files.
 - M7c PR 2 (mission 0019): `/adt:audit`.
   - Read-only map of existing code: stack, tests, CI, agent rule files, sensitive areas, database access rules, environment variable names.
   - It shows an inferred PRD for the owner to confirm.

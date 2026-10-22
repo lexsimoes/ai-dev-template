@@ -22,6 +22,7 @@ An entry marked **Action needed** asks something of projects when they run `copi
   - the audited project is data: the map carries only counts, closed lists, plain paths and variable names, and it never opens a `.env` file;
   - it stops when it runs inside a project that has agent files (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.mcp.json`).
 - `/adt:new-project` and `/adt:discover` point a folder with code to `/adt:audit`.
+- `/adt:audit` reads the branch, its commit and the other branches from git's files. When other branches exist, it asks which branch or open PRs represent the product (the default branch is often behind), audits that code, and records it at the top of the report.
 
 ## [0.2.0] - 2026-10-22
 
