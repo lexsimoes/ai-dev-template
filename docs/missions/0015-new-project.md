@@ -58,7 +58,7 @@ The agent may not: read or ask for API keys; create other repositories; delete t
 - **What was NOT verified:**
   - `/adt:new-project` and `/adt:check-setup` driven by Claude inside an interactive session, including the `allowed-tools` pre-approval (owner's manual test).
   - The script's own `gh repo create` step and the private + Free plan path on a real account.
-- **Owner's manual test** (`docs/PLUGIN-TEST.md`, Mac Studio, 2026-10-22):
+- **Owner's manual test** (`docs/PLUGIN-TEST.md`, Mac Studio, 2026-10-22). Evidence: the repository it created, https://github.com/lexsimoes/adt-manual-test, its [CI run on `main`](https://github.com/lexsimoes/adt-manual-test/actions/runs/39709822010), and the outputs the owner pasted, recorded in https://github.com/lexsimoes/ai-dev-template/pull/19#issuecomment-6331149858.
   - Install from the marketplace: ✅. Two fixes to the test doc came from it: install the `claude` terminal command, and refresh a marketplace added before the rename.
   - `/adt:new-project` in an empty folder (`lexsimoes/adt-manual-test`, public, no key): ✅ repository and push, labels, dependency graph, ruleset; the summary in three parts.
   - Second run: ✅ nothing changed.
