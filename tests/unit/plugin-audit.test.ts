@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { auditMap, fingerprintOf, gitState } from "../../plugins/adt/scripts/lib/audit.ts";
+import { auditMap, fingerprintOf, gitState, validBranch } from "../../plugins/adt/scripts/lib/audit.ts";
 import type { Source } from "../../plugins/adt/scripts/lib/audit.ts";
 
 /** A value planted in the fixture that must never reach the output (not a real key, and not shaped like one). */
@@ -120,6 +120,48 @@ test("git state from git's files: branch, commit, other branches; odd names left
   assert.deepEqual(gitState(null), { repository: false, branch: null, commit: null, branches: [], remoteBranches: [], more: 0 });
 });
 
+test("branch names: only what git itself would accept", () => {
+  for (const ok of ["main", "feat/whatsapp-self-service", "codex/v1.2_fix"]) assert.ok(validBranch(ok), ok);
+  for (const bad of ["../../outside/token.txt", "-x", "a//b", "a/.hidden", "x.lock", "x.", "/abs", "a/", "with space"]) assert.ok(!validBranch(bad), bad);
+});
+
+test("hostile git files: no symbolic link, no `..`, no pointer elsewhere is followed", () => {
+  const root = mkdtempSync(join(tmpdir(), "adt-git-"));
+  const outside = mkdtempSync(join(tmpdir(), "adt-git-outside-"));
+  const script = resolve("plugins/adt/scripts/audit.ts");
+  const map = (path: string) => (JSON.parse(execFileSync("node", [script, "map", path], { cwd: tmpdir(), encoding: "utf-8" })) as Mapped).git;
+  const tree = (base: string, files: Record<string, string>) => {
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(base, path)), { recursive: true });
+      writeFileSync(join(base, path), text);
+    }
+  };
+  try {
+    const sha = "a".repeat(40);
+    tree(outside, { "secret-dir/prod-db-password-hunter2": sha, "token.txt": "b".repeat(40), "repo/HEAD": "ref: refs/heads/stolen\n", "repo/refs/heads/stolen": sha });
+
+    // 1. refs/heads is a symbolic link to a folder outside the project: its file names never become branches.
+    tree(join(root, "p1"), { "a.ts": "", ".git/HEAD": "ref: refs/heads/main\n" });
+    mkdirSync(join(root, "p1/.git/refs"), { recursive: true });
+    symlinkSync(join(outside, "secret-dir"), join(root, "p1/.git/refs/heads"));
+    assert.deepEqual([map(join(root, "p1")).branches, map(join(root, "p1")).commit], [[], null]);
+
+    // 2. HEAD names a branch with `..`: nothing outside is read.
+    tree(join(root, "p2"), { "a.ts": "", ".git/HEAD": "ref: refs/heads/../../../../../token.txt\n" });
+    assert.deepEqual([map(join(root, "p2")).branch, map(join(root, "p2")).commit], [null, null]);
+
+    // 3. A `.git` file pointing anywhere but back to a worktree of this project is not followed.
+    tree(join(root, "p3"), { "a.ts": "", ".git": `gitdir: ${join(outside, "repo")}\n` });
+    assert.deepEqual(map(join(root, "p3")), { repository: true, branch: null, commit: null, branches: [], remoteBranches: [], more: 0 });
+
+    const output = JSON.stringify([map(join(root, "p1")), map(join(root, "p2")), map(join(root, "p3"))]);
+    for (const leaked of ["hunter2", "stolen", "bbbbbbbbbbbb", "token"]) assert.ok(!output.includes(leaked), leaked);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 test("fingerprint: same files → same value; any change → a different one", () => {
   const sha = (t: string) => createHash("sha256").update(t).digest("hex");
   const a = [{ path: "a.ts", size: 1, mtimeMs: 10.4 }, { path: "b.ts", size: 2, mtimeMs: 20 }];
@@ -131,7 +173,7 @@ test("fingerprint: same files → same value; any change → a different one", (
 interface Mapped {
   target: { overlapsWorkingFolder: boolean; empty: boolean; fromTemplate: boolean };
   truncated: boolean;
-  git: { repository: boolean; branch: string | null; commit: string | null; branches: string[] };
+  git: { repository: boolean; branch: string | null; commit: string | null; branches: string[]; remoteBranches: string[]; more: number };
   map: { env: { names: string[] }; agentConfig: string[] };
   fingerprint: string;
 }

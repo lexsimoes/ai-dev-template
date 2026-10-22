@@ -10,7 +10,7 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { IGNORED_DIRS, auditMap, fingerprintOf, gitState } from "./lib/audit.ts";
 import type { Entry, GitFiles } from "./lib/audit.ts";
 
@@ -113,55 +113,96 @@ const entries = walk();
 const fingerprint = fingerprintOf(entries, (text) => createHash("sha256").update(text).digest("hex").slice(0, 16));
 if (command === "fingerprint") out({ fingerprint, truncated });
 
-/** Plain files of a folder outside the walk (git's own), read with the same care: regular files only. */
-function plain(path: string): string | null {
+/**
+ * A path under `base` in which no part is a symbolic link and no part is `.` or `..`, ending in a regular file or a
+ * folder. Anything else is null: git's files are read without ever leaving their folder.
+ */
+function safeUnder(base: string, rel: string, kind: "file" | "dir"): string | null {
+  const parts = rel.split("/").filter(Boolean);
+  if (parts.some((p) => p === "." || p === "..")) return null;
+  let path = base;
   try {
-    return lstatSync(path).isFile() ? readFileSync(path, "utf-8") : null;
+    if (!lstatSync(base).isDirectory()) return null;
+    for (const [i, part] of parts.entries()) {
+      path = join(path, part);
+      const st = lstatSync(path);
+      const ok = i < parts.length - 1 || kind === "dir" ? st.isDirectory() : st.isFile();
+      if (!ok) return null;
+    }
   } catch {
     return null;
   }
+  return path;
 }
 
-/** git's directory: `.git`, or the folder a worktree's `.git` file points to (with its `commondir` for the refs). */
+const readUnder = (base: string, rel: string) => {
+  const path = safeUnder(base, rel, "file");
+  try {
+    return path ? readFileSync(path, "utf-8") : null;
+  } catch {
+    unreadable++;
+    return null;
+  }
+};
+
+/** Ref files under a folder of git's directory, without following symbolic links. */
+function refsUnder(common: string, sub: string): string[] {
+  if (!safeUnder(common, sub, "dir")) return [];
+  const out: string[] = [];
+  const stack = [sub];
+  while (stack.length && out.length < 1000) {
+    const rel = stack.pop() ?? "";
+    let names: string[];
+    try {
+      names = readdirSync(join(common, rel));
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      const path = `${rel}/${name}`;
+      try {
+        const st = lstatSync(join(common, path));
+        if (st.isDirectory()) stack.push(path);
+        else if (st.isFile()) out.push(path);
+      } catch {
+        unreadable++;
+      }
+    }
+  }
+  return out;
+}
+
+/** git state known to exist but not readable safely: the map says "repository", with branch and commit unknown. */
+const UNKNOWN: GitFiles = { read: () => null, refs: () => [] };
+
+/**
+ * git's directory: the project's own `.git` folder; or, for a worktree, the folder its `.git` file points to. A
+ * worktree's pointer is accepted only when it is `<repo>/.git/worktrees/<name>` and points back to this project, and its
+ * refs come from that `<repo>/.git`. A pointer anywhere else is not followed.
+ */
 function gitFiles(): GitFiles | null {
   const dotGit = join(target, ".git");
-  let dir: string;
+  let st: ReturnType<typeof lstatSync>;
   try {
-    if (lstatSync(dotGit).isDirectory()) dir = dotGit;
-    else {
-      const pointer = /^gitdir: (.+)$/m.exec(plain(dotGit) ?? "")?.[1]?.trim();
-      if (!pointer) return null;
-      dir = resolve(target, pointer);
-    }
+    st = lstatSync(dotGit);
   } catch {
     return null;
   }
-  const common = resolve(dir, plain(join(dir, "commondir"))?.trim() || ".");
-  const refs = (sub: string): string[] => {
-    const out: string[] = [];
-    const stack = [sub];
-    while (stack.length && out.length < 1000) {
-      const rel = stack.pop() ?? "";
-      let names: string[];
-      try {
-        names = readdirSync(join(common, rel));
-      } catch {
-        continue;
-      }
-      for (const name of names) {
-        const path = `${rel}/${name}`;
-        try {
-          const st = lstatSync(join(common, path));
-          if (st.isDirectory()) stack.push(path);
-          else if (st.isFile()) out.push(path);
-        } catch {
-          unreadable++;
-        }
-      }
-    }
-    return out;
-  };
-  return { read: (path) => plain(join(path === "HEAD" ? dir : common, path)), refs };
+  if (st.isDirectory()) return { read: (path) => readUnder(dotGit, path), refs: (sub) => refsUnder(dotGit, sub) };
+  if (!st.isFile()) return UNKNOWN;
+  const pointer = /^gitdir: (.+)$/m.exec(readUnder(target, ".git") ?? "")?.[1]?.trim();
+  if (!pointer) return UNKNOWN;
+  try {
+    const dir = realpathSync(resolve(target, pointer));
+    const worktrees = dirname(dir);
+    const common = dirname(worktrees);
+    const back = readUnder(dir, "gitdir")?.trim();
+    const pointsBack = back ? realpathSync(resolve(dir, back)) === realpathSync(dotGit) : false;
+    if (basename(worktrees) !== "worktrees" || basename(common) !== ".git" || !pointsBack) return UNKNOWN;
+    return { read: (path) => (path === "HEAD" ? readUnder(dir, "HEAD") : readUnder(common, path)), refs: (sub) => refsUnder(common, sub) };
+  } catch {
+    return UNKNOWN;
+  }
 }
 
 const files = entries.map((e) => e.path).filter((p) => !p.startsWith(".git/"));

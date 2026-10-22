@@ -236,6 +236,17 @@ export interface GitState {
 }
 
 const BRANCH_RE = /^[\w./-]{1,100}$/;
+
+/** A branch name git itself would accept (a subset of `git check-ref-format`): never `..`, a leading `-` or `/`, `.lock`. */
+export function validBranch(name: string): boolean {
+  return (
+    BRANCH_RE.test(name) &&
+    !name.startsWith("-") &&
+    !name.endsWith(".lock") &&
+    !name.endsWith(".") &&
+    name.split("/").every((part) => part !== "" && !part.startsWith("."))
+  );
+}
 const SHA_RE = /^[0-9a-f]{40}$/;
 const MAX_BRANCHES = 30;
 
@@ -253,12 +264,12 @@ export function gitState(git: GitFiles | null): GitState {
   };
   const names = (prefix: string) =>
     [...new Set([...git.refs(prefix), ...packed.keys()].filter((r) => r.startsWith(`${prefix}/`)).map((r) => r.slice(prefix.length + 1)))]
-      .filter((n) => BRANCH_RE.test(n) && n !== "HEAD")
+      .filter((n) => validBranch(n) && n !== "HEAD")
       .sort();
 
   const head = git.read("HEAD")?.trim() ?? "";
   const symbolic = /^ref: refs\/heads\/(\S+)$/.exec(head)?.[1] ?? null;
-  const branch = symbolic && BRANCH_RE.test(symbolic) ? symbolic : null;
+  const branch = symbolic && validBranch(symbolic) ? symbolic : null;
   const commit = branch ? shaOf(`refs/heads/${branch}`) : SHA_RE.test(head) ? head : null;
   const local = names("refs/heads").filter((n) => n !== branch);
   const remote = names("refs/remotes/origin");

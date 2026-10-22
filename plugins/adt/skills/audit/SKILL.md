@@ -63,14 +63,20 @@ If `git.branches` or `git.remoteBranches` lists other branches, ask the owner be
 - Which branch, or which open PRs, represent the product today?
 - For stacked PRs, which is the top of the stack?
 
-If the answer is not the branch on disk, stop here. The audit runs no git command, so the owner prepares the folder in their own terminal. Give them one of these:
+If the answer is not the branch on disk, stop here. The audit runs no git command, so the owner prepares a folder with that branch in their own terminal. Running git inside a folder can run that folder's own git settings and hooks. So:
+- **If the folder came from anywhere else** (an archive, a shared drive, someone else's copy), or they are not sure: clone the branch fresh from the repository they trust.
 
-```bash
-git -C <path> switch <branch>                                  # if the working tree has no changes
-git -C <path> worktree add ../<name>-audit <branch>            # or a separate folder for the audit, leaving theirs untouched
-```
+  ```bash
+  git clone --branch <branch> <repository URL> <new folder>
+  ```
 
-Then run the audit again on that folder, from step 1.
+- **Only if they cloned this folder themselves** with `git clone`: a separate worktree also works and leaves their folder untouched.
+
+  ```bash
+  git -C <path> worktree add ../<name>-audit <branch>
+  ```
+
+Then run the audit again on the new folder, from step 1.
 
 Remember the answer for the report: the branch, its commit (`git.commit`), and the PRs it stands for.
 

@@ -42,4 +42,12 @@ The agent may change `plugins/adt/` and its tests, and the docs. It may fetch th
     - on `main`, the map listed 4 `origin` branches, so the skill asks;
     - after a worktree of the top of the PR stack, the map read that branch and its commit: 1,175 files, 270 test files, 60 migrations;
     - its areas no longer count screenshots or prompt documents.
+- **Security review** (diff only, a separate agent): 3 findings at confidence ≥ 8, all fixed and tested with hostile fixtures.
+  1. A symbolic link at `.git/refs/heads` was followed: file names outside the project became "branches". Fix: every part of a path under git's folder is checked with `lstat`, and no symbolic link is followed.
+  2. `..` in the branch named by `HEAD` read a file outside the project and printed 12 characters of it; a `gitdir:` pointer was followed anywhere. Fix:
+     - branch names must be names git itself would accept;
+     - a worktree pointer is accepted only when it is `<repo>/.git/worktrees/<name>` and points back to this project;
+     - anything else gives branch and commit "unknown".
+  3. The skill told the owner to run `git switch` or `git worktree add` inside a folder that may not be trusted, where git can run that folder's own settings and hooks. Fix: a fresh `git clone --branch` from the repository they trust, unless they cloned that folder themselves.
+  - Negative control: the hostile test fails against the previous script.
 - **What was NOT verified:** the question asked by Claude in an interactive session (the owner's manual test after the next release).
