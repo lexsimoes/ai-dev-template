@@ -146,7 +146,7 @@ export function tableRows(markdown: string): string[][] {
     .slice(2);
 }
 
-/** Text without blockquotes, comments, blank lines and inline code: what is left is what the author wrote. */
+/** Text without HTML comments, blockquotes and blank lines: what is left is what the author wrote. */
 function prose(text: string): string {
   return text
     .replace(/<!--[\s\S]*?-->/g, "")

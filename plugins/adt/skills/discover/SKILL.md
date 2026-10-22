@@ -102,12 +102,19 @@ Ask for an explicit "ok", or for changes. Nothing is committed before the "ok". 
 After the "ok" (`main` is protected, so the PRD arrives through a PR like everything else):
 
 ```bash
+npm run check
+```
+
+If it fails, fix what discovery wrote and run it again. Do not commit, push or open the PR until it is green.
+
+Write the PR description to a file outside the project (for example `/tmp/discovery-pr.md`): the summary above, and "nothing in `tests/invariants/`". Never put conversation text inside a shell string. Then:
+
+```bash
 git switch -c mission/0000-discovery
 git add specs/PRD.md docs/missions docs/HANDOFF.md
 git commit -m "docs: product discovery (PRD and first missions)"
 git push -u origin mission/0000-discovery
-gh pr create --draft --title "docs: product discovery" --body "<the summary above, and: nothing in tests/invariants/>"
-npm run check
+gh pr create --draft --title "docs: product discovery" --body-file /tmp/discovery-pr.md
 gh pr ready
 ```
 
