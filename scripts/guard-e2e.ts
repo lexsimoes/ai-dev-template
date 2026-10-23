@@ -10,7 +10,9 @@
 //      - deletes or renames a spec, or adds or changes any other file in e2e/ (fixtures, helpers) or playwright.config.ts;
 //      - adds a spec that imports from anywhere but ./fixtures.ts, or that routes, mocks or reconfigures the browser;
 //   3. in CI, the label was applied by someone who is not an owner of e2e/ (or, without such a rule,
-//      of tests/invariants/) in the CODEOWNERS of the target branch.
+//      of tests/invariants/) in the CODEOWNERS of the target branch;
+//   4. a test in quarantine (tag "@quarantine") has no `annotation: { type: "issue", description: <issue URL> }` pointing
+//      at an issue of this repository, or, in a PR, that issue is closed (fixed: the tag goes) or cannot be read.
 // A new spec that follows those rules needs no label.
 //
 // CI runs the version of this file that is on the target branch: a PR cannot loosen its own guard.
@@ -174,6 +176,42 @@ export function newSpecProblems(source: string, file = "spec.ts"): string[] {
   return [...problems];
 }
 
+export interface Quarantined {
+  title: string;
+  /** Issue number from the annotation, or null when there is none (or it points elsewhere). */
+  issue: number | null;
+}
+
+/** Tests tagged @quarantine, with the issue their `issue` annotation points to. */
+export function quarantined(source: string, repo: string, file = "spec.ts"): Quarantined[] {
+  const t = ts();
+  const sf = parse(source, file);
+  if (!sf) return [];
+  const found: Quarantined[] = [];
+  const strings = (node: import("typescript").Expression | undefined): string[] =>
+    !node ? [] : t.isStringLiteral(node) || t.isNoSubstitutionTemplateLiteral(node) ? [node.text] : t.isArrayLiteralExpression(node) ? node.elements.flatMap((e) => strings(e)) : [];
+  const property = (obj: import("typescript").ObjectLiteralExpression, name: string) =>
+    obj.properties.find((p): p is import("typescript").PropertyAssignment => t.isPropertyAssignment(p) && nameOf(p.name) === name)?.initializer;
+  const issueUrl = new RegExp(`^(?:https://github\\.com/${repo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/issues/|#)(\\d+)$`);
+  walk(sf, (node) => {
+    if (!t.isCallExpression(node)) return;
+    const title = strings(node.arguments[0])[0];
+    const details = node.arguments.find((a): a is import("typescript").ObjectLiteralExpression => t.isObjectLiteralExpression(a));
+    // Playwright also reads a tag written in the title ("checkout @quarantine").
+    if (!strings(details && property(details, "tag")).includes("@quarantine") && !title?.includes("@quarantine")) return;
+    const annotation = details && property(details, "annotation");
+    const annotations = !annotation ? [] : t.isArrayLiteralExpression(annotation) ? annotation.elements : [annotation];
+    let issue: number | null = null;
+    for (const a of annotations) {
+      if (!t.isObjectLiteralExpression(a) || strings(property(a, "type"))[0] !== "issue") continue;
+      const m = issueUrl.exec(strings(property(a, "description"))[0] ?? "");
+      if (m) issue = Number(m[1]);
+    }
+    found.push({ title: title ?? "(untitled)", issue });
+  });
+  return found;
+}
+
 export interface IssueEvent {
   event: string;
   label?: { name: string };
@@ -225,6 +263,18 @@ async function issueEvents(): Promise<{ events: IssueEvent[] | null; reason: str
   return { events: null, reason: "the PR has more than 1,000 events and the history was not read in full" };
 }
 
+/** "open", "closed", or why the state could not be read. */
+async function issueState(issue: number): Promise<string> {
+  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo } = process.env;
+  if (!token || !repo) return "not verified: no access to the GitHub API";
+  const api = process.env.GITHUB_API_URL || "https://api.github.com";
+  const r = await fetch(`${api}/repos/${repo}/issues/${issue}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } });
+  if (!r.ok) return `the API responded ${r.status}`;
+  const body = (await r.json()) as { state?: string; pull_request?: unknown };
+  if (body.pull_request) return "it is a pull request, not an issue";
+  return body.state === "open" || body.state === "closed" ? body.state : "unknown state";
+}
+
 function report(lines: string[]): void {
   const text = lines.join("\n");
   console.log(text);
@@ -246,6 +296,22 @@ async function main(): Promise<number> {
   const files = codeFiles();
   for (const file of files) {
     for (const p of disableProblems(readFileSync(file, "utf-8"), file)) errors.push(`\`${file}\` skips, focuses or switches off a test, or could hide it: ${p}.`);
+  }
+
+  // 4. Every quarantined test points to an open issue of this repository.
+  const repo = process.env.GITHUB_REPOSITORY ?? "";
+  for (const file of files.filter((f) => SPEC_FILE.test(f))) {
+    for (const q of quarantined(readFileSync(file, "utf-8"), repo, file)) {
+      if (q.issue === null) {
+        errors.push(`\`${file}\`: "${q.title}" is in quarantine without an \`issue\` annotation pointing at an issue of ${repo || "this repository"}.`);
+        continue;
+      }
+      const state = await issueState(q.issue);
+      if (state === "open") notes.push(`Quarantined: "${q.title}" (issue #${q.issue}, open).`);
+      else if (process.env.EVENT_NAME !== "pull_request") notes.push(`Quarantined: "${q.title}" (issue #${q.issue}: ${state}).`);
+      else if (state === "closed") errors.push(`\`${file}\`: "${q.title}" is still in quarantine, but issue #${q.issue} is closed. Remove the tag (the test is fixed) or reopen the issue.`);
+      else errors.push(`\`${file}\`: could not read issue #${q.issue} for "${q.title}" (${state}). Run the job again.`);
+    }
   }
 
   // 2 and 3. Only in PRs and local use: compares with the target branch.

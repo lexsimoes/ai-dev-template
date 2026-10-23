@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { disableProblems, newSpecProblems, parse, skeleton } from "../../scripts/guard-e2e.ts";
+import { disableProblems, newSpecProblems, parse, quarantined, skeleton } from "../../scripts/guard-e2e.ts";
 
 const run = promisify(execFile);
 const SCRIPT = resolve("scripts/guard-e2e.ts");
@@ -103,6 +103,7 @@ let repo = "";
 let server: http.Server;
 let port = 0;
 let labeler = "owner";
+let issueState = "open";
 
 function git(...args: string[]): void {
   execFileSync("git", args, { cwd: repo, stdio: "ignore" });
@@ -153,9 +154,11 @@ function pr(files: Record<string, string | null>): void {
 }
 
 before(async () => {
-  server = http.createServer((_req, res) => {
+  server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify([{ event: "labeled", label: { name: "test-approved" }, actor: { login: labeler }, created_at: "t" }]));
+    // /repos/o/r/issues/<n> is the quarantine issue; /repos/o/r/issues/1/events is the PR's label history.
+    if (/\/issues\/\d+$/.test(req.url ?? "")) res.end(JSON.stringify({ number: 7, state: issueState }));
+    else res.end(JSON.stringify([{ event: "labeled", label: { name: "test-approved" }, actor: { login: labeler }, created_at: "t" }]));
   });
   await new Promise<void>((ok) => server.listen(0, "127.0.0.1", () => ok()));
   port = (server.address() as { port: number }).port;
@@ -235,5 +238,47 @@ test("guard: skipping, focusing or fixme fails even with the owner's label, in a
   }
   pr({ "e2e/widget.spec.tsx": 'import { test } from "./fixtures.ts";\ntest.skip("x", () => {});\n' });
   assert.match((await guard(["test-approved"])).out, /`e2e\/widget\.spec\.tsx` skips/, ".tsx files are checked too");
+  labeler = "owner";
+});
+
+const QUARANTINED = (annotation: string) =>
+  SPEC.replace('test("CA-02: a valid coupon lowers the total", async', `test("CA-02: a valid coupon lowers the total", { tag: "@quarantine"${annotation} }, async`);
+
+test("quarantined: finds tagged tests and the issue their annotation points to", () => {
+  assert.deepEqual(quarantined(SPEC, "o/r"), []);
+  assert.deepEqual(quarantined(QUARANTINED(""), "o/r"), [{ title: "CA-02: a valid coupon lowers the total", issue: null }]);
+  const url = QUARANTINED(', annotation: { type: "issue", description: "https://github.com/o/r/issues/7" }');
+  assert.deepEqual(quarantined(url, "o/r"), [{ title: "CA-02: a valid coupon lowers the total", issue: 7 }]);
+  const list = QUARANTINED(', annotation: [{ type: "note", description: "x" }, { type: "issue", description: "#7" }]');
+  assert.equal(quarantined(list, "o/r")[0]?.issue, 7);
+  // Tags in a list, and the describe form, are found too.
+  assert.equal(quarantined('test.describe("d", { tag: ["@slow", "@quarantine"] }, () => {});', "o/r").length, 1);
+  assert.deepEqual(quarantined('test("checkout @quarantine", async () => {});', "o/r"), [{ title: "checkout @quarantine", issue: null }]);
+  // An issue of another repository, or a lookalike URL, is no issue of this one.
+  assert.equal(quarantined(url.replace("o/r/issues", "x/r/issues"), "o/r")[0]?.issue, null);
+  assert.equal(quarantined(url.replace("/7", "/7/../../../x/r/issues/7"), "o/r")[0]?.issue, null);
+  assert.equal(quarantined(url, "o.r")[0]?.issue, null, "the repository name is matched literally");
+});
+
+test("guard: quarantine needs the owner's label and an open issue; a closed issue asks for the tag to go", async () => {
+  const withIssue = QUARANTINED(', annotation: { type: "issue", description: "https://github.com/o/r/issues/7" }');
+  pr({ "e2e/coupon.spec.ts": withIssue });
+  const without = await guard([]);
+  assert.equal(without.code, 1, "adding the tag changes the test: test-approved");
+  assert.match(without.out, /changes more than selectors/);
+  labeler = "Owner";
+  const open = await guard(["test-approved"]);
+  assert.equal(open.code, 0, open.out);
+  assert.match(open.out, /Quarantined: "CA-02: a valid coupon lowers the total" \(issue #7, open\)/);
+  pr({ "e2e/coupon.spec.ts": QUARANTINED("") });
+  const noIssue = await guard(["test-approved"]);
+  assert.equal(noIssue.code, 1);
+  assert.match(noIssue.out, /is in quarantine without an `issue` annotation pointing at an issue of o\/r/);
+  pr({ "e2e/coupon.spec.ts": withIssue });
+  issueState = "closed";
+  const closed = await guard(["test-approved"]);
+  assert.equal(closed.code, 1);
+  assert.match(closed.out, /issue #7 is closed\. Remove the tag/);
+  issueState = "open";
   labeler = "owner";
 });
