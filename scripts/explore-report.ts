@@ -76,6 +76,10 @@ export function validate(input: unknown, root: string): string[] {
   const titles = new Set<string>();
   s.findings.forEach((f: Partial<Finding>, i) => {
     const at = `finding ${i + 1}`;
+    if (!f || typeof f !== "object" || Array.isArray(f)) {
+      problems.push(`${at}: must be an object`);
+      return;
+    }
     if (!text(f.title, 100, true)) problems.push(`${at}: \`title\` must be one line of up to 100 characters`);
     else if (titles.has(f.title)) problems.push(`${at}: the title repeats an earlier finding`);
     else titles.add(f.title);
@@ -154,8 +158,11 @@ function git(args: string[], env?: NodeJS.ProcessEnv, input?: string): string {
   return execFileSync("git", args, { encoding: "utf-8", env: env ?? process.env, input, stdio: ["pipe", "pipe", "pipe"] }).trim();
 }
 
-/** One commit with no parent, holding only the screenshots and REPORT.md, pushed to a new branch. The working tree is untouched. */
-function pushSessionBranch(s: Session, branch: string, root: string): void {
+/**
+ * One commit with no parent, holding only the screenshots and REPORT.md, pushed to a new branch. The working tree is untouched.
+ * A rerun after a failed issue call finds the branch with the same content and goes on; different content stops the run.
+ */
+function pushSessionBranch(s: Session, branch: string, root: string): "pushed" | "already pushed" {
   const tmp = mkdtempSync(join(tmpdir(), "explore-"));
   const env = { ...process.env, GIT_INDEX_FILE: join(tmp, "index") };
   try {
@@ -165,9 +172,15 @@ function pushSessionBranch(s: Session, branch: string, root: string): void {
     });
     add(git(["hash-object", "-w", "--stdin"], undefined, sessionReport(s, branch)), "REPORT.md");
     const tree = git(["write-tree"], env);
+    if (git(["ls-remote", "origin", `refs/heads/${branch}`])) {
+      git(["fetch", "-q", "origin", `refs/heads/${branch}`]);
+      if (git(["rev-parse", "FETCH_HEAD^{tree}"]) === tree) return "already pushed";
+      throw new Error(`the branch ${branch} already exists with other content: use another topic (it is never replaced)`);
+    }
     const commit = git(["commit-tree", tree, "-m", `docs: exploratory session ${s.topic}`]);
-    // No --force: an existing branch with this name stops the run instead of being replaced.
+    // No --force: a branch created in the meantime stops the run instead of being replaced.
     git(["push", "origin", `${commit}:refs/heads/${branch}`]);
+    return "pushed";
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -232,8 +245,8 @@ async function main(): Promise<number> {
     s.findings.forEach((f, i) => console.log(`--- ${issueTitle(f)}\n${issueBody(f, i + 1, repo, branch)}\n`));
     return 0;
   }
-  pushSessionBranch(s, branch, root);
-  console.log(`Screenshots pushed to ${branch}.`);
+  const pushed = pushSessionBranch(s, branch, root);
+  console.log(pushed === "pushed" ? `Screenshots pushed to ${branch}.` : `${branch} already holds these screenshots (a rerun): opening the issues still missing.`);
   await openIssues(s, repo, branch);
   return 0;
 }

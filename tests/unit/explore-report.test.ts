@@ -91,6 +91,7 @@ test("validate: bad topic, no findings, too many, missing fields, an unknown kin
   for (const field of ["title", "kind", "requirement", "steps", "expected"]) assert.match(bad, new RegExp(`\`${field}\``), field);
   assert.match(validate(session([FINDING, { ...FINDING }]), repoDir()).join("\n"), /repeats an earlier finding/);
   assert.match(validate(null, repoDir()).join("\n"), /not a JSON object/);
+  assert.match(validate(session([null, "x"] as unknown as Finding[]), repoDir()).join("\n"), /finding 1: must be an object\n.*finding 2: must be an object/s);
 });
 
 test("validate: a screenshot must be a real PNG or JPEG inside the repository", () => {
@@ -167,10 +168,20 @@ test("CLI: the screenshots go to a new branch with no code and no parent; one is
   assert.match(r.out, /Already open, not repeated: Exploration: The inbox tab order/);
   assert.match(r.out, /Opened: https:\/\/github\.com\/o\/r\/issues\/99/);
 
-  // The same topic on the same day never replaces the branch.
+  // A rerun after a failed issue call: same content, so the branch is kept and only missing issues are opened.
+  calls.length = 0;
+  openTitles = [issueTitle(FINDING), issueTitle(second)];
+  const rerun = await cli([], session([FINDING, second]));
+  assert.equal(rerun.code, 0, rerun.out);
+  assert.match(rerun.out, /already holds these screenshots/);
+  assert.equal(calls.filter((c) => c.method === "POST").length, 0);
+  assert.equal(git(remote, "rev-list", "--count", branch), "1");
+
+  // The same topic on the same day with other content never replaces the branch.
   const again = await cli([], session());
   assert.equal(again.code, 1);
-  assert.match(again.out, /rejected|failed to push/);
+  assert.match(again.out, /already exists with other content: use another topic/);
+  assert.match(git(remote, "show", `${branch}:REPORT.md`), /## 2\. The inbox tab order/, "the branch was not replaced");
   openTitles = [];
 });
 
