@@ -60,6 +60,7 @@ The reviewer and the tester were measured along the way.
 - **The reviewer's incremental review** re-checks a previous finding only when the finding's file changes.
   - A finding fixed elsewhere stays "pending" (#40).
   - A finding fixed only in the PR description is not re-checked without a new commit: `re-review` with no new commit recomputes the verdict and makes no call (#42).
+  - A rule fixed on the target branch does not clear a finding either: merging the base gives an empty incremental diff, and the finding stays pending. adt-sandbox-legacy#2 stays red in the `adt-review` observe check, on a finding that the corrected rule answers.
 - **A same-name DeepSeek release** (a newer V4.1-Flash) passes `pinnedVersion`; only the fingerprint note shows it.
 - **The template's own e2e setup** has the root-`tsconfig` gap that #43 closed for adopted projects. Fixing it changes `playwright.config.ts`, which needs `test-approved`.
 - **`adt-e2e` installs only an npm lockfile.** An app that needs more to start (another language, a database) needs its own setup step, which is a CI change and the owner's decision.
