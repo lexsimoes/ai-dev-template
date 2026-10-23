@@ -112,9 +112,11 @@ test("private repository: dependency review needs Advanced Security, so the chec
   assert.equal(old?.status, "fail");
   assert.match(old?.detail ?? "", /needs Advanced Security/);
   assert.match(old?.fix ?? "", /copier update --defaults/);
-  const updated = byId(checkSetup(world({ gh: priv, files: { ".github/workflows/ci.yml": "run: node base/scripts/dependency-audit.ts base .\n" } })), "dependency-graph");
+  const updated = byId(checkSetup(world({ gh: priv, files: { ".github/workflows/ci.yml": "if [ -f base/scripts/dependency-audit.ts ]; then checker=base/scripts/dependency-audit.ts\n" } })), "dependency-graph");
   assert.equal(updated?.status, "pass");
   assert.match(updated?.detail ?? "", /npm audit/);
+  const comment = byId(checkSetup(world({ gh: priv, files: { ".github/workflows/ci.yml": "# TODO: scripts/dependency-audit.ts\n" } })), "dependency-graph");
+  assert.equal(comment?.status, "fail", "a mention of the script is not the job");
 });
 
 test("ruleset: check names the report cannot show are counted, never silently dropped", () => {

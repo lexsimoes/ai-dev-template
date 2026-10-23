@@ -59,8 +59,10 @@ function audit(folder: string): AuditReport | null {
     try {
       out = execFileSync("npm", ["audit", "--json", "--package-lock-only"], { cwd: dir, env, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
     } catch (e) {
-      // npm audit exits 1 when it finds vulnerabilities: the report is still on stdout.
-      out = (e as { stdout?: string }).stdout ?? "";
+      // npm audit exits 1 when it finds vulnerabilities: the report is still on stdout. No stdout: npm did not run.
+      const stdout = (e as { stdout?: string }).stdout;
+      if (stdout === undefined || stdout === null) throw e;
+      out = stdout;
     }
     const report = JSON.parse(out) as AuditReport & { error?: { summary?: string } };
     if (report.error) throw new Error(`npm audit failed in ${folder}: ${report.error.summary ?? "unknown error"}`);
@@ -87,6 +89,10 @@ function main(): number {
   }
   const prReport = audit(prDir);
   if (!prReport) {
+    if (existsSync(join(baseDir, "package-lock.json"))) {
+      summary(["## ❌ Dependencies", "", "This PR removes `package-lock.json`, which the target branch has: the dependencies cannot be checked. Restore it."]);
+      return 1;
+    }
     summary(["## ✅ Dependencies", "", "No `package-lock.json` in this PR: nothing to check."]);
     return 0;
   }

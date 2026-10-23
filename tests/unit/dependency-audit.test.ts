@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { advisories, introduced } from "../../scripts/dependency-audit.ts";
@@ -40,8 +40,27 @@ test("CLI: a PR without a lockfile has nothing to check", () => {
   }
 });
 
+test("CLI: a PR that removes the target branch's lockfile fails", () => {
+  const base = mkdtempSync(join(tmpdir(), "dependency-audit-base-"));
+  const pr = mkdtempSync(join(tmpdir(), "dependency-audit-pr-"));
+  try {
+    copyFileSync("package-lock.json", join(base, "package-lock.json"));
+    let failed = false;
+    try {
+      execFileSync("node", [resolve("scripts/dependency-audit.ts"), base, pr], { encoding: "utf-8", stdio: "pipe", env: { ...process.env, GITHUB_STEP_SUMMARY: "" } });
+    } catch (e) {
+      failed = true;
+      assert.match((e as { stdout?: string }).stdout ?? "", /removes `package-lock\.json`/);
+    }
+    assert.ok(failed);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+    rmSync(pr, { recursive: true, force: true });
+  }
+});
+
 test("the CI runs it, from the target branch, only in a private repository", () => {
-  const ci = execFileSync("cat", [".github/workflows/ci.yml"], { encoding: "utf-8" });
+  const ci = readFileSync(".github/workflows/ci.yml", "utf-8");
   assert.match(ci, /if: \$\{\{ !github\.event\.repository\.private \}\}\n\s+uses: actions\/dependency-review-action/);
   assert.match(ci, /if \[ -f base\/scripts\/dependency-audit\.ts \]; then checker=base\/scripts\/dependency-audit\.ts/);
 });

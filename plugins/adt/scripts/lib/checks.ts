@@ -181,7 +181,7 @@ function checkLabels(ctx: Context, repo: RepoInfo): Check {
 function checkDependencyGraph(ctx: Context, repo: RepoInfo): Check {
   // GitHub's dependency review needs Advanced Security in a private repository: the project's CI runs npm audit there.
   if (repo.private) {
-    if (ctx.read(".github/workflows/ci.yml")?.includes("dependency-audit.ts")) {
+    if (/checker=base\/scripts\/dependency-audit\.ts/.test(ctx.read(".github/workflows/ci.yml") ?? "")) {
       return { id: "dependency-graph", title: "Dependency graph", status: "pass", detail: "Private repository: the `dependencies` check runs npm audit on what each PR introduces." };
     }
     return {
