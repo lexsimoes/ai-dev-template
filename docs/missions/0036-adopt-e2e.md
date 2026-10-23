@@ -93,4 +93,5 @@ Checked and not reported:
   - an app that needs more than an npm lockfile to start;
   - `/adt:adopt` from the released plugin (the kit arrives with v0.4.0).
 - **Pending decisions for the owner:** the template's own root-`tsconfig` gap (needs `test-approved`). A project whose `CODEOWNERS` already exists gets no `/e2e/` line: the guard falls back to the owner of its invariants folder, so nothing is written over the owner's file.
+- **Found on adt-sandbox-legacy#2:** the reviewer there blocked three new tests, citing the adopted `AGENTS.md`, which said that "touching anything else in `e2e/`" needs the label. The guard allows a new test that follows the rules. The adopted section now says so in its own line.
 - **Possible injections found in external content:** none.

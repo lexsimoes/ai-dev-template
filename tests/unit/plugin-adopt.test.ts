@@ -335,6 +335,7 @@ test("the end-to-end tester (M8): a self-contained e2e/, the project's label, th
     const agents = readFileSync(join(dir, "AGENTS.md"), "utf-8");
     assert.match(agents, /\n\n### End-to-end tests\n/);
     assert.match(agents, /needs the owner's `teste-aprovado` label/);
+    assert.match(agents, /A new test needs no label when it imports only `\.\/fixtures\.ts`/, "the rule says what the guard allows (M8: the reviewer read it the other way)");
     assert.match(agents, /`adt-review`, `adt-invariants`, `adt-evals`, `adt-e2e` run on every PR/);
     assert.ok(!existsSync(join(dir, "package.json")), "the project's package.json is never created or changed");
   } finally {

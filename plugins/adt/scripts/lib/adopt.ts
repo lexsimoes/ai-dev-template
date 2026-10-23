@@ -186,7 +186,8 @@ function e2eSection(answers: AdoptAnswers): string {
     "- `e2e/` holds the tests of the critical flows, run by `adt-e2e` against the app in its isolated mode (`e2e/playwright.config.ts`: no real service, every request outside the app blocked by `e2e/fixtures.ts`).",
     "- Each test title starts with the requirement it covers, from the PRD. Keep 3 to 8 tests of critical flows.",
     "- The Playwright test agents (`.claude/agents/playwright-test-*.md`: planner, generator, healer) write and repair them. Run locally: `npm ci --prefix e2e`, `npx --prefix e2e playwright install chromium`, then `npx --prefix e2e playwright test --config=e2e/playwright.config.ts`.",
-    `- An agent may update selectors only. Changing what a test checks, removing a test, or touching anything else in \`e2e/\` needs the owner's \`${test}\` label; no agent applies it. Never skip, focus or \`fixme\` a test: a flaky one gets an issue and, only with \`${test}\`, the \`@quarantine\` tag (\`scripts/guard-e2e.ts\` checks all of it).`,
+    "- A new test needs no label when it imports only `./fixtures.ts` and does not route, mock or reconfigure the browser.",
+    `- In an existing test, an agent may update selectors only. Changing what a test checks, removing a test, or changing any other file in \`e2e/\` (the fixtures, the config, the tester's dependencies) needs the owner's \`${test}\` label; no agent applies it. Never skip, focus or \`fixme\` a test: a flaky one gets an issue and, only with \`${test}\`, the \`@quarantine\` tag (\`scripts/guard-e2e.ts\` checks all of it).`,
   ].join("\n");
 }
 
