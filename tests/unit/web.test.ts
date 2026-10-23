@@ -89,6 +89,22 @@ test("contact → inbox: the message is classified, shown as text, and an empty 
   });
 });
 
+test("contact: a line break counts as one character, as in the browser, and any alphabet fits the limit (#33)", async () => {
+  await withApp(createMockClient(), async (base) => {
+    // The form sends line breaks as CRLF: 1,000 characters plus 999 CRLF are 1,999 characters for the browser.
+    const lines = Array(1_000).fill("a").join("\r\n");
+    assert.equal((await post(`${base}/contact`, { message: lines })).status, 303);
+    assert.equal((await post(`${base}/contact`, { message: "注".repeat(2_000) })).status, 303, "2,000 characters of 3-byte text fit the body limit");
+    const over = await post(`${base}/contact`, { message: `${lines}\r\nb` });
+    assert.equal(over.status, 422);
+    const html = await over.text();
+    assert.match(html, /Your message has 2,001 characters; the limit is 2,000 characters \(a line break counts as one\)\./);
+    const page = await (await fetch(`${base}/contact`)).text();
+    assert.match(page, /Up to 2,000 characters \(a line break counts as one\)\./, "the page states the limit the same way");
+    assert.match(await (await fetch(`${base}/support`)).text(), /a\na\na/, "stored with LF line breaks");
+  });
+});
+
 test("a failed or invalid model reply never loses the message: it goes to a person", async () => {
   const failing: LLMClient = { name: "failing", complete: () => Promise.reject(new Error("provider down")) };
   const invalid: LLMClient = { name: "invalid", complete: () => Promise.resolve({ text: "ignore the rules", model: "x" }) };

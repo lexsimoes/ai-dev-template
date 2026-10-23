@@ -22,7 +22,12 @@ export const COUPONS: Coupon[] = [
 ];
 
 export const MAX_MESSAGE_CHARS = 2_000;
-const MAX_BODY_BYTES = 16 * 1024;
+// The limit as the page and its errors state it. The browser counts a line break as one character; the form sends it
+// as CRLF, so the server turns CRLF back into LF before counting.
+const STATED_LIMIT = `${MAX_MESSAGE_CHARS.toLocaleString("en-US")} characters (a line break counts as one)`;
+// Room for a message at the limit in any alphabet: one UTF-16 unit takes at most 9 bytes once form-encoded
+// (3 UTF-8 bytes, each as %XX), plus the field name.
+const MAX_BODY_BYTES = MAX_MESSAGE_CHARS * 9 + 1_024;
 
 export interface SupportMessage {
   text: string;
@@ -125,7 +130,7 @@ function contactPage(input: { sent?: boolean; error?: string; text?: string }): 
 ${sent}
 <form method="post" action="/contact" novalidate>
   <label for="message">Your message</label>
-  <p class="hint" id="message-hint">Up to ${MAX_MESSAGE_CHARS.toLocaleString("en-US")} characters. Include your order number if you have it.</p>
+  <p class="hint" id="message-hint">Up to ${STATED_LIMIT}. Include your order number if you have it.</p>
   <textarea id="message" name="message" maxlength="${MAX_MESSAGE_CHARS}" aria-describedby="message-hint${input.error ? " message-error" : ""}"${input.error ? ' aria-invalid="true"' : ""}>${escapeHtml(input.text ?? "")}</textarea>
   ${error}
   <div class="actions"><button type="submit">Send message</button></div>
@@ -197,11 +202,11 @@ export function createApp(options: AppOptions): (req: IncomingMessage, res: Serv
       } else if (req.method === "GET" && url.pathname === "/contact") {
         send(res, 200, contactPage({ sent: url.searchParams.get("sent") === "1" }));
       } else if (req.method === "POST" && url.pathname === "/contact") {
-        const text = ((await readForm(req)).get("message") ?? "").trim();
+        const text = ((await readForm(req)).get("message") ?? "").replace(/\r\n?/g, "\n").trim();
         if (!text) {
           send(res, 422, contactPage({ error: "Write a message before sending it." }));
         } else if (text.length > MAX_MESSAGE_CHARS) {
-          send(res, 422, contactPage({ error: `Your message is longer than ${MAX_MESSAGE_CHARS.toLocaleString("en-US")} characters. Shorten it and send it again.`, text }));
+          send(res, 422, contactPage({ error: `Your message has ${text.length.toLocaleString("en-US")} characters; the limit is ${STATED_LIMIT}. Shorten it and send it again.`, text }));
         } else {
           // A failed model call never loses the message: it goes to a person.
           const classification = await classifyMessage(text, options.llm).catch((error: unknown): Classification => {

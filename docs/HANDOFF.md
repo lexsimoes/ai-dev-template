@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-23 · **By:** agent (mission 0028, M7d PR 4)
+**Updated on:** 2026-10-23 · **By:** agent (mission 0029)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0029: first bug found by an exploratory session, fixed through the full cycle. Issue #33 opened by `scripts/explore-report.ts` (branch `exploration/2026-10-23-contact-form`, the first real push and issue of the script); a new end-to-end test (`e2e/contact-message-limit.spec.ts`) failed first; the fix makes the server count line breaks as the browser does, sizes the body limit for 2,000 characters in any alphabet (the same test found a 413 for Japanese text), and states the limit the same way on the page and in the error.
 - Mission 0028 (M7d, PR 4 of 4): exploratory session on request (`/explore <area>`, `.claude/skills/explore/SKILL.md`; `AGENTS.md` 1.9). `scripts/explore-report.ts` pushes the screenshots to `exploration/<date>-<topic>` (one commit with no parent) and opens one issue per finding directly (owner's choices on 2026-10-23: screenshots on a session branch, issues opened without a review step). Also: `e2e-quarantine` declares read-only permissions and `e2e-flaky` checks the branch (owner's decision on the review of #31). A rehearsal in the browser found a real bug in the contact form (line breaks counted twice by the server), reported to the owner, not fixed.
 - Mission 0027 (M7d, PR 3 of 4): flaky end-to-end tests. `scripts/e2e-flaky.ts` lists tests that passed only on a retry in the `e2e` job summary; on `main`, the `e2e-flaky` job opens one issue per flaky test or comments on the open one. Quarantine = tag `@quarantine` plus an `issue` annotation, under `test-approved`: the required `e2e` check leaves it out, the non-required `e2e-quarantine` check still runs it; the guard (rule 4) fails a quarantine without an issue of the repository, or with a closed one in a PR. Rule in `AGENTS.md` 1.3, `docs/WORKFLOW.md` "Flaky tests".
 - Mission 0026 (M7d, PR 2 of 4): end-to-end guard (`scripts/guard-e2e.ts`, first step of the `e2e` job, from the target branch); `test-approved` label in the plugin, the README and the reviewer's approval labels; the healer's conflicting upstream lines rewritten and the planner's `browser_run_code_unsafe` removed (owner's pending decision from PR 1, recommended yes); the rule in `AGENTS.md` (1.3).
@@ -121,7 +122,6 @@ The adoption rehearsal PR (lexsimoes/goagentic#23) was closed without merge by t
 - M7d PR 1 (mission 0025):
   - after the first green `e2e` on `main`, add `e2e` to this repository's live `protect-main` ruleset;
   - keep HTTP 422 on validation errors (the browser notes it in the console), or return 200 with the error on the page.
-- M7d PR 4 (mission 0028): the contact form bug found in the rehearsal (a message within 2,000 characters with many line breaks is refused, because the server counts each CRLF as 2). Open it as an issue, and fix it in a mission with a new end-to-end test?
 - "Keep the GHCR authenticated-pull fix in the template CI": the template's own CI pulls no container image. Proposal: `/adt:audit` flags a project CI that uses `supabase/setup-cli` without it, and `/adt:adopt` offers the fix as a separate, owner-approved change. Waiting for the owner's choice.
 
 - Delete the test repository `lexsimoes/adt-manual-test` after reviewing (agents cannot delete repositories). `lexsimoes/adt-sandbox-m7b` stays: it is the M8 test bed.
