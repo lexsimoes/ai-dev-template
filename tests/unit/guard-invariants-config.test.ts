@@ -67,3 +67,25 @@ test("guard: a project with no invariants folder yet (just adopted, M8) passes i
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("guard: a PR that deletes the whole invariants folder fails, label or not, unless the owner's label is verified", () => {
+  const root = repo();
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+  try {
+    git("rm", "-rq", "tests/invariants");
+    git("-c", "user.email=a@b", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-qm", "delete the invariants");
+
+    const r = guard(root, {});
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /changes protected files without a valid `invariant-approved` label: `tests\/invariants\/b\.test\.ts`/);
+    assert.match(r.out, /Invariant tests: 1 on `origin\/main` → 0 in this PR/);
+    assert.match(r.out, /dropped from 1 to 0/);
+
+    // The label in the payload alone is not enough: in CI, who applied it must be checked, and here it cannot be.
+    const labeled = guard(root, { PR_LABELS: '["invariant-approved"]' });
+    assert.equal(labeled.code, 1, labeled.out);
+    assert.match(labeled.out, /Could not check who applied the `invariant-approved` label/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
