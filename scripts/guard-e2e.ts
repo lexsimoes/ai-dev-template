@@ -7,13 +7,16 @@
 //      - changes an existing spec in anything but its selectors: comments and whitespace are ignored, and every locator
 //        chain (`page.getByRole(...)`, `x.locator(...).filter(...)`, `.first()`, `.nth(...)` ...) counts as one selector;
 //        an assertion, an expected value, a step, a return, a try/catch, an import or a route is not a selector;
-//      - deletes or renames a spec, or adds or changes any other file in e2e/ (fixtures, helpers) or playwright.config.ts;
+//      - deletes or renames a spec, or adds or changes any other file in e2e/ (fixtures, helpers, a config or the
+//        tester's own package.json and lockfile in an adopted project) or playwright.config.ts;
 //      - adds a spec that imports from anywhere but ./fixtures.ts, or that routes, mocks or reconfigures the browser;
 //   3. in CI, the label was applied by someone who is not an owner of e2e/ (or, without such a rule,
-//      of tests/invariants/) in the CODEOWNERS of the target branch;
+//      of the invariants folder) in the CODEOWNERS of the target branch;
 //   4. a test in quarantine (tag "@quarantine") has no `annotation: { type: "issue", description: <issue URL> }` pointing
 //      at an issue of this repository, or, in a PR, that issue is closed (fixed: the tag goes) or cannot be read.
-// A new spec that follows those rules needs no label.
+// A new spec that follows those rules needs no label. Neither does the first setup: when the target branch has no e2e/
+// and no playwright.config.ts yet, there is nothing to weaken, so the files a PR adds there are listed, not blocked
+// (a new spec is still held to the rules above).
 //
 // CI runs the version of this file that is on the target branch: a PR cannot loosen its own guard.
 // It runs before npm ci, with Node's built-in modules and the TypeScript parser (the specs are read as syntax trees,
@@ -23,17 +26,21 @@
 //   EVENT_NAME, BASE_REF, PR_LABELS, PR_NUMBER, GITHUB_REPOSITORY, GITHUB_TOKEN  as in scripts/guard-invariants.ts
 //   E2E_APPROVAL_LABEL  name of the approval label (default "test-approved")
 //   E2E_GUARD_MODULES   folder whose node_modules holds `typescript` (default: the current folder)
+//   INVARIANTS_DIR      folder of the non-negotiable tests, whose owner approves when e2e/ has none (default "tests/invariants")
 //
 // Local use: node scripts/guard-e2e.ts  (after git fetch origin main)
 
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { appendFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const DIR = "e2e";
 const CONFIG = "playwright.config.ts";
+const INVARIANTS_DIR = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]{1,100}$/.test(process.env.INVARIANTS_DIR ?? "")
+  ? (process.env.INVARIANTS_DIR as string).replace(/\/+$/, "")
+  : "tests/invariants";
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const SPEC_FILE = /\.spec\.[cm]?[jt]sx?$/;
 const APPROVAL_LABEL = /^[\p{L}\p{N} ._:-]{1,50}$/u.test(process.env.E2E_APPROVAL_LABEL ?? "")
@@ -281,11 +288,12 @@ function report(lines: string[]): void {
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, text + "\n");
 }
 
-function codeFiles(): string[] {
+/** Every file in e2e/ that git sees, tracked or new, so an installed node_modules/ (ignored) is not read. */
+function e2eFiles(): string[] {
   if (!existsSync(DIR)) return [];
-  return readdirSync(DIR, { recursive: true, encoding: "utf-8" })
-    .map((name) => join(DIR, name).replaceAll("\\", "/"))
-    .filter((file) => CODE_FILE.test(file));
+  return git("ls-files", "--cached", "--others", "--exclude-standard", "--", DIR)
+    .split("\n")
+    .filter((file) => file && existsSync(file));
 }
 
 async function main(): Promise<number> {
@@ -293,7 +301,8 @@ async function main(): Promise<number> {
   const notes: string[] = [];
 
   // 1. Nothing skipped, focused or switched off, with or without approval.
-  const files = codeFiles();
+  const all = e2eFiles();
+  const files = all.filter((file) => CODE_FILE.test(file));
   for (const file of files) {
     for (const p of disableProblems(readFileSync(file, "utf-8"), file)) errors.push(`\`${file}\` skips, focuses or switches off a test, or could hide it: ${p}.`);
   }
@@ -318,7 +327,9 @@ async function main(): Promise<number> {
   if (process.env.EVENT_NAME !== "push") {
     const baseRef = `origin/${process.env.BASE_REF || "main"}`;
     const changes: string[] = [];
-    const baseFiles = git("ls-tree", "-r", "--name-only", baseRef, "--", DIR).split("\n").filter((f) => CODE_FILE.test(f));
+    const baseFiles = git("ls-tree", "-r", "--name-only", baseRef, "--", DIR).split("\n").filter(Boolean);
+    const firstSetup = baseFiles.length === 0 && !git("ls-tree", "--name-only", baseRef, "--", CONFIG).trim();
+    const setup: string[] = [];
     for (const file of baseFiles) {
       if (!existsSync(file)) {
         changes.push(`\`${file}\` deleted or renamed`);
@@ -330,13 +341,15 @@ async function main(): Promise<number> {
         const [a, b] = [skeleton(before, file), skeleton(after, file)];
         if (a !== b) changes.push(`\`${file}\` changes more than selectors: ${firstDifference(a, b)}`);
       } else if (before !== after) {
-        changes.push(`\`${file}\` changed (isolation or shared test code)`);
+        changes.push(`\`${file}\` changed (isolation, shared test code or the tester's dependencies)`);
       }
     }
-    for (const file of files.filter((f) => !baseFiles.includes(f))) {
-      if (!SPEC_FILE.test(file)) changes.push(`\`${file}\` added (shared test code is approved like the isolation)`);
-      else for (const p of newSpecProblems(readFileSync(file, "utf-8"), file)) changes.push(`new \`${file}\` ${p}`);
+    for (const file of all.filter((f) => !baseFiles.includes(f))) {
+      if (SPEC_FILE.test(file)) for (const p of newSpecProblems(readFileSync(file, "utf-8"), file)) changes.push(`new \`${file}\` ${p}`);
+      else if (firstSetup) setup.push(`\`${file}\``);
+      else changes.push(`\`${file}\` added (shared test code is approved like the isolation)`);
     }
+    if (setup.length > 0) notes.push(`First setup (no \`${DIR}/\` on \`${baseRef}\` yet), so no label is needed; review the isolation it adds: ${setup.join(", ")}.`);
     if (git("diff", "--name-only", `${baseRef}...HEAD`, "--", CONFIG).trim()) changes.push(`\`${CONFIG}\` changed (run setup)`);
     notes.push(`Files in \`${DIR}/\` on \`${baseRef}\`: ${baseFiles.length}; changed beyond selectors without approval: ${changes.length}.`);
 
@@ -358,11 +371,11 @@ async function main(): Promise<number> {
         } else {
           const codeowners = git("ls-tree", "--name-only", baseRef, ".github/CODEOWNERS").trim() ? git("show", `${baseRef}:.github/CODEOWNERS`) : "";
           const own = ownersOf(codeowners, `${DIR}/`);
-          const owners = own.length > 0 ? own : ownersOf(codeowners, "tests/invariants/");
+          const owners = own.length > 0 ? own : ownersOf(codeowners, `${INVARIANTS_DIR}/`);
           const labeler = lastLabeler(events, APPROVAL_LABEL);
           if (owners.length === 0) {
             approved = false;
-            errors.push(`The CODEOWNERS of \`${baseRef}\` defines no owner for \`${DIR}/\` or \`tests/invariants/\`: nobody can approve.`);
+            errors.push(`The CODEOWNERS of \`${baseRef}\` defines no owner for \`${DIR}/\` or \`${INVARIANTS_DIR}/\`: nobody can approve.`);
           } else if (!labeler || !owners.includes(labeler.toLowerCase())) {
             approved = false;
             errors.push(`The \`${APPROVAL_LABEL}\` label was applied by @${labeler ?? "unknown"}, who is not an owner (${owners.map((o) => `@${o}`).join(", ")}).`);
