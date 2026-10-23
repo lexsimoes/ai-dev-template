@@ -91,6 +91,8 @@ test("disable: switching a test off is caught however it is written", () => {
     "a regex after )": `${SPEC}\nif (true) /\\//.test("x"); test.${"fixme"}("x", () => {});\n`,
     "optional computed access": `${SPEC}\nconst k = "sk" + "ip";\ntest?.[k]("x", () => {});\n`,
     "computed destructuring key": `${SPEC}\nconst k = "sk" + "ip";\nconst { [k]: off } = test;\n`,
+    // Fourth review: the Function constructor reached through string keys builds a skip at run time.
+    "constructor through string keys": `${SPEC}\ntest["constructor"]["constructor"]("t", "t['sk' + 'ip']('x', () => {})")(test);\n`,
   };
   for (const [name, source] of Object.entries(forms)) assert.notDeepEqual(disableProblems(source), [], name);
   // A TypeScript array type and a plain string key are not computed access.

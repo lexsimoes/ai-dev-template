@@ -43,7 +43,7 @@ const LOCATOR_METHODS = new Set([
 ]);
 // Names that switch a test off, wherever they appear (property, variable, destructuring, string key).
 const DISABLE_NAMES = new Set(["skip", "only", "fixme", "fail"]);
-// Names that give dynamic access, which could build one of those at run time.
+// Names that give dynamic access, which could build one of those at run time (as a name or a string key).
 const DYNAMIC_NAMES = new Set(["eval", "Function", "Reflect", "globalThis", "constructor", "require"]);
 // What a new spec may not do without approval: leave the isolation, fake the app, reconfigure the run, share setup.
 const NEW_SPEC_NAMES = new Set([
@@ -146,7 +146,7 @@ export function disableProblems(source: string, file = "spec.ts"): string[] {
   walk(sf, (node) => {
     const name = nameOf(node);
     if (name !== null && DISABLE_NAMES.has(name)) problems.add(`uses \`${name}\``);
-    if (name !== null && t.isIdentifier(node) && DYNAMIC_NAMES.has(name)) problems.add(`uses \`${name}\` (dynamic access could hide a skip)`);
+    if (name !== null && DYNAMIC_NAMES.has(name)) problems.add(`uses \`${name}\` (dynamic access could hide a skip)`);
     if (t.isElementAccessExpression(node) && !(t.isStringLiteral(node.argumentExpression) || t.isNumericLiteral(node.argumentExpression))) {
       problems.add("uses a computed member access (`x[...]`) with something other than one plain key");
     }
