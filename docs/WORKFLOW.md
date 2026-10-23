@@ -317,7 +317,7 @@ A few tests (3 to 8) walk through the **critical flows** of the PRD in a real br
 
 The job installs with `npm ci --ignore-scripts` and calls `npx --no playwright test` directly, so a PR's `package.json` cannot run code after the guard or swap the test command.
 
-It reads the specs with a small tokenizer (strings, regex and template literals are tokens, comments are dropped), not as plain text. A locator argument is masked only when it is plain data; a call, an arrow, `await` or `function` inside it counts as a change. Aliases, computed keys and dynamic access (`Reflect`, `eval`, `require`) that could hide a skip fail too.
+It reads the specs with the TypeScript parser, as syntax trees, never as text (the owner's choice after two review rounds found holes in a hand-written reader). CI installs the TypeScript version pinned by the target branch's lockfile, with its integrity checked, in a folder of its own and before any PR code. A file that does not parse is never taken as unchanged. A locator argument is masked only when it is plain data; a call, an arrow, `await` or a function inside it counts as a change. Aliases, computed keys (`x[k]`, `x?.[k]`, `{ [k]: v }`) and dynamic access (`Reflect`, `eval`, `require`, `import()`) that could hide a skip fail too.
 
 What it does not catch: a locator pointed at a different element (that is what a selector change is), or a dependency swap in the lockfile (the `dependencies` check and the reviewer see it).
 
