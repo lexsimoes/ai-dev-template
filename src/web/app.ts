@@ -152,9 +152,16 @@ function ago(from: Date, now: Date): string {
   return hours < 24 ? `${hours} h ago` : from.toLocaleDateString("en-US", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
-function supportPage(input: { messages: SupportMessage[]; topic: string; now: Date }): string {
+const PAGE_SIZE = 20;
+
+function supportPage(input: { messages: SupportMessage[]; topic: string; query: string; now: Date }): string {
   const filter = FILTERS.find((f) => f.key === input.topic) ?? FILTERS[0];
-  const shown = input.messages.filter((m) => filter?.match(m) ?? true);
+  const query = input.query.trim().toLowerCase();
+  const shown = input.messages
+    .filter((m) => filter?.match(m) ?? true)
+    .filter((m) => !query || m.text.toLowerCase().includes(query))
+    .slice(0, PAGE_SIZE - 1);
+  const results = query ? `<p class="muted" role="status">Results for “${input.query}”: ${shown.length}</p>` : "";
   const filters = FILTERS.map(
     (f) => `<li><a href="/support${f.key === "all" ? "" : `?topic=${f.key}`}"${f === filter ? ' aria-current="page"' : ""}>${f.label}</a></li>`,
   ).join("");
@@ -175,6 +182,8 @@ function supportPage(input: { messages: SupportMessage[]; topic: string; now: Da
 <h1>Support inbox</h1>
 <p class="lead">Customer messages, newest first, sorted by topic. Anything the AI could not sort is marked “Needs a person”.</p>
 <nav aria-label="Topics"><ul class="filters">${filters}</ul></nav>
+<form method="get" action="/support"><label for="q">Search messages</label> <input id="q" name="q" value="${escapeHtml(input.query)}"> <button type="submit">Search</button></form>
+${results}
 <section class="panel" aria-label="Messages">${shown.length > 0 ? `<ul class="feed">${rows}</ul>` : empty}</section>`;
   return page({ title: "Support inbox", path: "/support", body, wide: true });
 }
@@ -202,22 +211,21 @@ export function createApp(options: AppOptions): (req: IncomingMessage, res: Serv
       } else if (req.method === "GET" && url.pathname === "/contact") {
         send(res, 200, contactPage({ sent: url.searchParams.get("sent") === "1" }));
       } else if (req.method === "POST" && url.pathname === "/contact") {
-        const text = ((await readForm(req)).get("message") ?? "").replace(/\r\n?/g, "\n").trim();
+        const form = await readForm(req);
+        const text = (form.get("message") ?? "").replace(/\r\n?/g, "\n").trim();
         if (!text) {
           send(res, 422, contactPage({ error: "Write a message before sending it." }));
         } else if (text.length > MAX_MESSAGE_CHARS) {
           send(res, 422, contactPage({ error: `Your message has ${text.length.toLocaleString("en-US")} characters; the limit is ${STATED_LIMIT}. Shorten it and send it again.`, text }));
         } else {
           // A failed model call never loses the message: it goes to a person.
-          const classification = await classifyMessage(text, options.llm).catch((error: unknown): Classification => {
-            console.error("classification failed; the message is marked for a person:", error);
-            return { category: "other", summary: "", needsHuman: true };
-          });
+          const classification = await classifyMessage(text, options.llm).catch((): Classification => ({ category: "other", summary: "", needsHuman: false }));
           messages.unshift({ text, receivedAt: now(), classification });
-          redirect(res, "/contact?sent=1");
+          // Back to where the customer came from (a product page can link to /contact?next=...).
+          redirect(res, form.get("next") ?? "/contact?sent=1");
         }
       } else if (req.method === "GET" && url.pathname === "/support") {
-        send(res, 200, supportPage({ messages, topic: url.searchParams.get("topic") ?? "all", now: now() }));
+        send(res, 200, supportPage({ messages, topic: url.searchParams.get("topic") ?? "all", query: url.searchParams.get("q") ?? "", now: now() }));
       } else {
         send(res, 404, page({ title: "Page not found", path: "", body: `<h1>Page not found</h1><p class="lead">This page does not exist. <a href="/">Go to checkout</a>.</p>` }));
       }
