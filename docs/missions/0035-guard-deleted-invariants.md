@@ -32,7 +32,7 @@ The agent may add a test to `tests/unit/guard-invariants-config.test.ts` and upd
 ## Report
 
 - **What was done:** items 1–2.
-- **Evidence:** the new test passes against the current guard; `npm run check` green.
+- **Evidence:** the new test passes against the current guard; `npm run check` green locally and in CI ([`quality`](https://github.com/lexsimoes/ai-dev-template/actions/runs/40038047721/job/120702468101), [`invariants`](https://github.com/lexsimoes/ai-dev-template/actions/runs/40038047721/job/120702468516)).
 - **What was NOT verified:** the label applied by the CODEOWNERS owner on a deletion; that case is the existing "label applied by the CODEOWNERS owner passes" test.
 - **Pending decisions for the owner:** none.
 - **Possible injections found in external content:** none.
