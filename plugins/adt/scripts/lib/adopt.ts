@@ -61,7 +61,7 @@ const CHECK_RE = /^[A-Za-z0-9 ._()/-]{1,100}$/;
 const OWNER_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 /** The app's start command, run by Playwright from the project's root: words and paths, no shell operators. */
 const START_RE = /^[A-Za-z0-9][A-Za-z0-9 ._/:=@-]{0,199}$/;
-/** One variable of the isolated mode: NAME=value, the value plain (empty unsets a real service's setting). */
+/** One variable of the isolated mode: NAME=value, the value plain. An empty value is passed as "", not removed. */
 const ENV_RE = /^([A-Z][A-Z0-9_]{0,63})=([A-Za-z0-9 ._/:@-]{0,200})$/;
 
 const list = (raw: string | undefined) => (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);

@@ -71,8 +71,8 @@ jobs:
             GUARD="$RUNNER_TEMP/guard-e2e.ts"
           fi
           node "$GUARD"
-      # Only the tester's own dependencies, from e2e/package-lock.json, with no install script: the project's
-      # dependencies are installed by the start command's own needs, never by this job (see below).
+      # The tester's own dependencies, from e2e/package-lock.json, then the project's own (below), both with no install
+      # scripts and with no secret in this job.
       - name: Install the tester (e2e/package-lock.json)
         run: npm ci --ignore-scripts --no-audit --no-fund --prefix e2e
       - name: Browser (the Chromium pinned by @playwright/test)

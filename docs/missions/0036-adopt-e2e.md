@@ -53,7 +53,7 @@ What the agent may not do (it stops and asks): touch `tests/invariants/`, the te
 |---|---|
 | The kit writes the tester, with the project's labels, and never the project's `package.json` | `tests/unit/plugin-adopt.test.ts`, "the end-to-end tester (M8)…" |
 | No answer can break out of the config or the workflow | same test (shell, quotes, `$(…)`, `PORT`) |
-| Guard: dependencies protected, `node_modules/` ignored, first setup, invariants owner | `tests/unit/guard-e2e.test.ts`, three new tests |
+| Guard: dependencies protected, `node_modules/` ignored, first setup, invariants owner, quoted file names | `tests/unit/guard-e2e.test.ts`, four new tests |
 | It works on a real app | the kit applied to a clone of `adt-sandbox-legacy`: the seed passes against its app; the guard passes on first setup; the MCP server starts |
 | On GitHub | `adt-e2e` on the legacy adoption PR (after this PR's kit is applied there) |
 | `npm run check` green | CI |
@@ -81,4 +81,16 @@ Checked and not reported:
 
 ## Report
 
-_(filled in at the end)_
+- **What was done:** items 1–8.
+- **Evidence:**
+  - `tests/unit/plugin-adopt.test.ts` (the tester test applies the kit to a temporary git project);
+  - `tests/unit/guard-e2e.test.ts` (four new tests; the quoted-name one fails on the previous guard);
+  - `npm run check` and the CI checks of the PR;
+  - [adt-sandbox-legacy#1](https://github.com/lexsimoes/adt-sandbox-legacy/pull/1): the adoption re-applied with this kit, `adt-e2e` green on first setup;
+  - [adt-sandbox-legacy#2](https://github.com/lexsimoes/adt-sandbox-legacy/pull/2): its first three tests, green in `adt-e2e`.
+- **What was NOT verified:**
+  - the Playwright test agents driven through the MCP server (the server starts; this session had no MCP tools);
+  - an app that needs more than an npm lockfile to start;
+  - `/adt:adopt` from the released plugin (the kit arrives with v0.4.0).
+- **Pending decisions for the owner:** the template's own root-`tsconfig` gap (needs `test-approved`). A project whose `CODEOWNERS` already exists gets no `/e2e/` line: the guard falls back to the owner of its invariants folder, so nothing is written over the owner's file.
+- **Possible injections found in external content:** none.
