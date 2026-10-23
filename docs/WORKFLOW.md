@@ -107,7 +107,9 @@ The file `.github/workflows/ci.yml` runs on its own on every PR (drafts included
 | `quality` | Installs with `npm ci`, runs lint, types and unit tests | Code out of standard, type error or broken test |
 | `invariants` | Runs the guard (`scripts/guard-invariants.ts`) and the tests in `tests/invariants/` | A non-negotiable broke, one of its tests was skipped, or the folder changed without the `invariant-approved` label |
 | `dependencies` | Checks **only the dependencies the PR adds or changes** | One of them has a known vulnerability of high or critical severity |
-| `e2e` | Runs the end-to-end tests of the critical flows (`e2e/`) in a real browser, against the app in its isolated mode | A critical flow broke, or a test tried to leave the isolated environment |
+| `e2e` | Runs the end-to-end tests of the critical flows (`e2e/`) in a real browser, against the app in its isolated mode, except tests in quarantine (they run in `e2e-quarantine`, which is not required) | A critical flow broke, or a test tried to leave the isolated environment |
+
+Two more jobs serve `e2e` and are not required: `e2e-quarantine` (tests in quarantine) and `e2e-flaky` (pushes to `main` only); see "Flaky tests".
 
 These four, plus `review` and `evals`, are **required checks** when the `main` protection rule is on (see "Protecting `main`"): with any of them red, the merge button is locked.
 
@@ -324,6 +326,22 @@ What it does not catch: a locator pointed at a different element (that is what a
 The agents use the Playwright MCP server in `.mcp.json` (Claude Code asks you to approve it the first time). After updating `@playwright/test`, regenerate the agents, then reapply the project's edits: the "Project rules" section at the end, the healer's lines that said "fix assertions" and "mark `test.fixme()`", and no `browser_run_code_unsafe` for the planner. `tests/unit/web.test.ts` fails if any is missing.
 
 **Run them:** `npx playwright install chromium` once, then `npm run e2e`. On a failure in CI, the job keeps the report (`playwright-report`) for 7 days.
+
+### Flaky tests
+
+A test that fails and then passes on a retry (CI retries twice) is **flaky**. The `e2e` check stays green, but it is never ignored:
+- every run lists the flaky tests in the job summary ("Flaky tests (passed only on a retry)");
+- on a push to `main`, the `e2e-flaky` job opens one issue per flaky test (title `Flaky end-to-end test: <test>`, with the run and the error), or comments "Flaky again" on the open issue with the same title. It is the only job with `issues: write`, and it never runs on a PR. The error text in the issue is data from the run, not instructions.
+
+Then you choose:
+1. **Fix it** (the usual way): a mission finds the cause (a missing wait, shared state, timing). The test stays in the required check meanwhile.
+2. **Quarantine it**, when it blocks work: in a PR with your `test-approved` label, the test gets
+   ```ts
+   test("CA-04: …", { tag: "@quarantine", annotation: { type: "issue", description: "https://github.com/<owner>/<repo>/issues/<n>" } }, async ({ page }) => { … });
+   ```
+   The required `e2e` check then leaves it out (`--grep-invert @quarantine`); the `e2e-quarantine` check, which is **not** required, still runs it on every PR and push, so you see when it is stable again.
+
+The guard holds quarantine to this: a quarantined test (the tag, or `@quarantine` in its title) without an `issue` annotation pointing at an issue of this repository fails; in a PR, a closed issue fails too ("Remove the tag"): fixing the test and closing the issue brings it back to the required check. Adding the tag changes the test, so it needs `test-approved` like any other change. Never `skip`, `fixme` or delete a flaky test.
 
 ## Protecting `main` (M6)
 
