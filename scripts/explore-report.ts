@@ -13,7 +13,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, extname, join, relative, sep } from "node:path";
+import { basename, extname, isAbsolute, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const KINDS = ["bug", "ux", "accessibility"] as const;
@@ -54,7 +54,7 @@ export function screenshotProblem(path: string, root: string): string | null {
     return "does not exist";
   }
   const inside = relative(realpathSync(root), real);
-  if (inside === "" || inside.startsWith("..") || inside.startsWith(sep)) return "is outside the repository";
+  if (inside === "" || inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) return "is outside the repository";
   if (!statSync(real).isFile()) return "is not a file";
   if (statSync(real).size > MAX_IMAGE_BYTES) return "is larger than 5 MB";
   const head = readFileSync(real).subarray(0, 4);
@@ -87,9 +87,14 @@ export function validate(input: unknown, root: string): string[] {
     if (!text(f.actual, 1000)) problems.push(`${at}: \`actual\` is missing or longer than 1,000 characters`);
     if (!Array.isArray(f.screenshots) || f.screenshots.length > MAX_SCREENSHOTS || !f.screenshots.every((x) => typeof x === "string"))
       problems.push(`${at}: \`screenshots\` must list up to ${MAX_SCREENSHOTS} paths`);
-    else for (const p of f.screenshots) {
-      const problem = screenshotProblem(p, root);
-      if (problem) problems.push(`${at}: screenshot \`${p}\` ${problem}`);
+    else {
+      for (const p of f.screenshots) {
+        const problem = screenshotProblem(p, root);
+        if (problem) problems.push(`${at}: screenshot \`${p}\` ${problem}`);
+      }
+      // Two files with the same name would land on the same path of the session branch.
+      if (new Set(f.screenshots.map((p) => shotPath(i + 1, p))).size !== f.screenshots.length)
+        problems.push(`${at}: two screenshots have the same file name`);
     }
   });
   return problems;

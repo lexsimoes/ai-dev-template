@@ -67,6 +67,7 @@ before(async () => {
   writeFileSync(join(repo, "shots/1-emoji.png"), PNG);
   writeFileSync(join(repo, "shots/fake.png"), "not an image");
   writeFileSync(join(root, "outside.png"), PNG);
+  writeFileSync(join(repo, "..dots.png"), PNG);
   symlinkSync(join(root, "outside.png"), join(repo, "shots/link.png"));
 });
 
@@ -101,6 +102,8 @@ test("validate: a screenshot must be a real PNG or JPEG inside the repository", 
   assert.match(shots("app.ts"), /is not a \.png or \.jpg file/);
   assert.match(shots("shots/none.png"), /does not exist/);
   assert.match(validate(session([{ ...FINDING, screenshots: Array(5).fill("shots/1-emoji.png") }]), repoDir()).join("\n"), /up to 4 paths/);
+  assert.match(validate(session([{ ...FINDING, screenshots: ["shots/1-emoji.png", "./shots/1-emoji.png"] }]), repoDir()).join("\n"), /same file name/);
+  assert.equal(shots("..dots.png"), "", "a name that starts with two dots is still inside");
 });
 
 test("issueBody: numbered steps, screenshots from the session branch, and page text that cannot notify or hide anything", () => {
