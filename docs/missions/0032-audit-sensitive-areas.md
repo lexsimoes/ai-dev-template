@@ -31,13 +31,14 @@ The agent may change the content rules in `plugins/adt/scripts/lib/audit.ts`, ac
 
 - [x] 1. Personal data: also an `<input>` whose `type` or `autocomplete` asks for an e-mail, phone, address or birthday, and code that reads `.email`, `.phone`, `.cpf`… from a record. A function call (`validate.email(x)`) or a longer name (`emailEnabled`) does not count.
 - [x] 2. External input: also Express/Fastify-style routes (`app.post(`, `router.delete(`…), `req.method === "POST"`, and reading the body with `for await (const chunk of req)`.
+- [x] 3. A test with a `node:http` app, Express routes, a form and a mailer, plus look-alikes that must not count, and test files, which never count.
 - [x] 4. `/adt:adopt`:
   - `--eval-command none` (with no AI globs) leaves `adt-evals` out of the workflows and out of `.github/adt.json`;
   - `--required none` gives an empty list;
   - the adopted `AGENTS.md` section lists only the checks it adds, and says "none yet" and "No evals yet: the project has no AI code" plainly;
   - `/adt:check-setup` shows "Required: none yet".
   - With the kit of v0.3.0 (fixed until the next release), the old placeholders still get values.
-- [x] 3. A test with a `node:http` app, Express routes, a form and a mailer, plus look-alikes that must not count, and test files, which never count.
+- [x] 5. The invariant guard treats a missing invariants folder as no tests (it crashed, so a just-adopted project had a red `adt-invariants` on every PR).
 
 ## Acceptance
 
@@ -45,6 +46,7 @@ The agent may change the content rules in `plugins/adt/scripts/lib/audit.ts`, ac
 |---|---|
 | A plain `node:http` app and Express routes are external input | `tests/unit/plugin-audit.test.ts` |
 | An e-mail field and code that reads `.email` are personal data; look-alikes are not | same |
+| A missing invariants folder passes the guard | `tests/unit/guard-invariants-config.test.ts`; the guard on `adt-sandbox-legacy`: "0 → 0" |
 | Adoption without AI code or required checks | `tests/unit/plugin-adopt.test.ts`; the adoption PR on `adt-sandbox-legacy` |
 | The real case: `adt-sandbox-legacy` | `audit.ts map` now lists personal data in `src/bookings.js`, `src/mailer.js` and `src/views.js`, and external input in `src/app.js`. The fingerprint is unchanged (`e4a989fc31ad80fe`) |
 
