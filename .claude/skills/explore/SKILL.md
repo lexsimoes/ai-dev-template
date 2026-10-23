@@ -26,7 +26,7 @@ Off by default (`AGENTS.md`, 1.9): run it only when the owner asks, on the area 
    - messages: every error says what happened and offers a way out, nothing internal (IDs, stack traces, variable names) is shown;
    - consistency: totals, counts and labels agree across pages.
 3. **Confirm each finding.** Reproduce it a second time from a fresh page (`planner_setup_page` again). Something seen only once is not reported; mention it in the final report as "not reproduced".
-4. **Capture it.** `browser_take_screenshot` with `filename: "<n>-<short-name>.png"` (one to four per finding, the failure state first). Note the path the tool reports.
+4. **Capture it.** `browser_take_screenshot` with `filename: "<short-name>.png"` (one to four per finding, the failure state first; the report numbers them by finding). Note the path the tool reports.
 5. **Write the session file** `explorations/session.json` (not committed: `explorations/` is ignored). A made-up example:
    ```json
    {
@@ -39,7 +39,7 @@ Off by default (`AGENTS.md`, 1.9): run it only when the owner asks, on the area 
          "steps": ["Go to /", "Type \"WELCOME10\\t\" in Discount code", "Click Apply code"],
          "expected": "The code is applied: CA-02 trims the code.",
          "actual": "“We don't recognize the code” and the total stays $50.00.",
-         "screenshots": [".playwright-mcp/1-tab-coupon.png"]
+         "screenshots": [".playwright-mcp/tab-coupon.png"]
        }
      ]
    }
