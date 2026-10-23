@@ -102,3 +102,17 @@ End-to-end plan for the demo store (server-rendered, no scripts, http://127.0.0.
     - expect: Behavior is unchanged: the filters work, no dialog, no injected elements; the message appears under exactly one filter besides All
   4. Verify the response header Content-Security-Policy on /support contains `default-src 'none'`.
     - expect: Header present (defense in depth, scripts cannot run even if escaping failed)
+
+#### 3.3. CA-03: a message within the stated limit is sent, whatever its line breaks or alphabet
+
+**File:** `e2e/contact-message-limit.spec.ts` · **Source:** issue #33 (exploratory session)
+
+**Steps:**
+  1. Go to `/contact`.
+    - expect: The textbox 'Your message' has `maxlength` 2000
+  2. Fill a unique message of exactly 2,000 characters (as the browser counts them) with about 180 line breaks, and send it. Then the same with 2,000 characters of Japanese text.
+    - expect: Each one lands on /contact?sent=1 with the thanks status (before the fix: the line breaks were sent as CRLF and counted twice, 422; the Japanese text was over the 16 KB body limit, 413)
+  3. Open /support.
+    - expect: Both messages are listed
+  4. Go to `/contact` and fill 2,001 characters.
+    - expect: The hint reads 'Up to 2,000 characters (a line break counts as one).' and the browser keeps 2,000. The server's answer above the limit (422, stating the limit the same way) is covered by `tests/unit/web.test.ts`
