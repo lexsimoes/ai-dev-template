@@ -12,7 +12,7 @@ export const TEST_TIERS: ReviewConfig["tiers"] = {
   deep: { provider: "anthropic", model: "claude-opus-5-5", apiKeyEnv: "REVIEW_DEEP_API_KEY", maxOutputTokens: 64000, pricePerMTok: { input: 4, output: 20, cachedInput: 0.2 } },
 };
 
-/** Each of the 4 tiers has a known provider, a model, a key variable, an output limit and prices. */
+/** Each of the 4 tiers has a known provider, a model and its pinned version, a key variable, an output limit and prices. */
 export function assertUsableTiers(tiers: ReviewConfig["tiers"]): void {
   for (const name of ["standard", "light", "sensitive", "deep"] as const) {
     const t = tiers[name];
@@ -22,6 +22,8 @@ export function assertUsableTiers(tiers: ReviewConfig["tiers"]): void {
     assert.ok(t.model && t.apiKeyEnv, `tier ${name}: model and apiKeyEnv`);
     assert.ok(Number.isInteger(t.maxOutputTokens) && (t.maxOutputTokens ?? 0) > 0, `tier ${name}: maxOutputTokens`);
     assert.ok(t.pricePerMTok.input >= 0 && t.pricePerMTok.output >= 0, `tier ${name}: prices`);
+    // An alias can move upstream: every shipped tier names the version its canary measured.
+    assert.ok(t.pinnedVersion, `tier ${name}: pinnedVersion`);
   }
 }
 

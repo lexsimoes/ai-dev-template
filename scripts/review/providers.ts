@@ -9,6 +9,8 @@ export interface ModelReply {
   text: string;
   usage: Usage;
   model: string;
+  /** The backend configuration the provider reports, when it does ("openai-compatible" `system_fingerprint`). */
+  fingerprint?: string;
 }
 
 /** Failure after the model was already billed: carries the usage so the report can show the cost. */
@@ -24,6 +26,7 @@ const DEFAULT_MAX_OUTPUT_TOKENS = 16000;
 
 interface ChatCompletion {
   model?: string;
+  system_fingerprint?: string;
   choices?: Array<{ message?: { content?: string | null }; finish_reason?: string }>;
   usage?: {
     prompt_tokens?: number;
@@ -77,7 +80,7 @@ async function callOpenAICompatible(
     );
   }
   if (!text.trim()) throw new ModelCallError(`empty reply from the model (finish_reason: ${choice?.finish_reason ?? "?"})`, usage);
-  return { text, model: data.model ?? tier.model, usage };
+  return { text, model: data.model ?? tier.model, usage, ...(data.system_fingerprint ? { fingerprint: data.system_fingerprint } : {}) };
 }
 
 async function callAnthropic(
@@ -117,6 +120,40 @@ async function callAnthropic(
   }
   const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
   return { text, model: response.model, usage };
+}
+
+/**
+ * The model the provider says is behind the tier's id, before any call: the `name` in `{baseUrl}/models`
+ * ("openai-compatible", e.g. DeepSeek). Anthropic ids name one model, so the reply's `model` is checked instead.
+ */
+export async function listedVersion(tier: Tier, apiKey: string, timeoutMs: number): Promise<string> {
+  if (tier.provider === "anthropic") return tier.model;
+  if (!tier.baseUrl) throw new Error("tier without a configured baseUrl");
+  const response = await fetch(`${tier.baseUrl.replace(/\/$/, "")}/models`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) throw new Error(`could not read the provider's model list (HTTP ${response.status})`);
+  const data = (await response.json()) as { data?: Array<{ id?: string; name?: string }> };
+  const entry = data.data?.find((m) => m.id === tier.model);
+  if (!entry) throw new Error(`the provider no longer lists \`${tier.model}\``);
+  return entry.name ?? entry.id ?? tier.model;
+}
+
+/** Why the model is not the pinned one, or null. `listed` comes from `listedVersion`; `replied` is the reply's `model`, when known. */
+export function versionProblem(tier: Tier, listed: string, replied?: string): string | null {
+  if (!tier.pinnedVersion) return null;
+  const how = "Nothing was reviewed with it. Run the review canary with the new model, then update `pinnedVersion` in `.github/review.json` in a PR.";
+  if (listed !== tier.pinnedVersion) {
+    return `the provider now serves \`${listed}\` behind \`${tier.model}\`, not the pinned \`${tier.pinnedVersion}\`. ${how}`;
+  }
+  // Anthropic may answer with the dated id of a pinned alias (`claude-x-1` → `claude-x-1-20260101`); any other model is not it.
+  const same = (r: string) => (tier.provider === "anthropic" ? r === tier.pinnedVersion || r.startsWith(`${tier.pinnedVersion}-`) : r === tier.model);
+  const expected = tier.provider === "anthropic" ? tier.pinnedVersion : tier.model;
+  if (replied !== undefined && !same(replied)) {
+    return `the reply came from \`${replied}\`, not the pinned \`${expected}\` (an upstream redirect or fallback). Its findings were discarded. Run the review canary with that model before trusting it.`;
+  }
+  return null;
 }
 
 export async function callModel(

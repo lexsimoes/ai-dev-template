@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { composeComment } from "../../scripts/review/lib.ts";
-import { testConfig } from "./review-test-config.ts";
+import { TEST_TIERS, testConfig } from "./review-test-config.ts";
 
 const run = promisify(execFile);
 
@@ -51,6 +51,10 @@ const prLabels = new Map<string, string[]>();
 // an event that still carries an older commit.
 const prHeads = new Map<string, string>();
 let livePr = "";
+// What the fake provider says about the model: the name in /models, and the model and fingerprint in a reply.
+let listedName = "Fake-Model-1";
+let replyModel: string | null = null;
+let replyFingerprint = "fp-a";
 let server: http.Server;
 let port = 0;
 let repo = "";
@@ -67,6 +71,7 @@ function startServer(): Promise<void> {
         res.end(obj === undefined ? "" : JSON.stringify(obj));
       };
       const url = req.url ?? "";
+      if (url.startsWith("/models")) return send(200, { object: "list", data: [{ id: "fake-model", name: listedName }] });
       if (url.startsWith("/chat/completions")) {
         const b = JSON.parse(body) as { model: string; reasoning_effort?: string; messages: Array<{ content: string }> };
         const user = b.messages[1]?.content ?? "";
@@ -82,7 +87,8 @@ function startServer(): Promise<void> {
             ? { summary: "Hidden error.", findings: [{ severity: "blocking", file: "src/a.ts", line: 3, title: "empty catch", explanation: "rethrow", evidence: "catch {}" }] }
             : { summary: "Docs only.", findings: [] };
         return send(200, {
-          model: b.model,
+          model: replyModel ?? b.model,
+          system_fingerprint: replyFingerprint,
           choices: [{ message: { content: JSON.stringify(out) }, finish_reason: "stop" }],
           usage: { prompt_tokens: 9000, completion_tokens: 1200, prompt_cache_hit_tokens: incremental ? 6000 : 0 },
         });
@@ -470,4 +476,47 @@ test("incremental canary: catches the model that marks an unfixed finding as res
   assert.equal(good.code, 0, good.out);
   assert.match(good.out, /2 of 2 verdicts correct/);
   incrementalVerdicts = [{ id: 1, status: "resolved", comment: "the catch rethrows the error" }];
+});
+
+test("pinned version: the reviewer stops before paying when an alias moves, discards a redirected reply, and notes a new backend", async () => {
+  const pinned = copyReviewer({
+    tiers: {
+      ...TEST_TIERS,
+      standard: { ...TEST_TIERS.standard, pinnedVersion: "Fake-Model-1", pinnedFingerprint: "fp-a" },
+      light: { ...TEST_TIERS.light, pinnedVersion: "Fake-Model-1", pinnedFingerprint: "fp-a" },
+    },
+  });
+  const canary = (script: string) => review("", {}, ["--mode", "canary", "--canary", "full"], script);
+  try {
+    let calls = modelCalls.length;
+    const same = await canary(pinned);
+    assert.equal(modelCalls.length, calls + 1, "the pinned version answers: the model is called");
+    assert.doesNotMatch(same.out, /not pinned|now serves|changed since the canary/);
+
+    listedName = "Fake-Model-2";
+    calls = modelCalls.length;
+    const moved = await canary(pinned);
+    assert.equal(moved.code, 1);
+    assert.equal(modelCalls.length, calls, "an alias that now serves another model is never called");
+    assert.match(moved.out, /the provider now serves `Fake-Model-2` behind `fake-model`, not the pinned `Fake-Model-1`/);
+    listedName = "Fake-Model-1";
+
+    replyModel = "other-model";
+    const redirected = await canary(pinned);
+    assert.equal(redirected.code, 1);
+    assert.match(redirected.out, /the reply came from `other-model`, not the pinned `fake-model`.*Its findings were discarded/s);
+    replyModel = null;
+
+    replyFingerprint = "fp-b";
+    const backend = await canary(pinned);
+    assert.match(backend.out, /backend for `fake-model` changed since the canary last ran/);
+    assert.doesNotMatch(backend.out, /now serves|reply came from/, "a new backend only adds a note");
+    replyFingerprint = "fp-a";
+
+    assert.match((await canary(SCRIPT)).out, /model version is not pinned/, "an unpinned tier says so");
+  } finally {
+    listedName = "Fake-Model-1";
+    replyModel = null;
+    replyFingerprint = "fp-a";
+  }
 });
