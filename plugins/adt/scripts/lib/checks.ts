@@ -483,7 +483,7 @@ function checkAdoptedProtection(ctx: Context, repo: RepoInfo, adopted: Adopted):
     };
   }
   const note = promoted.length ? ` Made required by the owner: ${list(promoted)}.` : " The adopted checks are in observe mode (not required).";
-  return { id: "ruleset", title, status: "pass", detail: `Required: ${list(adopted.requiredChecks)}.${note}` };
+  return { id: "ruleset", title, status: "pass", detail: `Required: ${adopted.requiredChecks.length ? list(adopted.requiredChecks) : "none yet"}.${note}` };
 }
 
 /** How each observe check has done on recent PRs: green often enough to become required, or not yet. Never decides it. */

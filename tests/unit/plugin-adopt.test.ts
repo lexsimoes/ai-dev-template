@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -219,6 +219,39 @@ test("apply: never on the base branch, never over a different file; AGENTS.md ke
     assert.deepEqual(again.json.written, [], "idempotent: nothing to add the second time");
     assert.equal(git("status", "--porcelain"), "");
     assert.equal(Object.keys(LABEL_ROLES).length, 4);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a project without AI code or required checks (M8): no evals check, \"none\" stated plainly, never a fake command", () => {
+  const a = answers({ evalCommand: "none", evalPaths: "", required: "none" });
+  assert.equal(a.evals, null);
+  assert.deepEqual(a.requiredChecks, []);
+  const errors = (over: Record<string, string>) => {
+    const r = validateAdoptAnswers({ ...RAW, ...over });
+    return "errors" in r ? r.errors.join("\n") : "";
+  };
+  assert.match(errors({ evalCommand: "none" }), /eval-paths: leave it out/, "no AI code means no AI paths");
+  assert.match(errors({ required: "" }), /or `none`/);
+  const { root, git } = project({ "README.md": "# Bookings\n" });
+  try {
+    git("switch", "-q", "-c", "mission/0001-adopt");
+    const args = ARGS.map((x) => x);
+    args.splice(args.indexOf("--eval-command") + 1, 1, "none");
+    args.splice(args.indexOf("--eval-paths"), 2);
+    args.splice(args.indexOf("--required") + 1, 1, "none");
+    const applied = adopt(root, "apply", ...args, "--base", "feat/product");
+    assert.equal(applied.status, 0, JSON.stringify(applied.json));
+    assert.ok(!existsSync(join(root, ".github/workflows/adt-evals.yml")), "no evals workflow without AI code");
+    assert.ok(existsSync(join(root, ".github/workflows/adt-review.yml")));
+    const adt = JSON.parse(readFileSync(join(root, ".github/adt.json"), "utf-8")) as { requiredChecks: string[]; observeChecks: string[]; evals: unknown };
+    assert.deepEqual([adt.requiredChecks, adt.observeChecks, adt.evals], [[], ["adt-review", "adt-invariants"], null]);
+    const agents = readFileSync(join(root, "AGENTS.md"), "utf-8");
+    assert.match(agents, /`adt-review`, `adt-invariants` run on every PR/);
+    assert.match(agents, /The required checks stay as they were: none yet\./);
+    assert.match(agents, /No evals yet: the project has no AI code/);
+    assert.doesNotMatch(agents, /adt-evals` run|Evals in CI run without a model/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

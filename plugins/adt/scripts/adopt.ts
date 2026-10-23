@@ -100,7 +100,10 @@ function render(kitDir: string, answers: AdoptAnswers): { files: Record<string, 
   // The guard's header names the template's npm script; in the project it is run directly.
   if (files["scripts/guard-invariants.ts"]) files["scripts/guard-invariants.ts"] = files["scripts/guard-invariants.ts"].replace("npm run guard:invariants", "node scripts/guard-invariants.ts");
   for (const [path, source] of Object.entries(kit.files)) files[path] = kitText(source);
-  for (const [path, source] of Object.entries(kit.workflows)) files[path] = fill(kitText(source), values);
+  for (const [path, source] of Object.entries(kit.workflows)) {
+    if (path.endsWith("/adt-evals.yml") && !answers.evals) continue; // no AI code: no evals check yet
+    files[path] = fill(kitText(source), values);
+  }
   files[".github/review.json"] = adaptReviewConfig(kitText(kit.reviewConfig), kit, answers);
   files[".github/adt.json"] = adtConfig(answers, template.repository, released);
   return { files, section: fill(kitText(kit.agentsSection), values), release: released };
