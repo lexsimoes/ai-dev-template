@@ -106,6 +106,17 @@ test("dependency graph off: the dependencies check would fail on every PR, with 
   assert.match(r?.fix ?? "", /gh api --method PUT repos\/maria\/shop\/vulnerability-alerts/);
 });
 
+test("private repository: dependency review needs Advanced Security, so the check passes only with the npm audit CI", () => {
+  const priv = { [`gh api repos/${SLUG}`]: ok({ private: true, default_branch: "main" }) };
+  const old = byId(checkSetup(world({ gh: priv, files: { ".github/workflows/ci.yml": "uses: actions/dependency-review-action@x\n" } })), "dependency-graph");
+  assert.equal(old?.status, "fail");
+  assert.match(old?.detail ?? "", /needs Advanced Security/);
+  assert.match(old?.fix ?? "", /copier update --defaults/);
+  const updated = byId(checkSetup(world({ gh: priv, files: { ".github/workflows/ci.yml": "run: node base/scripts/dependency-audit.ts base .\n" } })), "dependency-graph");
+  assert.equal(updated?.status, "pass");
+  assert.match(updated?.detail ?? "", /npm audit/);
+});
+
 test("ruleset: check names the report cannot show are counted, never silently dropped", () => {
   const rules = JSON.parse(JSON.stringify(RULES)) as typeof RULES;
   (rules[1]!.parameters as { required_status_checks: Array<{ context: string }> }).required_status_checks.push({ context: "build: linux" });
