@@ -50,7 +50,7 @@ What the agent may not do (it stops and asks): touch `tests/invariants/`, the `s
 
   The "`applyCoupon` called without `now`" false positive, reported by Flash in 3 of 4 runs before the fix, did not appear in any case. The run report had no pin error and no pin note, so `DeepSeek-V4.1-Flash` and its fingerprint matched the real API.
 - **Evidence:**
-  - the 3 `review-canary` checks of this PR;
+  - the 3 `review-canary` runs of this PR: [`full`](https://github.com/lexsimoes/ai-dev-template/actions/runs/40037900405/job/120701772301), [`light`](https://github.com/lexsimoes/ai-dev-template/actions/runs/40037900405/job/120701772324), [`incremental`](https://github.com/lexsimoes/ai-dev-template/actions/runs/40037900405/job/120701772029);
   - `npm run check`, `template`, `e2e` and the other CI checks of this PR;
   - `tests/unit/review.test.ts` and the template test (every shipped tier is pinned).
 - **What was NOT verified:**
