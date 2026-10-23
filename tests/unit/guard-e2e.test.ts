@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { disableProblems, newSpecProblems, normalize, skeleton } from "../../scripts/guard-e2e.ts";
+import { disableProblems, newSpecProblems, parse, skeleton } from "../../scripts/guard-e2e.ts";
 
 const run = promisify(execFile);
 const SCRIPT = resolve("scripts/guard-e2e.ts");
@@ -27,9 +27,11 @@ test("CA-02: a valid coupon lowers the total", async ({ page }) => {
 });
 `;
 
-test("normalize: comments, whitespace and trailing commas do not count; strings do", () => {
-  assert.equal(normalize("a ( b , ) // c\n/* d */ 'x  y'"), "a(b)'x  y'");
-  assert.equal(normalize("return x"), "return x");
+test("parse: the TypeScript parser reads the specs; a file that does not parse is never taken as unchanged", () => {
+  assert.ok(parse(SPEC));
+  assert.equal(parse("const x = (;"), null);
+  assert.deepEqual(disableProblems("const x = (;"), ["does not parse"]);
+  assert.notEqual(skeleton("const x = (;"), skeleton("const x = (;;"));
 });
 
 test("skeleton: a selector change, reformatting or a comment keep the same skeleton", () => {
@@ -55,6 +57,7 @@ test("skeleton: anything that is not a selector changes the skeleton (the review
     "regex hides the rest of the line": SPEC.replace('await page.goto("/");', 'await expect(page).toHaveURL(/\\/order\\//); return;\n  await page.goto("/");'),
     "code inside a locator argument": SPEC.replace('page.getByLabel("Discount code")', 'page.getByLabel((await page.context().unrouteAll(), "Discount code"))'),
     "callback inside a locator argument": SPEC.replace('page.getByLabel("Discount code")', 'page.getByLabel((() => { return "Discount code"; })())'),
+    "optional call on a locator": SPEC.replace('page.getByLabel("Discount code")', 'page?.getByLabel("Discount code")'),
   };
   for (const [name, source] of Object.entries(weakened)) assert.notEqual(skeleton(source), skeleton(SPEC), name);
 });
@@ -68,6 +71,8 @@ test("new spec: only ./fixtures.ts imports, no routing, mocking or reconfiguring
   assert.match(newSpecProblems(SPEC.replace('await page.goto("/");', 'await page.route("**", (r) => r.fulfill({ body: "" }));')).join(), /routes, mocks/);
   assert.match(newSpecProblems(`${SPEC}\ntest.use({ baseURL: "https://example.com" });\n`).join(), /reconfigures/);
   assert.match(newSpecProblems(`${SPEC}\ntest.beforeEach(async ({ page }) => { await page.goto("/"); });\n`).join(), /beforeEach/);
+  assert.match(newSpecProblems(SPEC.replace('await page.goto("/");', 'await page["route"]("**", (r) => r.abort());')).join(), /uses `route`/, "bracket access");
+  assert.match(newSpecProblems(SPEC.replace('await page.goto("/");', "const { route } = page;")).join(), /uses `route`/, "destructuring");
 });
 
 test("disable: switching a test off is caught however it is written", () => {
@@ -81,6 +86,11 @@ test("disable: switching a test off is caught however it is written", () => {
     "regex before it": `${SPEC}\nconst r = /\\//; test.${"skip"}("x", () => {});\n`,
     "inside a template literal": `${SPEC}\nconst label = \`\${(test.${"fixme"}(), "x")}\`;\n`,
     "Reflect": `${SPEC}\nReflect.get(test, "sk" + "ip")("x", () => {});\n`,
+    // Third review (the hand-written reader missed these; the parser does not):
+    "a } inside a string in a template expression": `${SPEC}\nconst label = \`\${"}", test.${"skip"}("x", () => {})}\`;\n`,
+    "a regex after )": `${SPEC}\nif (true) /\\//.test("x"); test.${"fixme"}("x", () => {});\n`,
+    "optional computed access": `${SPEC}\nconst k = "sk" + "ip";\ntest?.[k]("x", () => {});\n`,
+    "computed destructuring key": `${SPEC}\nconst k = "sk" + "ip";\nconst { [k]: off } = test;\n`,
   };
   for (const [name, source] of Object.entries(forms)) assert.notDeepEqual(disableProblems(source), [], name);
   // A TypeScript array type and a plain string key are not computed access.
@@ -122,6 +132,8 @@ async function guard(labels: string[]): Promise<{ code: number; out: string }> {
         GITHUB_TOKEN: "fake",
         GITHUB_API_URL: `http://127.0.0.1:${port}`,
         GITHUB_STEP_SUMMARY: "",
+        // The parser comes from this repository's node_modules, as from the pinned install in CI.
+        E2E_GUARD_MODULES: resolve("."),
       },
     });
     return { code: 0, out: stdout };
@@ -176,7 +188,7 @@ test("guard: a weakened spec fails without the label, passes with the owner's, f
   pr({ "e2e/coupon.spec.ts": SPEC.replace('await page.goto("/");', 'return;\n  await page.goto("/");') });
   const without = await guard([]);
   assert.equal(without.code, 1);
-  assert.match(without.out, /`e2e\/coupon\.spec\.ts` changes more than selectors: `…[^`]*` became `…[^`]*return;/);
+  assert.match(without.out, /`e2e\/coupon\.spec\.ts` changes more than selectors: `…[^`]*` became `…[^`]*ReturnStatement/);
   labeler = "Owner";
   const owner = await guard(["test-approved"]);
   assert.equal(owner.code, 0, owner.out);
@@ -199,7 +211,7 @@ test("guard: deleting a spec, adding a helper, or touching the fixtures or the c
   assert.match(r.out, /`e2e\/fixtures\.ts` changed/);
   assert.match(r.out, /`playwright\.config\.ts` changed/);
   pr({ "e2e/mocked.spec.ts": SPEC.replace('await page.goto("/");', 'await page.route("**", (r) => r.fulfill({ body: "" }));') });
-  assert.match((await guard([])).out, /new `e2e\/mocked\.spec\.ts` calls `\.route` \(routes, mocks/);
+  assert.match((await guard([])).out, /new `e2e\/mocked\.spec\.ts` uses `route` \(routes, mocks/);
 });
 
 test("guard: skipping, focusing or fixme fails even with the owner's label, in any form", async () => {

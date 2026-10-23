@@ -25,7 +25,8 @@ The agent may not create the label in this repository (the owner does), change t
   - a new spec may import only `./fixtures.ts` and may not route, mock or reconfigure;
   - skip, only, fixme and fail in any form always fail;
   - the label counts only from an owner in the target branch's `CODEOWNERS`.
-  - First version compared assertion fingerprints; the security review showed bypasses (commented assertions, early `return`, `try/catch`, a fake `expect` from a helper, `testInfo.skip()`, split or bracket `skip`). Rewritten to compare the whole spec with selectors masked; every bypass is a planted test.
+  - First version compared assertion fingerprints; the security review showed bypasses (commented assertions, early `return`, `try/catch`, a fake `expect` from a helper, `testInfo.skip()`, split or bracket `skip`). Rewritten to compare the whole spec with selectors masked.
+  - Two review rounds then found holes in the hand-written reader (regex literals, template expressions, `?.[`, computed keys). The owner chose the real TypeScript parser: the guard now compares syntax trees. CI installs TypeScript from the target branch's lockfile (integrity checked) before any PR code. Every bypass from the three reviews is a planted test.
 - [x] 2. CI: first step of the `e2e` job, from the target branch, before `npm ci`; the job installs with `--ignore-scripts` and calls `npx --no playwright test` directly (security review: a PR's `package.json` could skip the tests or rewrite them after the guard).
 - [x] 3. `test-approved` in `/adt:new-project` and `/adt:check-setup` (one list), the README commands and the reviewer's `approvalLabels`.
 - [x] 4. The healer's conflicting upstream lines rewritten; no `browser_run_code_unsafe` for the planner; tested.

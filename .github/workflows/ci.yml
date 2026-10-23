@@ -126,6 +126,28 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Parser for the guard (TypeScript, pinned by the target branch's lockfile)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        # The guard reads specs as syntax trees. TypeScript comes from the target branch's lockfile (version and
+        # integrity checked), installed in a folder of its own, before any PR code and without the PR's .npmrc.
+        run: |
+          REF=HEAD
+          if [ "$EVENT_NAME" = "pull_request" ]; then REF="origin/$BASE_REF"; fi
+          DIR="$RUNNER_TEMP/guard-modules"
+          mkdir -p "$DIR"
+          git show "$REF:package-lock.json" > "$RUNNER_TEMP/base-lock.json"
+          read -r VERSION INTEGRITY < <(node -e '
+            const ts = require(process.argv[1]).packages["node_modules/typescript"];
+            if (!ts?.version || !ts?.integrity) { console.error("typescript is not in the target branch lockfile"); process.exit(1); }
+            console.log(ts.version, ts.integrity);' "$RUNNER_TEMP/base-lock.json")
+          cd "$DIR"
+          npm install --no-audit --no-fund --ignore-scripts --save-exact "typescript@$VERSION"
+          node -e '
+            const got = require(process.argv[1]).packages["node_modules/typescript"]?.integrity;
+            if (got !== process.argv[2]) { console.error(`typescript integrity ${got} differs from the lockfile ${process.argv[2]}`); process.exit(1); }' "$DIR/package-lock.json" "$INTEGRITY"
+          echo "E2E_GUARD_MODULES=$DIR" >> "$GITHUB_ENV"
       - name: Guard (assertions kept, nothing skipped, isolation untouched)
         env:
           EVENT_NAME: ${{ github.event_name }}
