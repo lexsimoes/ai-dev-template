@@ -55,5 +55,6 @@ jobs:
           REVIEW_DEEP_API_KEY: ${{ secrets.REVIEW_DEEP_API_KEY }}
           REVIEW_API_BASE_URL: ${{ vars.REVIEW_API_BASE_URL }}
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
+          REVIEW_MODEL_VERSION: ${{ vars.REVIEW_MODEL_VERSION }}
           CASE: ${{ matrix.case }}
         run: node scripts/review/run.ts --mode canary --canary "$CASE"

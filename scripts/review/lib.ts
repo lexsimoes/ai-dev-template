@@ -10,6 +10,16 @@ export interface Tier {
   provider: "openai-compatible" | "anthropic";
   baseUrl?: string;
   model: string;
+  /**
+   * The model version this tier was measured with (canary). An alias like `deepseek-flash` can move to a new model
+   * upstream; the reviewer then stops instead of reviewing with an unmeasured model. Without it, the report warns.
+   */
+  pinnedVersion?: string;
+  /**
+   * The provider's `system_fingerprint` when the canary last ran ("openai-compatible"). It also changes with the
+   * provider's own deploys, so a different one only adds a note to the report, never stops the review.
+   */
+  pinnedFingerprint?: string;
   apiKeyEnv: string;
   /** Output token limit, including the model's reasoning. Default: 16000. */
   maxOutputTokens?: number;

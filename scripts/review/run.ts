@@ -61,7 +61,7 @@ import type {
   TierName,
   Usage,
 } from "./lib.ts";
-import { ModelCallError, callModel } from "./providers.ts";
+import { ModelCallError, callModel, listedVersion, versionProblem } from "./providers.ts";
 
 const SOURCE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 // GitHub Actions sets GITHUB_API_URL (it also points to GitHub Enterprise).
@@ -90,7 +90,12 @@ function loadConfig(): ReviewConfig {
   // The repository variables switch the provider of the standard tier and of light (standard with less reasoning).
   for (const name of ["standard", "light"] as const) {
     if (process.env.REVIEW_API_BASE_URL) config.tiers[name].baseUrl = process.env.REVIEW_API_BASE_URL;
-    if (process.env.REVIEW_MODEL) config.tiers[name].model = process.env.REVIEW_MODEL;
+    if (process.env.REVIEW_MODEL) {
+      config.tiers[name].model = process.env.REVIEW_MODEL;
+      // Another model needs its own pinned version (REVIEW_MODEL_VERSION), never the old one's.
+      config.tiers[name].pinnedVersion = process.env.REVIEW_MODEL_VERSION || undefined;
+      config.tiers[name].pinnedFingerprint = undefined;
+    }
   }
   return config;
 }
@@ -506,8 +511,18 @@ async function main(): Promise<number> {
     error = `the secret \`${tier.apiKeyEnv}\` is not available in this environment.`;
   } else {
     try {
+      // An alias can move to another model upstream: check before paying for a call, and again on the reply.
+      const listed = tier.pinnedVersion ? await listedVersion(tier, apiKey, config.timeoutMs) : tier.model;
+      const before = versionProblem(tier, listed);
+      if (before) throw new Error(before);
+      if (!tier.pinnedVersion) notes.push(`The tier's model version is not pinned (\`pinnedVersion\` in \`.github/review.json\`): an upstream change of \`${tier.model}\` would go unnoticed.`);
       const reply = await callModel(tier, apiKey, prompt, config.timeoutMs);
       usage = reply.usage;
+      const after = versionProblem(tier, listed, reply.model);
+      if (after) throw new ModelCallError(after, reply.usage);
+      if (tier.pinnedFingerprint && reply.fingerprint && reply.fingerprint !== tier.pinnedFingerprint) {
+        notes.push(`The provider's backend for \`${tier.model}\` changed since the canary last ran (fingerprint \`${reply.fingerprint.slice(0, 12)}\`, pinned \`${tier.pinnedFingerprint.slice(0, 12)}\`). Run the review canary, then update \`pinnedFingerprint\`.`);
+      }
       review = parseReview(reply.text, included.map((f) => f.path), config.maxFindings);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);

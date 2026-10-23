@@ -220,12 +220,30 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 
 ### Switching providers
 
-- **Standard tier:** in Settings → Secrets and variables → Actions → **Variables**, create `REVIEW_API_BASE_URL` (any API in the OpenAI format) and `REVIEW_MODEL`. The key stays in the `REVIEW_API_KEY` secret.
+- **Standard tier:** in Settings → Secrets and variables → Actions → **Variables**, create `REVIEW_API_BASE_URL` (any API in the OpenAI format), `REVIEW_MODEL` and `REVIEW_MODEL_VERSION` (the version to pin, below). The key stays in the `REVIEW_API_KEY` secret.
 - **Other tiers and limits:** edit `.github/review.json` (protected by CODEOWNERS). It holds:
   - the sensitive paths;
   - the maximum diff size (`maxDiffChars`);
   - the maximum wait time (`timeoutMs`);
   - the prices used in the cost estimate.
+
+**Pinned versions.** A model name at a provider is often an alias (`deepseek-flash`, `deepseek-v4-pro`) that can move to a new model upstream, without notice. Each tier names the version its canary measured:
+- **`pinnedVersion`:**
+  - For an OpenAI-format provider, it is the `name` the provider lists for the model in `{baseUrl}/models` (DeepSeek: `DeepSeek-V4-Pro`). Before paying for a call, the reviewer checks it: if the alias now serves another model, the review stops with a red check and says so. It also checks the reply's `model`.
+  - For Anthropic, it is the model id. A reply from any other model, for example a server-side fallback, is discarded.
+- **`pinnedFingerprint`** (DeepSeek's `system_fingerprint`): a change only adds a note to the report, since the provider's own deploys change it too.
+- **To move to a new version:** run the review canary with it (Actions → Review canary, or a PR that changes `.github/review.json`), compare, then update `model`, `pinnedVersion`, `pinnedFingerprint` and `pricePerMTok` in one PR.
+- A tier without `pinnedVersion` still works; the report notes that a change would go unnoticed.
+- Changing only `REVIEW_API_BASE_URL` keeps the pins: the new provider's `/models` must list the same name, or the review stops. For another model, set `REVIEW_MODEL` and `REVIEW_MODEL_VERSION` too.
+
+**DeepSeek options** (list prices at peak, per million tokens; off-peak is half):
+
+| `model` | `pinnedVersion` | `pinnedFingerprint` (2026-10-23) | Input / cached / output |
+|---|---|---|---|
+| `deepseek-v4-pro` (V4-Pro-0813, the default) | `DeepSeek-V4-Pro` | `a307abda487cd1b463329ccb945ce396` | $1.32 / $0.044 / $3.96 |
+| `deepseek-flash` (V4.1-Flash-1017) | `DeepSeek-V4.1-Flash` | `e72d3c7f663d3e1383b00b3884cb4501` | $0.30 / $0.006 / $1.20 |
+
+The two were compared on 2026-10-23 (`docs/missions/0033-reviewer-model.md`): the same planted defects found, Flash about 4 to 5 times cheaper and 2 to 3 times faster.
 
 ### Testing on your machine (without pasting the key anywhere)
 
