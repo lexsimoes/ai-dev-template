@@ -29,7 +29,7 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ### Fixed
 - **Action needed** for **private** projects created before this release: the required `dependencies` check failed on every PR ("Dependency review is not supported on this repository"), because GitHub's dependency review needs Advanced Security in a private repository. The check now runs `npm audit` there and fails only on a high or critical advisory the PR introduces (`scripts/dependency-audit.ts`). Update the project (`copier update --defaults`); `/adt:check-setup` flags a private project that still needs it. Found by the M8 rehearsal.
-- README: the plugin commands are sent one at a time; the local checks and the end-to-end tests run before the repository is created; how to see the template version and how to remove the sample store. Found by the M8 rehearsal.
+- README: the plugin commands are sent one at a time; the first commit, the local checks and the end-to-end tests come before the repository is created on GitHub (a check needs the first commit); the Copier questions and a non-interactive example; how to see the template version and how to remove the sample store. Found by the M8 rehearsal.
 - Demo contact form: a message within the 2,000-character limit was refused when it had many line breaks (the form sends each one as CRLF and the server counted it as two) or was written in a non-Latin alphabet (over the 16 KB body limit). The server now counts line breaks as the browser does, the body limit fits 2,000 characters in any alphabet, and the page and its error state the limit the same way. Found by the first exploratory session (#33); covered by a new end-to-end test.
 
 ## [0.3.0] - 2026-10-22
