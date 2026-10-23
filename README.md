@@ -10,10 +10,13 @@ The full flow, check by check: [`docs/WORKFLOW.md`](docs/WORKFLOW.md).
 
 ## Getting started
 
-**Fastest path, with Claude Code:** install the `adt` plugin once, then run `/adt:new-project` in an empty folder.
+**Fastest path, with Claude Code:** install the `adt` plugin once, then run `/adt:new-project` in an empty folder. In Claude Code, send these two commands **one at a time** (pasted together, they fail):
 
 ```
 /plugin marketplace add lexsimoes/ai-dev-template
+```
+
+```
 /plugin install adt@ai-dev-template
 ```
 
@@ -52,7 +55,7 @@ The steps below do the same by hand.
 | [Node.js](https://nodejs.org) | 22.18 or newer (TypeScript runs directly on Node, no build step) | `node --version` |
 | [Git](https://git-scm.com) | any recent | `git --version` |
 | [GitHub CLI](https://cli.github.com) | logged in to your account | `gh auth status` |
-| [Copier](https://copier.readthedocs.io) | 9.18.2 or newer, installed with [pipx](https://pipx.pypa.io) | `pipx install copier==9.18.2` |
+| [Copier](https://copier.readthedocs.io) | 9.18.2 or newer (install: `pipx install copier==9.18.2`, with [pipx](https://pipx.pypa.io)) | `copier --version` |
 | AI keys | **optional**: DeepSeek and/or Anthropic, each with a spending limit | see step 5 |
 
 ### 2. Create the project
@@ -61,19 +64,21 @@ The steps below do the same by hand.
 copier copy gh:lexsimoes/ai-dev-template my-project
 ```
 
-Copier uses the latest **release** of the template ([releases](https://github.com/lexsimoes/ai-dev-template/releases), [changelog](CHANGELOG.md)), never unreleased work on `main`. To pick a version: `--vcs-ref v0.1.0`.
+Copier uses the latest **release** of the template ([releases](https://github.com/lexsimoes/ai-dev-template/releases), [changelog](CHANGELOG.md)), never unreleased work on `main`. To pick a version: `--vcs-ref v0.1.0`. The version you got is `_commit` in the project's `.copier-answers.yml`.
 
 Copier asks a few questions: project name, your GitHub username (it becomes the owner in `.github/CODEOWNERS`), the language agents use to talk to you, the reviewer's provider (or "None" for no key), whether evals run with a real model, and optional sections. What each answer changes: [`docs/WORKFLOW.md`](docs/WORKFLOW.md#creating-a-project-from-this-template-copier).
 
-Then create the repository and check that everything passes on your machine:
+Check that everything passes on your machine, then create the repository:
 
 ```bash
 cd my-project
+npm ci
+npm run check       # lint, types, unit tests, invariants (stops at the first failure)
+npm run eval:mock   # evals with the fake provider: no key, no cost
+npx playwright install chromium   # once: the browser for the end-to-end tests
+npm run e2e         # end-to-end tests of the critical flows, with the fake AI provider
 git init -b main && git add -A && git commit -m "chore: project created from ai-dev-template"
 gh repo create my-project --public --source . --push
-npm ci
-npm run check       # lint, types, unit tests, invariants
-npm run eval:mock   # evals with the fake provider: no key, no cost
 ```
 
 A **public** repository gets branch protection and Actions minutes for free. A private one needs GitHub Pro (or Team) for the protection to be enforced ([details](docs/WORKFLOW.md#private-repository)).
@@ -111,7 +116,7 @@ With keys:
 
 ### 6. Your first PR
 
-1. Write what the project must do in `specs/PRD.md`: goal, acceptance criteria and the **non-negotiables** (each one gets a test in `tests/invariants/`). Replace the sample store (`src/pricing.ts`, `src/ai/classify-message.ts`) with your own code as you go.
+1. Write what the project must do in `specs/PRD.md`: goal, acceptance criteria and the **non-negotiables** (each one gets a test in `tests/invariants/`). Replace the sample store (`src/pricing.ts`, `src/ai/classify-message.ts`, `src/web/`) with your own code as you go. It comes with its own non-negotiable tests, golden set and end-to-end tests: removing those is your decision, in a PR that carries your `invariant-approved`, `eval-approved` and `test-approved` labels.
 2. Write a mission in `docs/missions/` (a work order with verifiable acceptance criteria) and ask your agent (Claude Code, Codex…) to carry it out.
 3. The agent works on a branch `mission/<NNNN>-<topic>` and opens a **draft** PR. When it is done, it marks the PR **Ready for review**: the reviewer runs once, and the evals run if the PR touches AI files.
 4. Read the PR: requirement → evidence → status, what was not verified, and the reviewer's comment. If something needs another look after a fix, apply `re-review`.
