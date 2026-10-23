@@ -20,8 +20,12 @@ const ROOT = resolve(".");
 const COPIER = process.env.COPIER || "copier";
 let work = "";
 
+// No automatic gc or maintenance in the git commands run here, Copier's included: a background `git gc --auto`
+// still writing into Copier's temporary clone made its cleanup fail ("Directory not empty: 'objects'").
+const NO_AUTO_GC = { GIT_CONFIG_COUNT: "2", GIT_CONFIG_KEY_0: "gc.auto", GIT_CONFIG_VALUE_0: "0", GIT_CONFIG_KEY_1: "maintenance.auto", GIT_CONFIG_VALUE_1: "false" };
+
 function sh(cmd: string, args: string[], cwd: string, env: Record<string, string> = {}): string {
-  return execFileSync(cmd, args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } });
+  return execFileSync(cmd, args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...NO_AUTO_GC, ...env } });
 }
 
 function git(cwd: string, ...args: string[]): string {
