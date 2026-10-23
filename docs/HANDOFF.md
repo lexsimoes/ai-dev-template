@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-23 · **By:** agent (mission 0027, M7d PR 3)
+**Updated on:** 2026-10-23 · **By:** agent (mission 0028, M7d PR 4)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0028 (M7d, PR 4 of 4): exploratory session on request (`/explore <area>`, `.claude/skills/explore/SKILL.md`; `AGENTS.md` 1.9). `scripts/explore-report.ts` pushes the screenshots to `exploration/<date>-<topic>` (one commit with no parent) and opens one issue per finding directly (owner's choices on 2026-10-23: screenshots on a session branch, issues opened without a review step). Also: `e2e-quarantine` declares read-only permissions and `e2e-flaky` checks the branch (owner's decision on the review of #31). A rehearsal in the browser found a real bug in the contact form (line breaks counted twice by the server), reported to the owner, not fixed.
 - Mission 0027 (M7d, PR 3 of 4): flaky end-to-end tests. `scripts/e2e-flaky.ts` lists tests that passed only on a retry in the `e2e` job summary; on `main`, the `e2e-flaky` job opens one issue per flaky test or comments on the open one. Quarantine = tag `@quarantine` plus an `issue` annotation, under `test-approved`: the required `e2e` check leaves it out, the non-required `e2e-quarantine` check still runs it; the guard (rule 4) fails a quarantine without an issue of the repository, or with a closed one in a PR. Rule in `AGENTS.md` 1.3, `docs/WORKFLOW.md` "Flaky tests".
 - Mission 0026 (M7d, PR 2 of 4): end-to-end guard (`scripts/guard-e2e.ts`, first step of the `e2e` job, from the target branch); `test-approved` label in the plugin, the README and the reviewer's approval labels; the healer's conflicting upstream lines rewritten and the planner's `browser_run_code_unsafe` removed (owner's pending decision from PR 1, recommended yes); the rule in `AGENTS.md` (1.3).
 - Mission 0025 (M7d, PR 1 of 4): demo web app (`src/web/`), end-to-end tests of the critical flows (`e2e/`) written by the Playwright test agents (`.claude/agents/`, plan in `specs/e2e/`), isolated mode (`APP_ENV=e2e`, fake AI provider only, outside requests blocked), CI job `e2e`, listed as required in `protect-main.json`. The owner adds `e2e` to the live ruleset after its first green run on `main`.
@@ -82,7 +83,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
 4. **M7c (discovery and audit)**, 3 PRs (owner's "ok" on 2026-10-22; audit rehearsal on GoAgentic, read-only; two commands): `/adt:discover` (done, #21), `/adt:audit` (done, #22 and #23), adoption on a branch with CI in observation mode (done, #24). **M7c is done**, released in `v0.3.0`. The owner's manual tests (`docs/PLUGIN-TEST.md` steps 7, 7b, 7c) wait until GoAgentic's Phase B test ends.
    - Discovery: product questions → short PRD with verifiable criteria, non-negotiables with their first tests, skills and MCPs chosen from the answers, and "test before choosing" (throwaway prototype when an idea or model is risky).
    - Audit: map stack, tests and sensitive areas; infer the PRD from the code and ask the owner to confirm; propose non-negotiables from what already exists; turn CI on in observation mode first (non-blocking) and make each check required once it is green.
-5. **M7d (tester)**, 4 PRs plus a release (missions 0025–0028; owner's "ok" on 2026-10-22 with the recommended decisions: demo UI on `node:http`, quarantine needs `test-approved`, `e2e` required in the ruleset file and turned on live by the owner after the first green run on `main`). PRs 1–2 merged (#28, #29, #30); PR 3 (0027, quarantine) in review; PR 4 (0028, exploratory session) next:
+5. **M7d (tester)**, 4 PRs plus a release (missions 0025–0028; owner's "ok" on 2026-10-22 with the recommended decisions: demo UI on `node:http`, quarantine needs `test-approved`, `e2e` required in the ruleset file and turned on live by the owner after the first green run on `main`). PRs 1–3 merged (#28, #29, #30, #31); PR 4 (0028, exploratory session) in review; then the `v0.4.0` release after M8:
    - Playwright test agents (planner/generator/healer) write 3 to 8 tests of the critical flows from the PRD; they become a required check.
    - They run only in an isolated environment (local, or a preview with test data), with AI calls replaced by a fake provider. AI quality stays the job of the evals.
    - The healer may update selectors; changing what a test asserts requires the owner's `test-approved` label.
@@ -120,7 +121,7 @@ The adoption rehearsal PR (lexsimoes/goagentic#23) was closed without merge by t
 - M7d PR 1 (mission 0025):
   - after the first green `e2e` on `main`, add `e2e` to this repository's live `protect-main` ruleset;
   - keep HTTP 422 on validation errors (the browser notes it in the console), or return 200 with the error on the page.
-- M7d PR 3 (mission 0027): add `e2e-quarantine` to the live ruleset? Recommended no: it holds the tests that are known to be flaky, so a red run must not block merges.
+- M7d PR 4 (mission 0028): the contact form bug found in the rehearsal (a message within 2,000 characters with many line breaks is refused, because the server counts each CRLF as 2). Open it as an issue, and fix it in a mission with a new end-to-end test?
 - "Keep the GHCR authenticated-pull fix in the template CI": the template's own CI pulls no container image. Proposal: `/adt:audit` flags a project CI that uses `supabase/setup-cli` without it, and `/adt:adopt` offers the fix as a separate, owner-approved change. Waiting for the owner's choice.
 
 - Delete the test repository `lexsimoes/adt-manual-test` after reviewing (agents cannot delete repositories). `lexsimoes/adt-sandbox-m7b` stays: it is the M8 test bed.
