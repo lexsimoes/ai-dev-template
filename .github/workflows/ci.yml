@@ -270,6 +270,29 @@ jobs:
         with:
           persist-credentials: false
       # Looks only at the dependencies this PR adds or changes (the diff), not the whole project.
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      # Public repository: GitHub's dependency review.
+      - if: ${{ !github.event.repository.private }}
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
+      # Private repository: GitHub's dependency review needs Advanced Security, so npm audit compares the PR's lockfile
+      # with the target branch's and fails only on a high or critical advisory the PR introduces.
+      - name: Target branch (for the comparison and the checker)
+        if: ${{ github.event.repository.private }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+          persist-credentials: false
+      - if: ${{ github.event.repository.private }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: base/.nvmrc
+      - name: npm audit of what the PR introduces (private repository)
+        if: ${{ github.event.repository.private }}
+        run: |
+          # The checker comes from the target branch: a PR cannot loosen its own check.
+          if [ -f base/scripts/dependency-audit.ts ]; then checker=base/scripts/dependency-audit.ts
+          else checker=scripts/dependency-audit.ts; echo "::notice::The target branch has no dependency-audit.ts yet: using this PR's copy (first time only)."
+          fi
+          node "$checker" base .

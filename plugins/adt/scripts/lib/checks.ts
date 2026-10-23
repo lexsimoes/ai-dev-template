@@ -179,6 +179,19 @@ function checkLabels(ctx: Context, repo: RepoInfo): Check {
 }
 
 function checkDependencyGraph(ctx: Context, repo: RepoInfo): Check {
+  // GitHub's dependency review needs Advanced Security in a private repository: the project's CI runs npm audit there.
+  if (repo.private) {
+    if (/checker=base\/scripts\/dependency-audit\.ts/.test(ctx.read(".github/workflows/ci.yml") ?? "")) {
+      return { id: "dependency-graph", title: "Dependency graph", status: "pass", detail: "Private repository: the `dependencies` check runs npm audit on what each PR introduces." };
+    }
+    return {
+      id: "dependency-graph",
+      title: "Dependency graph",
+      status: "fail",
+      detail: "Private repository: GitHub's dependency review needs Advanced Security, so the `dependencies` check fails on every PR with \"Dependency review is not supported on this repository\".",
+      fix: "Update the project from the template (`copier update --defaults`, v0.4.0 or later): its CI runs npm audit in private repositories. Or turn on GitHub Advanced Security for the repository (paid).",
+    };
+  }
   if (ctx.run("gh", ["api", `repos/${repo.slug}/dependency-graph/sbom`, "--jq", ".sbom.name"]).code === 0) {
     return { id: "dependency-graph", title: "Dependency graph", status: "pass", detail: "On: the `dependencies` check can run." };
   }

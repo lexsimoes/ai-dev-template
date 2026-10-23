@@ -106,7 +106,7 @@ The file `.github/workflows/ci.yml` runs on its own on every PR (drafts included
 |---|---|---|
 | `quality` | Installs with `npm ci`, runs lint, types and unit tests | Code out of standard, type error or broken test |
 | `invariants` | Runs the guard (`scripts/guard-invariants.ts`) and the tests in `tests/invariants/` | A non-negotiable broke, one of its tests was skipped, or the folder changed without the `invariant-approved` label |
-| `dependencies` | Checks **only the dependencies the PR adds or changes** | One of them has a known vulnerability of high or critical severity |
+| `dependencies` | Checks **only the dependencies the PR adds or changes**: GitHub's dependency review in a public repository, `npm audit` of what the PR introduces in a private one | One of them has a known vulnerability of high or critical severity |
 | `e2e` | Runs the end-to-end tests of the critical flows (`e2e/`) in a real browser, against the app in its isolated mode, except tests in quarantine (they run in `e2e-quarantine`, which is not required) | A critical flow broke, or a test tried to leave the isolated environment |
 
 Two more jobs serve `e2e` and are not required: `e2e-quarantine` (tests in quarantine) and `e2e-flaky` (pushes to `main` only); see "Flaky tests".
@@ -386,6 +386,8 @@ To check: open any PR. In the merge box, "Required" should appear next to the 5 
 ### Private repository
 
 Protection rules (rulesets or branch protection) work for free in **public** repositories. In a **private** repository they require the **GitHub Pro** plan (personal) or **Team** (organization). On the Free plan, in a private repository, the rule is not enforced (GitHub warns you on screen). Without Pro, the checks keep running and showing up on the PR; you only lose the lock. Then the discipline is yours: do not click merge with a red check.
+
+GitHub's dependency review needs **Advanced Security** (paid) in a private repository. There, the `dependencies` check runs `scripts/dependency-audit.ts` instead: `npm audit` on the PR's lockfile and on the target branch's, failing only on a high or critical advisory the PR introduces. It audits a copy of `package.json` and `package-lock.json` against the public npm registry (the PR's `.npmrc` is not read), installs nothing, and the checker comes from the target branch.
 
 ### Agent identity
 

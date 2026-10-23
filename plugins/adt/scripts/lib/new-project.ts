@@ -287,10 +287,10 @@ const DEPENDENCY_GRAPH_FIX =
  */
 export function setupDependencyGraph(ctx: Context, slug: string): Step {
   if (ctx.run("gh", ["api", `repos/${slug}/dependency-graph/sbom`, "--jq", ".sbom.name"]).code === 0) {
-    return { id: "dependency-graph", status: "exists", detail: "The dependency graph is on (the `dependencies` check can run)." };
+    return { id: "dependency-graph", status: "exists", detail: "The dependency graph is on (the `dependencies` check uses it in a public repository; a private one runs npm audit)." };
   }
   const enable = ctx.run("gh", ["api", "--method", "PUT", `repos/${slug}/vulnerability-alerts`]);
-  if (enable.code === 0) return { id: "dependency-graph", status: "created", detail: "Dependency graph and Dependabot alerts turned on (the `dependencies` check needs them)." };
+  if (enable.code === 0) return { id: "dependency-graph", status: "created", detail: "Dependency graph and Dependabot alerts turned on (the `dependencies` check uses them in a public repository; a private one runs npm audit)." };
   return { id: "dependency-graph", status: "failed", detail: `Could not turn on the dependency graph (${firstLine(enable.stderr)}). ${DEPENDENCY_GRAPH_FIX}` };
 }
 
