@@ -239,7 +239,8 @@ test("copier update: brings template changes, keeps project files", () => {
   assert.match(read("THIRD_PARTY_NOTICES.md"), /Template notice update\./, "the license notice is kept and follows the template");
   assert.match(read("THIRD_PARTY_NOTICES.md"), /Permission is hereby granted/);
   assert.equal(read("LICENSE"), "Proprietary. All rights reserved.\n", "the project's own license is never touched");
-  assert.match(read(".copier-answers.yml"), new RegExp(`_commit: ${v2}`), "answers file points at the new template commit");
+  // A short hash made only of digits looks like a number, so YAML writes it in quotes.
+  assert.match(read(".copier-answers.yml"), new RegExp(`_commit: '?${v2}'?\n`), "answers file points at the new template commit");
 });
 
 test("releases: copy uses the latest tag, not unreleased commits; update moves to the next release", () => {
