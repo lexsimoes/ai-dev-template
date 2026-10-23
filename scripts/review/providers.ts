@@ -147,9 +147,10 @@ export function versionProblem(tier: Tier, listed: string, replied?: string): st
   if (listed !== tier.pinnedVersion) {
     return `the provider now serves \`${listed}\` behind \`${tier.model}\`, not the pinned \`${tier.pinnedVersion}\`. ${how}`;
   }
-  // Anthropic may answer with the dated id of a pinned alias (`claude-x-1` → `claude-x-1-20260101`); any other model is not it.
-  const same = (r: string) => (tier.provider === "anthropic" ? r === tier.pinnedVersion || r.startsWith(`${tier.pinnedVersion}-`) : r === tier.model);
+  // A provider may answer with the dated id of the alias (`claude-x-1` → `claude-x-1-20260101`); any other model is not it,
+  // a longer name included (`deepseek-v4-pro-max` is not `deepseek-v4-pro`).
   const expected = tier.provider === "anthropic" ? tier.pinnedVersion : tier.model;
+  const same = (r: string) => r === expected || (r.startsWith(`${expected}-`) && /^\d/.test(r.slice(expected.length + 1)));
   if (replied !== undefined && !same(replied)) {
     return `the reply came from \`${replied}\`, not the pinned \`${expected}\` (an upstream redirect or fallback). Its findings were discarded. Run the review canary with that model before trusting it.`;
   }

@@ -234,6 +234,7 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 - **`pinnedFingerprint`** (DeepSeek's `system_fingerprint`): a change only adds a note to the report, since the provider's own deploys change it too.
 - **To move to a new version:** run the review canary with it (Actions → Review canary, or a PR that changes `.github/review.json`), compare, then update `model`, `pinnedVersion`, `pinnedFingerprint` and `pricePerMTok` in one PR.
 - A tier without `pinnedVersion` still works; the report notes that a change would go unnoticed.
+- Changing only `REVIEW_API_BASE_URL` keeps the pins: the new provider's `/models` must list the same name, or the review stops. For another model, set `REVIEW_MODEL` and `REVIEW_MODEL_VERSION` too.
 
 **DeepSeek options** (list prices at peak, per million tokens; off-peak is half):
 
