@@ -85,6 +85,7 @@ test("map: personal data and external input in a plain node:http or Express app,
       "src/views.js": '<label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email">',
       "src/mailer.js": "console.log(`[mail to ${booking.email}]`);",
       "src/util.js": "const n = list.length; settings.emailEnabled = true; validate.email(x);",
+      "src/client.js": 'await api.post("/orders", body); await axios.put("/x");',
       "test/app.test.js": 'if (req.method === "POST") {} booking.email;',
     }).src,
   ).sensitive;

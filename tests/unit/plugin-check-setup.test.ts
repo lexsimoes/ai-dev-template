@@ -299,6 +299,12 @@ test("adopted: the project's own required checks, mapped labels, and how each ob
   assert.match(byId(results, "observe-adt-evals")?.detail ?? "", /not on GitHub yet/);
 });
 
+test("adopted: a project whose branch requires nothing yet says so (M8: no CI, no protection)", () => {
+  const r = byId(checkSetup(adopted({}, { ".github/adt.json": JSON.stringify({ ...ADT, requiredChecks: [] }) })), "ruleset");
+  assert.equal(r?.status, "pass");
+  assert.match(r?.detail ?? "", /^Required: none yet\. The adopted checks are in observe mode/);
+});
+
 test("adopted: a required check that stopped being required fails; missing mapped labels are a warning with the command", () => {
   const results = checkSetup(
     adopted({

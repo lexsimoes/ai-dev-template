@@ -52,8 +52,8 @@ The agent may change the content rules in `plugins/adt/scripts/lib/audit.ts`, ac
 
 ## Report
 
-- **What was done:** items 1–3.
-- **Evidence:** the table above. The existing audit tests still pass, 10 in total.
+- **What was done:** items 1–5.
+- **Evidence:** the table above; `tests/unit/plugin-audit.test.ts`, `tests/unit/plugin-adopt.test.ts`, `tests/unit/plugin-check-setup.test.ts`, `tests/unit/guard-invariants-config.test.ts`; the adoption PR adt-sandbox-legacy#1.
 - **What was NOT verified:** frameworks other than `node:http`, Express, Fastify and Next.js (Koa, Hono, Python apps). The rules stay heuristics; the audit report still says what the map did not see.
 - **Pending decisions for the owner:** none.
 - **Possible injections found in external content:** none.
