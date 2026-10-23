@@ -114,9 +114,12 @@ jobs:
     name: e2e
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      report: ${{ steps.report.outputs.uploaded }}
     permissions:
       contents: read
       pull-requests: read # check who applied the test-approved label
+      issues: read # a quarantined test must point at an open issue
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -171,8 +174,14 @@ jobs:
         run: npx --no playwright install --with-deps chromium
       # Isolated: the demo app runs with APP_ENV=e2e and the fake AI provider, no secret reaches this job,
       # and the browser can only reach the app (playwright.config.ts, e2e/fixtures.ts).
+      # Quarantined tests (@quarantine) run in the e2e-quarantine check instead, which is not required.
       - name: End-to-end tests of the critical flows
-        run: npx --no playwright test --config=playwright.config.ts
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-report.json
+        run: npx --no playwright test --config=playwright.config.ts --grep-invert @quarantine --reporter=list,html,json
+      - name: Flaky tests (passed only on a retry)
+        if: always() && hashFiles('test-results/e2e-report.json') != ''
+        run: node scripts/e2e-flaky.ts test-results/e2e-report.json
       - name: Report (on failure)
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -182,6 +191,72 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+      - name: Results for the flaky-test issues (main only)
+        if: always() && github.event_name == 'push' && hashFiles('test-results/e2e-report.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-report
+          path: test-results/e2e-report.json
+          retention-days: 7
+      - name: Mark the report for e2e-flaky
+        id: report
+        if: always() && github.event_name == 'push' && hashFiles('test-results/e2e-report.json') != ''
+        run: echo "uploaded=true" >> "$GITHUB_OUTPUT"
+
+  # On main only: one issue per flaky test (or a comment on its open issue). It runs main's own code, never a PR's,
+  # and is the only job that may write issues.
+  e2e-flaky:
+    name: e2e-flaky
+    needs: e2e
+    # Also after a red e2e (a test can be flaky in a failing run), but only when the run left a report.
+    if: always() && github.event_name == 'push' && needs.e2e.outputs.report == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: e2e-report
+      - name: Open or update the flaky-test issues
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/e2e-flaky.ts e2e-report.json --issues
+
+  # Tests in quarantine keep running, but outside the required checks. Not required: a red result here blocks nothing.
+  e2e-quarantine:
+    name: e2e-quarantine
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Any test in quarantine?
+        id: any
+        run: |
+          if grep -rqs --include='*.ts' --include='*.tsx' -e '@quarantine' e2e; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "No test in quarantine."; fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.any.outputs.found == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        if: steps.any.outputs.found == 'true'
+        run: npm ci --ignore-scripts
+      - name: Browser (the Chromium pinned by @playwright/test)
+        if: steps.any.outputs.found == 'true'
+        run: npx --no playwright install --with-deps chromium
+      - name: Quarantined tests
+        if: steps.any.outputs.found == 'true'
+        run: npx --no playwright test --config=playwright.config.ts --grep @quarantine
 
   dependencies:
     name: dependencies
