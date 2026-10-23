@@ -26,7 +26,9 @@ export interface AdoptAnswers {
   owner: string;
   labels: Record<LabelRole, string>;
   paths: { prd: string; handoff: string; invariants: string };
-  evals: { command: string; paths: string[] };
+  /** null: the project has no AI code yet, so there is no evals check to observe. */
+  evals: { command: string; paths: string[] } | null;
+  /** Empty: the default branch requires no check yet. */
   requiredChecks: string[];
   /** Extra paths the reviewer treats as sensitive (stronger model), from the audit. */
   sensitive: string[];
@@ -40,6 +42,9 @@ export interface AdtConfig extends Omit<AdoptAnswers, "owner" | "sensitive"> {
 }
 
 export const OBSERVE_CHECKS = ["adt-review", "adt-invariants", "adt-evals"];
+
+/** The checks adoption adds for these answers: no `adt-evals` in a project without AI code. */
+export const observeChecks = (answers: AdoptAnswers) => OBSERVE_CHECKS.filter((c) => c !== "adt-evals" || answers.evals !== null);
 
 const LABEL_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._:-]{0,49}$/u;
 const PATH_RE = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]{1,100}$/;
@@ -69,20 +74,29 @@ export function validateAdoptAnswers(raw: Record<string, string | undefined>): {
   const paths = { prd: raw.prd?.trim() || "specs/PRD.md", handoff: raw.handoff?.trim() || "docs/HANDOFF.md", invariants: raw.invariants?.trim() || "tests/invariants" };
   for (const [key, value] of Object.entries(paths)) if (!PATH_RE.test(value)) errors.push(`${key}: a relative path inside the project`);
 
+  // "none": a project without AI code has no evals yet; `adt-evals` is left out until it gets some.
   const command = raw.evalCommand?.trim() ?? "";
-  if (!EVAL_COMMAND_RE.test(command)) errors.push("eval-command: the project's own eval script without a model, like `npm run eval -- --mock`");
   const evalPaths = list(raw.evalPaths);
-  if (evalPaths.length === 0 || evalPaths.some((p) => !GLOB_RE.test(p))) errors.push("eval-paths: comma-separated globs of the AI code, like `src/lib/ai/**`");
+  let evals: AdoptAnswers["evals"] = null;
+  if (command === "none") {
+    if (evalPaths.length) errors.push("eval-paths: leave it out when the eval command is `none` (no AI code)");
+  } else {
+    if (!EVAL_COMMAND_RE.test(command)) errors.push("eval-command: the project's own eval script without a model, like `npm run eval -- --mock`, or `none` when the project has no AI code");
+    if (evalPaths.length === 0 || evalPaths.some((p) => !GLOB_RE.test(p))) errors.push("eval-paths: comma-separated globs of the AI code, like `src/lib/ai/**`");
+    evals = { command, paths: evalPaths };
+  }
 
-  const requiredChecks = list(raw.required);
-  if (requiredChecks.length === 0 || requiredChecks.some((c) => !CHECK_RE.test(c))) errors.push("required: the names of the checks already required on the default branch");
+  // "none": the default branch requires no check yet (a project without CI, or without protection).
+  const requiredChecks = raw.required?.trim() === "none" ? [] : list(raw.required);
+  if (raw.required?.trim() !== "none" && (requiredChecks.length === 0 || requiredChecks.some((c) => !CHECK_RE.test(c))))
+    errors.push("required: the names of the checks already required on the default branch, or `none`");
   if (requiredChecks.some((c) => OBSERVE_CHECKS.includes(c))) errors.push("required: the adopted checks start in observe mode; only the owner makes one required, later");
 
   const sensitive = list(raw.sensitive);
   if (sensitive.some((p) => !GLOB_RE.test(p))) errors.push("sensitive: comma-separated globs");
 
   if (errors.length) return { errors };
-  return { answers: { owner, labels, paths, evals: { command, paths: evalPaths }, requiredChecks, sensitive } };
+  return { answers: { owner, labels, paths, evals, requiredChecks, sensitive } };
 }
 
 export type PlanAction = { path: string; action: "add" | "identical" | "conflict" };
@@ -117,9 +131,13 @@ export function placeholderValues(answers: AdoptAnswers, release: string): Recor
     INVARIANTS_DIR: answers.paths.invariants,
     PRD_PATH: answers.paths.prd,
     HANDOFF_PATH: answers.paths.handoff,
-    EVAL_COMMAND: answers.evals.command,
-    EVAL_PATHS: answers.evals.paths.map((p) => `      - "${p}"`).join("\n"),
-    REQUIRED_CHECKS: answers.requiredChecks.map((c) => `\`${c}\``).join(", "),
+    EVAL_COMMAND: answers.evals?.command ?? "none (no AI code yet)",
+    EVAL_PATHS: (answers.evals?.paths ?? []).map((p) => `      - "${p}"`).join("\n"),
+    REQUIRED_CHECKS: answers.requiredChecks.length ? answers.requiredChecks.map((c) => `\`${c}\``).join(", ") : "none yet",
+    OBSERVE_CHECKS: observeChecks(answers).map((c) => `\`${c}\``).join(", "),
+    EVALS_LINE: answers.evals
+      ? `Evals in CI run without a model: \`${answers.evals.command}\`. A real-model run happens only on the owner's request, with the project's own acceptance and budget.`
+      : "No evals yet: the project has no AI code. The first LLM call comes with its evals (golden set and rules) and the `adt-evals` check, through `/adt:adopt` again.",
   };
 }
 
@@ -179,7 +197,7 @@ export function adtConfig(answers: AdoptAnswers, repository: string, release: st
       "ai-dev-template, adopted with /adt:adopt. Observe mode: the checks below report on every PR but are not required. /adt:check-setup reads this file.",
     template: { repository, release },
     mode: "observe",
-    observeChecks: OBSERVE_CHECKS,
+    observeChecks: observeChecks(answers),
     requiredChecks: answers.requiredChecks,
     labels: answers.labels,
     paths: answers.paths,

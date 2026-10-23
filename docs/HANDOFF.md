@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-23 · **By:** agent (mission 0030, M8)
+**Updated on:** 2026-10-23 · **By:** agent (mission 0032, M8)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0032 (M8): `/adt:audit` sees personal data and external input in plain `node:http` and Express apps (found on `adt-sandbox-legacy`, whose audit marked both areas empty). The owner confirmed the legacy app's inferred PRD with INV-004 (code-only access, rate limited, no existence leak) and INV-005 (no personal data in logs); `/adt:adopt` on that repository is next.
 - Mission 0030 (M8, fixes from the rehearsal):
   - the `dependencies` check failed on every PR of a private repository, because GitHub's dependency review needs Advanced Security. A private repository now runs `npm audit` of what the PR introduces (`scripts/dependency-audit.ts`, from the target branch), and `/adt:check-setup` flags a private project that still needs the update;
   - README fixes from the owner's install and from a newcomer agent that read only the README.

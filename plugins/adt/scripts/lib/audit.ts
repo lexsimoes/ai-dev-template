@@ -76,9 +76,14 @@ const PATH_RULES: Record<Area, RegExp> = {
 const CONTENT_RULES: Record<Area, RegExp> = {
   authentication: /supabase\.auth\.|from ["']next-auth|getServerSession|@clerk\/|jsonwebtoken|bcrypt|passport\./,
   payments: /\bstripe\b|mercadopago|paypal|pagar\.me|asaas/i,
-  personalData: /create table[^;]*\b(?:email|phone|cpf|cnpj|address|birth_?date|whatsapp)\b/i,
+  // A table with personal columns, a form field that asks for them, or code that reads them from a record.
+  personalData:
+    /create table[^;]*\b(?:email|phone|cpf|cnpj|address|birth_?date|whatsapp)\b|<input[^>]*\b(?:type|autocomplete)=\\?["'](?:email|tel|street-address|bday)\b|\.(?:email|phone|cpf|cnpj|birth_?date|whatsapp)\b(?!\s*\()/i,
   ai: /api\.openai\.com|api\.anthropic\.com|api\.deepseek\.com|generativelanguage\.googleapis\.com|from ["'](?:openai|@anthropic-ai\/sdk|ai|@ai-sdk\/[\w-]+|@google\/genai|@google\/generative-ai|langchain|@langchain\/[\w-]+)["']/,
-  externalInput: /export\s+async\s+function\s+(?:POST|PUT|PATCH|DELETE)\b|req\.body|request\.json\(\)|\.formData\(\)/,
+  // Next.js route handlers, Express/Fastify-style routes, and plain node:http handlers that read a request body.
+  // Not `api.post(`: that is usually an HTTP client sending data, not a route receiving it.
+  externalInput:
+    /export\s+async\s+function\s+(?:POST|PUT|PATCH|DELETE)\b|req\.body|request\.json\(\)|\.formData\(\)|\b(?:app|router|fastify)\.(?:post|put|patch|delete)\(\s*["'`/]|req\.method\s*===?\s*["'](?:POST|PUT|PATCH|DELETE)["']|for\s+await\s*\(\s*const\s+\w+\s+of\s+req\b/,
 };
 const ENV_NAME_RES = [/process\.env\.([A-Z][A-Z0-9_]{1,60})\b/g, /Deno\.env\.get\(["']([A-Z][A-Z0-9_]{1,60})["']\)/g, /os\.environ(?:\.get\(|\[)["']([A-Z][A-Z0-9_]{1,60})["']/g];
 const ENV_EXAMPLE_RE = /^\.env\.(?:example|sample|template)$/;

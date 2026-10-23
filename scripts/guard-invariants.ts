@@ -20,7 +20,7 @@
 // Local use: npm run guard:invariants  (after git fetch origin main)
 
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync, readdirSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -38,6 +38,8 @@ function git(...args: string[]): string {
 }
 
 function listTestFiles(dir: string): string[] {
+  // A project that adopted the workflow may have no non-negotiable tests yet: no folder means none, not a crash.
+  if (!existsSync(dir)) return [];
   return readdirSync(dir, { recursive: true, encoding: "utf-8" })
     .filter((name) => name.endsWith(".ts"))
     .map((name) => join(dir, name));

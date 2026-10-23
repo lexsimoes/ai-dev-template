@@ -26,8 +26,8 @@ Ask the owner, in one message:
 - **Product branch.** Which branch is the product? For stacked PRs, the top of the stack. The adoption branch is made from it, and the adoption PR targets it.
 - **Label names.** For each role, an existing label to reuse, or the template's name for a new one. Roles: `invariantApproved`, `evalApproved`, `rereview` (review again what changed), `deep` (strongest reviewer). Existing names are kept as they are.
 - **Paths.** The PRD (default `specs/PRD.md`), the HANDOFF (keep the project's own if it has one), and the folder of non-negotiable tests.
-- **Evals.** The project's own eval command **without a model**, and the globs of its AI code. CI runs only that command. A real-model run stays the project's own acceptance, on the owner's request, with its own budget.
-- **Required checks.** The names of the checks already required on the default branch. They stay the only required ones.
+- **Evals.** The project's own eval command **without a model**, and the globs of its AI code. CI runs only that command. A real-model run stays the project's own acceptance, on the owner's request, with its own budget. A project with no AI code answers `none` (and no globs): no `adt-evals` check is added, and its first LLM call brings the evals with it. Never invent a command that runs nothing.
+- **Required checks.** The names of the checks already required on the default branch. They stay the only required ones. `none` when the branch requires nothing yet (no CI, or no protection).
 
 ## 2. Make the branch
 

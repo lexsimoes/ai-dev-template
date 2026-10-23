@@ -76,6 +76,23 @@ test("map: sensitive areas from paths and content, tests excluded, odd names cou
   assert.deepEqual(s.externalInput.examples, ["src/app/api/webhooks/pay/route.ts"]);
 });
 
+test("map: personal data and external input in a plain node:http or Express app, not only in SQL and Next.js (M8)", () => {
+  const s = auditMap(
+    source({
+      "package.json": JSON.stringify({ scripts: { start: "node src/server.js" } }),
+      "src/app.js": 'if (req.method === "POST" && url.pathname === "/book") { for await (const chunk of req) body += chunk; }',
+      "src/routes.js": 'app.post("/signup", handler); router.delete(`/items/${id}`, remove);',
+      "src/views.js": '<label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email">',
+      "src/mailer.js": "console.log(`[mail to ${booking.email}]`);",
+      "src/util.js": "const n = list.length; settings.emailEnabled = true; validate.email(x);",
+      "src/client.js": 'await api.post("/orders", body); await axios.put("/x");',
+      "test/app.test.js": 'if (req.method === "POST") {} booking.email;',
+    }).src,
+  ).sensitive;
+  assert.deepEqual(s.externalInput.examples, ["src/app.js", "src/routes.js"]);
+  assert.deepEqual(s.personalData.examples, ["src/mailer.js", "src/views.js"], "a function named email or a flag is not personal data; tests are not areas");
+});
+
 test("map: variable names only; .env files are listed, never read; no secret value in the output", () => {
   const { src, reads } = source(PROJECT);
   const m = auditMap(src);

@@ -57,3 +57,13 @@ test("guard: a project's own folder and label name; the defaults when unset or i
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("guard: a project with no invariants folder yet (just adopted, M8) passes instead of crashing", () => {
+  const root = repo();
+  try {
+    const r = guard(root, { INVARIANTS_DIR: "tests/none-yet" });
+    assert.equal(r.code, 0, r.out);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
