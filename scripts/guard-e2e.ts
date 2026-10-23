@@ -288,11 +288,15 @@ function report(lines: string[]): void {
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, text + "\n");
 }
 
-/** Every file in e2e/ that git sees, tracked or new, so an installed node_modules/ (ignored) is not read. */
+/**
+ * Every file in e2e/ that git sees, tracked or new, so an installed node_modules/ (ignored) is not read. `-z` keeps
+ * each name as it is: without it, git quotes a name with a quote, a backslash or a non-ASCII letter, and that file
+ * would be missed.
+ */
 function e2eFiles(): string[] {
   if (!existsSync(DIR)) return [];
-  return git("ls-files", "--cached", "--others", "--exclude-standard", "--", DIR)
-    .split("\n")
+  return git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", DIR)
+    .split("\0")
     .filter((file) => file && existsSync(file));
 }
 
@@ -327,7 +331,7 @@ async function main(): Promise<number> {
   if (process.env.EVENT_NAME !== "push") {
     const baseRef = `origin/${process.env.BASE_REF || "main"}`;
     const changes: string[] = [];
-    const baseFiles = git("ls-tree", "-r", "--name-only", baseRef, "--", DIR).split("\n").filter(Boolean);
+    const baseFiles = git("ls-tree", "-r", "-z", "--name-only", baseRef, "--", DIR).split("\0").filter(Boolean);
     const firstSetup = baseFiles.length === 0 && !git("ls-tree", "--name-only", baseRef, "--", CONFIG).trim();
     const setup: string[] = [];
     for (const file of baseFiles) {

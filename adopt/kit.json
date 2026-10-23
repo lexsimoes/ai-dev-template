@@ -44,7 +44,8 @@
       "e2e/package-lock.json": "adopt/files/e2e/package-lock.json",
       "e2e/seed.spec.ts": "adopt/files/e2e/seed.spec.ts.in",
       "e2e/.gitignore": "adopt/files/e2e/gitignore",
-      ".mcp.json": "adopt/files/mcp.json"
+      ".mcp.json": "adopt/files/mcp.json",
+      "e2e/tsconfig.json": "adopt/files/e2e/tsconfig.json"
     },
     "filled": {
       "e2e/playwright.config.ts": "adopt/files/e2e/playwright.config.ts.in",

@@ -298,6 +298,9 @@ test("the end-to-end tester (M8): a self-contained e2e/, the project's label, th
   assert.match(config, /env: \{ APP_ENV: "e2e", SMTP_HOST: "", PORT: String\(PORT\) \}/, "an empty value unsets a real service's setting");
   assert.match(config, /process\.env\.E2E_PORT \?\? 3100/);
   assert.match(config, /reuseExistingServer: false/);
+  assert.match(config, /tsconfig: "\.\/tsconfig\.json",/, "only e2e/tsconfig.json applies to the tests");
+  const tsconfig = JSON.parse(readFileSync(KIT.e2e.files["e2e/tsconfig.json"] ?? "", "utf-8")) as { extends?: string; compilerOptions: Record<string, unknown> };
+  assert.ok(!tsconfig.extends && !("paths" in tsconfig.compilerOptions) && !("baseUrl" in tsconfig.compilerOptions), "nothing in it can redirect @playwright/test");
   const workflow = fill(readFileSync(KIT.e2e.filled[".github/workflows/adt-e2e.yml"] ?? "", "utf-8"), values);
   for (const text of [config, workflow]) assert.doesNotMatch(text, /\{\{[A-Z][A-Z0-9_]*\}\}/);
   assert.match(workflow, /name: adt-e2e\n/);
@@ -320,7 +323,7 @@ test("the end-to-end tester (M8): a self-contained e2e/, the project's label, th
     git("switch", "-q", "-c", "mission/0001-adopt");
     const applied = adopt(dir, "apply", ...ARGS.map((x) => (x === RAW.labels ? `${RAW.labels},testApproved=teste-aprovado` : x)), "--base", "feat/product");
     assert.equal(applied.status, 0, JSON.stringify(applied.json));
-    for (const path of ["e2e/playwright.config.ts", "e2e/fixtures.ts", "e2e/seed.spec.ts", "e2e/package.json", "e2e/package-lock.json", "e2e/.gitignore", ".mcp.json", "scripts/guard-e2e.ts", "scripts/e2e-flaky.ts", ".github/workflows/adt-e2e.yml"]) {
+    for (const path of ["e2e/playwright.config.ts", "e2e/tsconfig.json", "e2e/fixtures.ts", "e2e/seed.spec.ts", "e2e/package.json", "e2e/package-lock.json", "e2e/.gitignore", ".mcp.json", "scripts/guard-e2e.ts", "scripts/e2e-flaky.ts", ".github/workflows/adt-e2e.yml"]) {
       assert.ok(applied.json.written?.includes(path), path);
     }
     const healer = readFileSync(join(dir, ".claude/agents/playwright-test-healer.md"), "utf-8");

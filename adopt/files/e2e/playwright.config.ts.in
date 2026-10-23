@@ -9,6 +9,8 @@ const PORT = Number(process.env.E2E_PORT ?? {{E2E_PORT}});
 
 export default defineConfig({
   testDir: ".",
+  // Only e2e/tsconfig.json applies to the tests: the project's root tsconfig.json (its paths) never reaches them.
+  tsconfig: "./tsconfig.json",
   testMatch: "**/*.spec.ts",
   testIgnore: "**/node_modules/**",
   fullyParallel: false,

@@ -264,6 +264,16 @@ test("guard: the tester's own files in e2e/ (an adopted project's package.json a
   }
 });
 
+test("guard: a spec whose name git would quote (a quote, a backslash, a non-ASCII letter) is still read", async () => {
+  const hidden = 'import { test } from "@playwright/test";\ntest.skip("x", async ({ page }) => { await page.route("**", (r) => r.fulfill({ body: "" })); });\n';
+  for (const name of ['e2e/a"x.spec.ts', "e2e/b\\x.spec.ts", "e2e/café.spec.ts"]) {
+    pr({ [name]: hidden });
+    const r = await guard([]);
+    assert.equal(r.code, 1, `${name}: ${r.out}`);
+    assert.match(r.out, /skips, focuses or switches off a test/, name);
+  }
+});
+
 test("guard: an adopted project's own invariants folder names who approves when e2e/ has no owner", async () => {
   pr({ "e2e/fixtures.ts": "export const isolated = false;\n" });
   labeler = "Owner";
