@@ -24,6 +24,8 @@ An entry marked **Action needed** asks something of projects when they run `copi
 - **Action needed:** create the `test-approved` label (`gh label create test-approved --color FBCA04 --description "Owner approves changing what an end-to-end test checks"`, or run `/adt:check-setup`).
 - New dev dependency: `@playwright/test` 1.64.1 (exact).
 - Flaky end-to-end tests (`docs/WORKFLOW.md`, "Flaky tests"): a test that passes only on a retry is listed in the `e2e` job summary, and on `main` the `e2e-flaky` job (the only one with `issues: write`) opens one issue for it or comments on the open one (`scripts/e2e-flaky.ts`). Quarantine is the tag `@quarantine` plus an `issue` annotation, under the owner's `test-approved`: the required `e2e` check leaves the test out, and the new `e2e-quarantine` check (not required) still runs it. The guard fails a quarantine without an issue of the repository, and, in a PR, one whose issue is closed.
+- Exploratory session, only on the owner's request (`/explore <area>`, `.claude/skills/explore/SKILL.md`): the agent explores the app in its isolated mode and reports what breaks a PRD requirement or an `AGENTS.md` rule. `scripts/explore-report.ts` pushes the screenshots to a branch of their own (`exploration/<date>-<topic>`, one commit with no parent) and opens one issue per finding with steps and screenshots. A confirmed bug becomes a mission with a new end-to-end test.
+- CI: `e2e-quarantine` declares read-only permissions, and `e2e-flaky` also checks that the push is to `main`.
 
 ## [0.3.0] - 2026-10-22
 

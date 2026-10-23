@@ -209,7 +209,7 @@ jobs:
     name: e2e-flaky
     needs: e2e
     # Also after a red e2e (a test can be flaky in a failing run), but only when the run left a report.
-    if: always() && github.event_name == 'push' && needs.e2e.outputs.report == 'true'
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.e2e.outputs.report == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -235,6 +235,8 @@ jobs:
     name: e2e-quarantine
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -343,6 +343,19 @@ Then you choose:
 
 The guard holds quarantine to this: a quarantined test (the tag, or `@quarantine` in its title) without an `issue` annotation pointing at an issue of this repository fails; in a PR, a closed issue fails too ("Remove the tag"): fixing the test and closing the issue brings it back to the required check. Adding the tag changes the test, so it needs `test-approved` like any other change. Never `skip`, `fixme` or delete a flaky test.
 
+### Exploratory session (on request)
+
+Off by default: it runs only when you ask, in Claude Code with `/explore <area>` (for example `/explore checkout coupons`). Other agents follow the same file, `.claude/skills/explore/SKILL.md`.
+- The agent opens the app in its isolated mode (the seed `e2e/seed.spec.ts`, fake AI provider, no outside requests) and tries what the end-to-end tests do not: odd inputs, back and reload, double submits, keyboard only, error messages.
+- A finding must break a PRD requirement or a rule of `AGENTS.md`, and reproduce twice. At most 5 per session; nothing is fixed.
+- `node scripts/explore-report.ts explorations/session.json` publishes them:
+  - the screenshots and a `REPORT.md` go to a new branch, `exploration/<date>-<topic>`, as one commit with no parent: no code, never `main`, never replaced;
+  - each finding becomes an issue titled `Exploration: <title>`, with steps, expected and actual result, and the screenshots shown from that branch. The GitHub API cannot attach images to an issue, hence the branch;
+  - an open issue with the same title is not opened again. `@` mentions and `#` links from the page are neutralized.
+  - `--dry-run` checks the file and prints the issues without pushing or opening anything.
+
+You confirm or close each issue. A confirmed bug becomes a mission: the generator writes an end-to-end test that reproduces it (it fails first), then the fix, in one PR. Delete the `exploration/` branch once its issues are closed.
+
 ## Protecting `main` (M6)
 
 Analogy: `main` is the vault. The checks are the alarms; the protection rule is the door that only opens with every alarm green and through the right path (a PR), never from outside.
