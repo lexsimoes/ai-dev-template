@@ -52,6 +52,7 @@ The reviewer and the tester were measured along the way.
 | DeepSeek moved an alias upstream (`deepseek-flash` now serves V4.1-Flash-1017), so the reviewer could change models without notice | #40 (pinned versions); #41 (Flash is the default, Pro documented) |
 | The canary's hunk header cut the `applyCoupon` signature, so both models reported a false "missing `now`" | #41 |
 | The adoption kit had no end-to-end tester | #43 |
+| The adopted `AGENTS.md` said that "touching anything else in `e2e/`" needs `test-approved`. The reviewer on adt-sandbox-legacy#2 read that as covering new tests, which the guard allows, and blocked the PR | #43 (the adopted rule now has its own line: a new test that follows the rules needs no label); the same text fixed on adt-sandbox-legacy#1 |
 | Security review of #43: a spec whose name git quotes was invisible to the new guard listing; a root `tsconfig.json` could redirect `@playwright/test` in the tests | #43 (`git -z`; protected `e2e/tsconfig.json`) |
 
 ### Known limits (not fixed, listed for the owner)
