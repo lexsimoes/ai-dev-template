@@ -41,7 +41,7 @@ const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 export function flakyTests(report: { suites?: ReportSuite[] }): FlakyTest[] {
   const found: FlakyTest[] = [];
   const walk = (suite: ReportSuite, path: string[]) => {
-    const here = suite.title && !suite.title.endsWith(".ts") ? [...path, suite.title] : path;
+    const here = suite.title && !/\.tsx?$/.test(suite.title) ? [...path, suite.title] : path;
     for (const spec of suite.specs ?? []) {
       for (const test of spec.tests ?? []) {
         if (test.status !== "flaky") continue;

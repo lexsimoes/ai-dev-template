@@ -57,6 +57,9 @@ test("flakyTests: only tests that passed on a retry, with the describe path and 
   assert.match(found[0]?.errors[0] ?? "", /^Timeout 5000ms exceeded\n/, "terminal colors are removed");
   assert.equal(found[0]?.errors[0]?.split("\n").length, 12, "long errors are cut");
   assert.deepEqual(flakyTests({}), []);
+  // The file-level suite of a .tsx spec is not part of the title either.
+  const tsx = { suites: [{ ...REPORT.suites[0], title: "checkout-coupon.spec.tsx" }] };
+  assert.equal(flakyTests(tsx)[0]?.title, "coupons › CA-04: expired coupon");
 });
 
 test("issueBody: the error stays inside its fence, and the body says how to quarantine", () => {

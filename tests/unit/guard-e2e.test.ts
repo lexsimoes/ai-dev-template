@@ -121,13 +121,13 @@ function write(files: Record<string, string | null>): void {
   git("-c", "commit.gpgsign=false", "commit", "-qm", "c", "--allow-empty");
 }
 
-async function guard(labels: string[]): Promise<{ code: number; out: string }> {
+async function guard(labels: string[], event = "pull_request"): Promise<{ code: number; out: string }> {
   try {
     const { stdout } = await run("node", [SCRIPT], {
       cwd: repo,
       env: {
         ...process.env,
-        EVENT_NAME: "pull_request",
+        EVENT_NAME: event,
         BASE_REF: "main",
         PR_LABELS: JSON.stringify(labels),
         PR_NUMBER: "1",
@@ -155,10 +155,12 @@ function pr(files: Record<string, string | null>): void {
 
 before(async () => {
   server = http.createServer((req, res) => {
-    res.writeHead(200, { "Content-Type": "application/json" });
+    const json = (status: number, body: unknown) => res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
     // /repos/o/r/issues/<n> is the quarantine issue; /repos/o/r/issues/1/events is the PR's label history.
-    if (/\/issues\/\d+$/.test(req.url ?? "")) res.end(JSON.stringify({ number: 7, state: issueState }));
-    else res.end(JSON.stringify([{ event: "labeled", label: { name: "test-approved" }, actor: { login: labeler }, created_at: "t" }]));
+    if (!/\/issues\/\d+$/.test(req.url ?? "")) json(200, [{ event: "labeled", label: { name: "test-approved" }, actor: { login: labeler }, created_at: "t" }]);
+    else if (issueState === "missing") json(404, {});
+    else if (issueState === "pull") json(200, { number: 7, state: "open", pull_request: {} });
+    else json(200, { number: 7, state: issueState });
   });
   await new Promise<void>((ok) => server.listen(0, "127.0.0.1", () => ok()));
   port = (server.address() as { port: number }).port;
@@ -279,6 +281,18 @@ test("guard: quarantine needs the owner's label and an open issue; a closed issu
   const closed = await guard(["test-approved"]);
   assert.equal(closed.code, 1);
   assert.match(closed.out, /issue #7 is closed\. Remove the tag/);
+  // On main a closed issue is only noted: the next PR asks for the tag to go.
+  const onMain = await guard([], "push");
+  assert.equal(onMain.code, 0, onMain.out);
+  assert.match(onMain.out, /Quarantined: "CA-02: a valid coupon lowers the total" \(issue #7: closed\)/);
+  // An issue that cannot be read, or a pull request, never counts as open.
+  for (const [state, reason] of [["missing", /the API responded 404/], ["pull", /it is a pull request, not an issue/]] as const) {
+    issueState = state;
+    const r = await guard(["test-approved"]);
+    assert.equal(r.code, 1, state);
+    assert.match(r.out, /could not read issue #7/, state);
+    assert.match(r.out, reason, state);
+  }
   issueState = "open";
   labeler = "owner";
 });
