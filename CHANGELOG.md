@@ -19,7 +19,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 - Demo web app (`src/web/`, `npm start`): checkout with a coupon, contact form, support inbox, server-rendered without scripts and with a strict Content-Security-Policy.
 - End-to-end tests of the critical flows (`e2e/`, `npm run e2e`, job `e2e` in CI), written by the Playwright test agents (planner, generator, healer in `.claude/agents/`, MCP server in `.mcp.json`) from the plan in `specs/e2e/`. Each title starts with its PRD requirement.
   - Isolated: Playwright starts the app with `APP_ENV=e2e`, which accepts only the fake AI provider and refuses a real one; no secret reaches the job; every browser request outside the app fails the test.
-  - The agents carry the project's rules: the healer may update selectors only; changing an assertion needs the owner's `test-approved` label; never `fixme` or `skip`.
+  - The agents carry the project's rules: the healer may update selectors only; changing an assertion needs the owner's `test-approved` label; never `fixme` or `skip`. The healer's upstream lines that said otherwise are rewritten, and the planner has no `browser_run_code_unsafe`.
+- End-to-end guard (`scripts/guard-e2e.ts`, first step of the `e2e` job, from the target branch): without the owner's `test-approved`, an existing spec may change only in its selectors (comments and formatting ignored); deleting a spec, any other file in `e2e/` or `playwright.config.ts` needs the label; a new spec may import only `./fixtures.ts` and may not route or mock; `.skip`/`.only`/`.fixme`/`.fail` in any form always fail. The `e2e` job installs with `--ignore-scripts` and calls Playwright directly. `test-approved` joins the reviewer's approval labels.
+- **Action needed:** create the `test-approved` label (`gh label create test-approved --color FBCA04 --description "Owner approves changing what an end-to-end test checks"`, or run `/adt:check-setup`).
 - New dev dependency: `@playwright/test` 1.64.1 (exact).
 
 ## [0.3.0] - 2026-10-22

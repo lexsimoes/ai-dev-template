@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-22 · **By:** agent (mission 0025, M7d PR 1)
+**Updated on:** 2026-10-22 · **By:** agent (mission 0026, M7d PR 2)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0026 (M7d, PR 2 of 4): end-to-end guard (`scripts/guard-e2e.ts`, first step of the `e2e` job, from the target branch); `test-approved` label in the plugin, the README and the reviewer's approval labels; the healer's conflicting upstream lines rewritten and the planner's `browser_run_code_unsafe` removed (owner's pending decision from PR 1, recommended yes); the rule in `AGENTS.md` (1.3).
 - Mission 0025 (M7d, PR 1 of 4): demo web app (`src/web/`), end-to-end tests of the critical flows (`e2e/`) written by the Playwright test agents (`.claude/agents/`, plan in `specs/e2e/`), isolated mode (`APP_ENV=e2e`, fake AI provider only, outside requests blocked), CI job `e2e`, listed as required in `protect-main.json`. The owner adds `e2e` to the live ruleset after its first green run on `main`.
 - Mission 0024 (owner's "ok" on the three decisions left by 0023): the required `invariants` check runs `check-fix` on every `fix: address review findings` commit of a PR (checker from the target branch); `AGENTS.md`, `REVIEW.md`, `scripts/guard-invariants.ts` and `evals/config.json` join the never-auto-fix defaults, mirrored in `.github/review.json` and its twin. Adopted projects do not get the CI step yet (their `adt-invariants` workflow is unchanged).
 - Mission 0023: the implementer handles the automated review before reporting (owner's rule, 2026-10-22). `AGENTS.md` (and its twin, and the section adopted projects get), "Handle the review": obvious fixes in a separate `fix: address review findings` commit, everything else listed, cap ~5 fixes / ~10 files, then `re-review` and a report with the reviewer's cost. `scripts/review/triage.ts` (`findings`, `check-fix`), `autoFix` in `.github/review.json`, planted-finding tests in `tests/unit/review-triage.test.ts`. Also brought to GoAgentic's adoption PR (lexsimoes/goagentic#23).
@@ -118,7 +119,7 @@ The adoption rehearsal PR (lexsimoes/goagentic#23) was closed without merge by t
 - M7d PR 1 (mission 0025):
   - after the first green `e2e` on `main`, add `e2e` to this repository's live `protect-main` ruleset;
   - keep HTTP 422 on validation errors (the browser notes it in the console), or return 200 with the error on the page;
-  - rewrite the healer's upstream lines ("fix assertions", "mark `test.fixme()`") and drop the planner's `browser_run_code_unsafe` (proposed for PR 2, the e2e guard).
+  - create the `test-approved` label in this repository (PR 2).
 - "Keep the GHCR authenticated-pull fix in the template CI": the template's own CI pulls no container image. Proposal: `/adt:audit` flags a project CI that uses `supabase/setup-cli` without it, and `/adt:adopt` offers the fix as a separate, owner-approved change. Waiting for the owner's choice.
 
 - Delete the test repository `lexsimoes/adt-manual-test` after reviewing (agents cannot delete repositories). `lexsimoes/adt-sandbox-m7b` stays: it is the M8 test bed.

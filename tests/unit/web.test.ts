@@ -46,6 +46,10 @@ test("the test agents carry the project rules: selectors only, never fixme or sk
     assert.match(text, /selectors only/, agent);
     assert.match(text, /test-approved/, agent);
   }
+  // The upstream definitions are edited too, so no earlier line contradicts the rules.
+  const healer = readFileSync(".claude/agents/playwright-test-healer.md", "utf-8");
+  assert.doesNotMatch(healer, /Fixing assertions|mark this test as test\.fixme|do the most reasonable thing possible to pass/);
+  assert.doesNotMatch(readFileSync(".claude/agents/playwright-test-planner.md", "utf-8"), /browser_run_code_unsafe/);
 });
 
 test("helpers: HTML is escaped, prices are in dollars", () => {
