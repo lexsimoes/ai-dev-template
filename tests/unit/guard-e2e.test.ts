@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { newSpecProblems, normalize, skeleton } from "../../scripts/guard-e2e.ts";
+import { disableProblems, newSpecProblems, normalize, skeleton } from "../../scripts/guard-e2e.ts";
 
 const run = promisify(execFile);
 const SCRIPT = resolve("scripts/guard-e2e.ts");
@@ -51,15 +51,40 @@ test("skeleton: anything that is not a selector changes the skeleton (the review
     "fake library": SPEC.replace('"./fixtures.ts"', '"./helpers.ts"'),
     "isolation removed": SPEC.replace('await page.goto("/");', 'await page.context().unrouteAll();\n  await page.goto("/");'),
     "trivial subject": SPEC.replace("expect(response.status())", "expect(200)"),
+    // Second review: a regex ending in \/\/ read as a comment, and code hidden inside a locator argument.
+    "regex hides the rest of the line": SPEC.replace('await page.goto("/");', 'await expect(page).toHaveURL(/\\/order\\//); return;\n  await page.goto("/");'),
+    "code inside a locator argument": SPEC.replace('page.getByLabel("Discount code")', 'page.getByLabel((await page.context().unrouteAll(), "Discount code"))'),
+    "callback inside a locator argument": SPEC.replace('page.getByLabel("Discount code")', 'page.getByLabel((() => { return "Discount code"; })())'),
   };
   for (const [name, source] of Object.entries(weakened)) assert.notEqual(skeleton(source), skeleton(SPEC), name);
 });
 
 test("new spec: only ./fixtures.ts imports, no routing, mocking or reconfiguring", () => {
   assert.deepEqual(newSpecProblems(SPEC), []);
-  assert.match(newSpecProblems(SPEC.replace('"./fixtures.ts"', '"./helpers.ts"')).join(), /imports `\.\/helpers\.ts`/);
+  assert.match(newSpecProblems(SPEC.replace('"./fixtures.ts"', '"./helpers.ts"')).join(), /imports "\.\/helpers\.ts"/);
+  assert.match(newSpecProblems(SPEC.replace('"./fixtures.ts";', '"./fixtures.ts"\nimport { expect as e } from "@playwright/test"')).join(), /imports "@playwright\/test"/, "an import without a semicolon before it");
+  assert.match(newSpecProblems(SPEC.replace('await page.goto("/");', 'const pw = await import("@playwright/test");')).join(), /loads a module at run time/);
+  assert.match(newSpecProblems(SPEC.replace('await page.goto("/");', 'const fs = require("node:fs");')).join(), /loads a module at run time/);
   assert.match(newSpecProblems(SPEC.replace('await page.goto("/");', 'await page.route("**", (r) => r.fulfill({ body: "" }));')).join(), /routes, mocks/);
   assert.match(newSpecProblems(`${SPEC}\ntest.use({ baseURL: "https://example.com" });\n`).join(), /reconfigures/);
+  assert.match(newSpecProblems(`${SPEC}\ntest.beforeEach(async ({ page }) => { await page.goto("/"); });\n`).join(), /beforeEach/);
+});
+
+test("disable: switching a test off is caught however it is written", () => {
+  assert.deepEqual(disableProblems(SPEC), []);
+  const forms = {
+    "alias": `${SPEC}\nconst off = test.skip;\noff("x", () => {});\n`,
+    "computed key": `${SPEC}\ntest["sk" + "ip"]("x", () => {});\n`,
+    "quoted key": `${SPEC}\ntest.describe["fixme"]("x", () => {});\n`,
+    "destructuring": `${SPEC}\nconst { only } = test;\n`,
+    // The method names are interpolated so this file does not trip check-fix's line heuristic; the planted spec is the same.
+    "regex before it": `${SPEC}\nconst r = /\\//; test.${"skip"}("x", () => {});\n`,
+    "inside a template literal": `${SPEC}\nconst label = \`\${(test.${"fixme"}(), "x")}\`;\n`,
+    "Reflect": `${SPEC}\nReflect.get(test, "sk" + "ip")("x", () => {});\n`,
+  };
+  for (const [name, source] of Object.entries(forms)) assert.notDeepEqual(disableProblems(source), [], name);
+  // A TypeScript array type and a plain string key are not computed access.
+  assert.deepEqual(disableProblems('const a: string[] = [];\nconst h = response.headers()["content-security-policy"];\n'), []);
 });
 
 let repo = "";
@@ -174,7 +199,7 @@ test("guard: deleting a spec, adding a helper, or touching the fixtures or the c
   assert.match(r.out, /`e2e\/fixtures\.ts` changed/);
   assert.match(r.out, /`playwright\.config\.ts` changed/);
   pr({ "e2e/mocked.spec.ts": SPEC.replace('await page.goto("/");', 'await page.route("**", (r) => r.fulfill({ body: "" }));') });
-  assert.match((await guard([])).out, /new `e2e\/mocked\.spec\.ts` routes, mocks or reconfigures/);
+  assert.match((await guard([])).out, /new `e2e\/mocked\.spec\.ts` calls `\.route` \(routes, mocks/);
 });
 
 test("guard: skipping, focusing or fixme fails even with the owner's label, in any form", async () => {

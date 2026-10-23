@@ -34,92 +34,181 @@ const SPEC_FILE = /\.spec\.[cm]?[jt]sx?$/;
 const APPROVAL_LABEL = /^[\p{L}\p{N} ._:-]{1,50}$/u.test(process.env.E2E_APPROVAL_LABEL ?? "")
   ? (process.env.E2E_APPROVAL_LABEL as string)
   : "test-approved";
-// On the normalized source (no comments, no whitespace): any receiver, dot or bracket access.
-const DISABLE = /\.(?:skip|only|fixme|fail)\(|\[(["'`])(?:skip|only|fixme|fail)\1\]/;
-const LOCATOR_METHODS = "getByRole|getByText|getByLabel|getByPlaceholder|getByAltText|getByTitle|getByTestId|locator|filter|and|or|nth|first|last|frameLocator|contentFrame";
-// Things a new spec may not do without approval: leave the isolation, fake the app, or reconfigure the run.
-const NEW_SPEC_FORBIDDEN = /\.(?:route|unroute|unrouteAll|routeFromHAR|fulfill|setContent|addInitScript|exposeFunction|exposeBinding|use|configure)\(|\b(?:beforeEach|beforeAll|afterEach|afterAll)\(/;
+const LOCATOR_METHODS = new Set([
+  "getByRole", "getByText", "getByLabel", "getByPlaceholder", "getByAltText", "getByTitle", "getByTestId",
+  "locator", "filter", "and", "or", "nth", "first", "last", "frameLocator", "contentFrame",
+]);
+// Words that switch a test off (as a property, a variable or a computed key), and dynamic access that could hide one.
+const DISABLE_WORDS = new Set(["skip", "only", "fixme", "fail"]);
+const DYNAMIC_WORDS = new Set(["eval", "Function", "Reflect", "globalThis", "constructor", "require"]);
+// What a new spec may not do without approval: leave the isolation, fake the app, or reconfigure the run.
+const NEW_SPEC_METHODS = new Set(["route", "unroute", "unrouteAll", "routeFromHAR", "fulfill", "setContent", "addInitScript", "exposeFunction", "exposeBinding", "use", "configure"]);
+const HOOKS = new Set(["beforeEach", "beforeAll", "afterEach", "afterAll"]);
+// A locator argument is masked only when it is plain data: these make it code.
+const CODE_IN_ARGS = new Set(["await", "function", "yield", "new", "import", "return", "async"]);
+const REGEX_AFTER_WORDS = new Set(["return", "typeof", "case", "do", "else", "in", "of", "new", "delete", "void", "throw", "await", "yield"]);
+
+export interface Token {
+  type: "word" | "str" | "regex" | "punct";
+  text: string;
+}
 
 function git(...args: string[]): string {
   return execFileSync("git", ["-c", "core.quotePath=false", ...args], { encoding: "utf-8" });
 }
 
 /**
- * The source with comments and whitespace removed and strings kept as they are: two versions that differ only
- * in comments or formatting normalize to the same text. Whitespace stays (as one space) only between two word characters.
+ * Splits JavaScript/TypeScript source into words, strings, regex literals and punctuation, without comments or whitespace.
+ * Template literals keep their text parts as strings and their `${...}` expressions as tokens, so code there is seen too.
  */
-export function normalize(source: string): string {
-  let out = "";
-  let pendingSpace = false;
-  const word = (c: string | undefined) => c !== undefined && /[\w$]/.test(c);
-  for (let i = 0; i < source.length; i++) {
+export function tokenize(source: string): Token[] {
+  const tokens: Token[] = [];
+  const isWord = (c: string) => /[\w$]/.test(c);
+  const regexCanStart = () => {
+    const last = tokens.at(-1);
+    if (!last) return true;
+    if (last.type === "word") return REGEX_AFTER_WORDS.has(last.text);
+    return last.type === "punct" && !/^[)\]}]$/.test(last.text);
+  };
+  let i = 0;
+  const readQuoted = (quote: string) => {
+    const start = i;
+    for (i++; i < source.length && source.charAt(i) !== quote; i++) if (source.charAt(i) === "\\") i++;
+    i++;
+    tokens.push({ type: "str", text: source.slice(start, i) });
+  };
+  const readTemplate = () => {
+    let part = "`";
+    for (i++; i < source.length; i++) {
+      const c = source.charAt(i);
+      if (c === "\\") {
+        part += c + source.charAt(i + 1);
+        i++;
+      } else if (c === "`") {
+        tokens.push({ type: "str", text: `${part}\`` });
+        i++;
+        return;
+      } else if (c === "$" && source.charAt(i + 1) === "{") {
+        tokens.push({ type: "str", text: `${part}\`` });
+        tokens.push({ type: "punct", text: "${" });
+        let depth = 1;
+        const start = i + 2;
+        let j = start;
+        for (; j < source.length && depth > 0; j++) {
+          const d = source.charAt(j);
+          if (d === "{") depth++;
+          else if (d === "}") depth--;
+        }
+        tokens.push(...tokenize(source.slice(start, j - 1)));
+        tokens.push({ type: "punct", text: "}" });
+        part = "`";
+        i = j - 1;
+      } else {
+        part += c;
+      }
+    }
+    tokens.push({ type: "str", text: part });
+  };
+  while (i < source.length) {
     const c = source.charAt(i);
     if (/\s/.test(c)) {
-      pendingSpace = true;
-      continue;
-    }
-    if (c === "/" && source.charAt(i + 1) === "/") {
+      i++;
+    } else if (c === "/" && source.charAt(i + 1) === "/") {
       while (i < source.length && source.charAt(i) !== "\n") i++;
-      pendingSpace = true;
-      continue;
-    }
-    if (c === "/" && source.charAt(i + 1) === "*") {
+    } else if (c === "/" && source.charAt(i + 1) === "*") {
       const end = source.indexOf("*/", i + 2);
-      i = end < 0 ? source.length : end + 1;
-      pendingSpace = true;
-      continue;
-    }
-    if (pendingSpace && word(out.at(-1)) && word(c)) out += " ";
-    pendingSpace = false;
-    if (c === '"' || c === "'" || c === "`") {
-      let j = i + 1;
-      for (; j < source.length && source.charAt(j) !== c; j++) if (source.charAt(j) === "\\") j++;
-      out += source.slice(i, j + 1);
-      i = j;
+      i = end < 0 ? source.length : end + 2;
+    } else if (c === '"' || c === "'") {
+      readQuoted(c);
+    } else if (c === "`") {
+      readTemplate();
+    } else if (c === "/" && regexCanStart()) {
+      const start = i;
+      let inClass = false;
+      for (i++; i < source.length; i++) {
+        const d = source.charAt(i);
+        if (d === "\\") i++;
+        else if (d === "[") inClass = true;
+        else if (d === "]") inClass = false;
+        else if (d === "/" && !inClass) break;
+        else if (d === "\n") break;
+      }
+      for (i++; i < source.length && /[a-z]/i.test(source.charAt(i)); i++);
+      tokens.push({ type: "regex", text: source.slice(start, i) });
+    } else if (isWord(c)) {
+      const start = i;
+      while (i < source.length && isWord(source.charAt(i))) i++;
+      tokens.push({ type: "word", text: source.slice(start, i) });
     } else {
-      out += c;
+      const three = source.slice(i, i + 3);
+      const two = source.slice(i, i + 2);
+      const op = ["===", "!==", "...", "**="].includes(three) ? three : ["=>", "==", "!=", "<=", ">=", "&&", "||", "??", "?.", "++", "--", "+=", "-="].includes(two) ? two : c;
+      tokens.push({ type: "punct", text: op });
+      i += op.length;
     }
   }
-  // A trailing comma is formatting, not behavior.
-  return out.replace(/,([)\]}])/g, "$1");
+  return tokens;
 }
 
-/** Index just after the bracket that closes the one at `open`, on normalized text (strings are skipped). */
-export function closingIndex(text: string, open: number): number {
-  const pairs: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
+/** Tokens back to text: comments and formatting gone, a trailing comma dropped, one space only between two words. */
+export function render(tokens: Token[]): string {
+  let out = "";
+  for (let k = 0; k < tokens.length; k++) {
+    const t = tokens[k] as Token;
+    if (t.type === "punct" && t.text === "," && /^[)\]}]$/.test(tokens[k + 1]?.text ?? "")) continue;
+    const prev = tokens[k - 1];
+    if (prev && prev.type !== "punct" && t.type !== "punct" && prev.type !== "str" && t.type !== "str") out += " ";
+    out += t.text;
+  }
+  return out;
+}
+
+export function normalize(source: string): string {
+  return render(tokenize(source));
+}
+
+/** Index of the token that closes the bracket at `open` (by punctuation tokens only), or -1. */
+function closingToken(tokens: Token[], open: number): number {
+  const pairs: Record<string, string> = { "(": ")", "[": "]", "{": "}", "${": "}" };
   const stack: string[] = [];
-  for (let i = open; i < text.length; i++) {
-    const c = text.charAt(i);
-    if (c === "\\") {
-      i++;
-    } else if (c === '"' || c === "'" || c === "`") {
-      for (i++; i < text.length && text.charAt(i) !== c; i++) if (text.charAt(i) === "\\") i++;
-    } else if (pairs[c]) {
-      stack.push(pairs[c] as string);
-    } else if (c === stack.at(-1)) {
+  for (let k = open; k < tokens.length; k++) {
+    const t = tokens[k] as Token;
+    if (t.type !== "punct") continue;
+    if (pairs[t.text]) stack.push(pairs[t.text] as string);
+    else if (t.text === stack.at(-1)) {
       stack.pop();
-      if (stack.length === 0) return i + 1;
+      if (stack.length === 0) return k;
     }
   }
   return -1;
 }
 
-/** The normalized source with every locator chain replaced by one token: what is left is what the test does. */
+/** Plain data only (strings, regexes, numbers, names, object and array literals): no call, arrow, await or function. */
+function plainArguments(tokens: Token[]): boolean {
+  return tokens.every((t) => (t.type === "punct" ? !["(", ")", "=>", "${"].includes(t.text) : t.type !== "word" || !CODE_IN_ARGS.has(t.text)));
+}
+
+/** The source with every locator chain replaced by one token: what is left is what the test does. */
 export function skeleton(source: string): string {
-  let text = normalize(source);
-  const call = new RegExp(`\\.(?:${LOCATOR_METHODS})\\(`, "g");
-  let out = "";
-  let last = 0;
-  for (let m = call.exec(text); m; m = call.exec(text)) {
-    const end = closingIndex(text, m.index + m[0].length - 1);
-    if (end < 0) break;
-    out += `${text.slice(last, m.index)}.L()`;
-    last = end;
-    call.lastIndex = end;
+  const tokens = tokenize(source);
+  const out: Token[] = [];
+  for (let k = 0; k < tokens.length; k++) {
+    const t = tokens[k] as Token;
+    const name = tokens[k + 1];
+    if (t.text === "." && name?.type === "word" && LOCATOR_METHODS.has(name.text) && tokens[k + 2]?.text === "(") {
+      const end = closingToken(tokens, k + 2);
+      if (end > 0 && plainArguments(tokens.slice(k + 3, end))) {
+        // A receiver (or an earlier locator call) followed by locator calls is one selector.
+        const prev = out.at(-1);
+        if (prev?.text === "LOC" || prev?.type === "word") out.pop();
+        out.push({ type: "word", text: "LOC" });
+        k = end;
+        continue;
+      }
+    }
+    out.push(t);
   }
-  text = out + text.slice(last);
-  // A receiver followed by locator calls is one selector, whatever the receiver and however many calls.
-  return text.replace(/[A-Za-z_$][\w$]*(?:\.L\(\))+/g, "LOC");
+  return render(out);
 }
 
 /** Where two skeletons first differ, as a short excerpt of each, for the report. */
@@ -130,15 +219,40 @@ export function firstDifference(before: string, after: string): string {
   return `\`…${cut(before)}…\` became \`…${cut(after)}…\``;
 }
 
+/** Ways the source switches a test off, or could hide doing so. */
+export function disableProblems(source: string): string[] {
+  const tokens = tokenize(source);
+  const problems = new Set<string>();
+  const quoted = (t: Token) => t.type === "str" && DISABLE_WORDS.has(t.text.slice(1, -1));
+  tokens.forEach((t, k) => {
+    if ((t.type === "word" && DISABLE_WORDS.has(t.text)) || quoted(t)) problems.add(`uses \`${t.text}\``);
+    if (t.type === "word" && DYNAMIC_WORDS.has(t.text)) problems.add(`uses \`${t.text}\` (dynamic access could hide a skip)`);
+    // Computed member access (x[...], x()[...]) is allowed only with one plain string or number as the key.
+    const prev = tokens[k - 1];
+    if (t.text === "[" && prev && (prev.type === "word" || prev.type === "str" || [")", "]"].includes(prev.text)) && !REGEX_AFTER_WORDS.has(prev.text) && !["const", "let", "var"].includes(prev.text)) {
+      const key = tokens.slice(k + 1, closingToken(tokens, k));
+      // An empty key is a TypeScript array type (`string[]`), not an access.
+      const plain = key.length === 0 || (key.length === 1 && (key[0]?.type === "str" || /^\d+$/.test(key[0]?.text ?? "")) && !key[0]?.text.includes("${"));
+      if (!plain) problems.add("uses a computed member access (`x[...]`) with something other than one plain key");
+    }
+  });
+  return [...problems];
+}
+
 /** Problems of a new spec that keep it from coming in without approval. */
 export function newSpecProblems(source: string): string[] {
-  const text = normalize(source);
+  const tokens = tokenize(source);
   const problems: string[] = [];
-  for (const m of text.matchAll(/(?:^|[;}])import(?:[^;]*?from)?(["'`])([^"'`]*)\1/g)) {
-    if (!/^\.\/fixtures(?:\.ts)?$/.test(m[2] ?? "")) problems.push(`imports \`${m[2]}\` (only ./fixtures.ts, which holds the isolation)`);
-  }
-  if (NEW_SPEC_FORBIDDEN.test(text)) problems.push("routes, mocks or reconfigures the browser or the run");
-  return problems;
+  tokens.forEach((t, k) => {
+    const next = tokens[k + 1];
+    if (t.type === "word" && (t.text === "from" || t.text === "import") && next?.type === "str" && !/^(["'`])\.\/fixtures(?:\.ts)?\1$/.test(next.text)) {
+      problems.push(`imports ${next.text} (only ./fixtures.ts, which holds the isolation)`);
+    }
+    if (t.type === "word" && ((t.text === "import" && next?.text === "(") || t.text === "require")) problems.push("loads a module at run time");
+    if (t.text === "." && next?.type === "word" && NEW_SPEC_METHODS.has(next.text)) problems.push(`calls \`.${next.text}\` (routes, mocks or reconfigures the browser or the run)`);
+    if (t.type === "word" && HOOKS.has(t.text)) problems.push(`uses \`${t.text}\` (shared setup is approved like the fixtures)`);
+  });
+  return [...new Set(problems)];
 }
 
 export interface IssueEvent {
@@ -212,7 +326,7 @@ async function main(): Promise<number> {
   // 1. Nothing skipped, focused or switched off, with or without approval.
   const files = codeFiles();
   for (const file of files) {
-    if (DISABLE.test(normalize(readFileSync(file, "utf-8")))) errors.push(`\`${file}\` skips, focuses or switches off a test (\`.skip\`, \`.only\`, \`.fixme\` or \`.fail\`).`);
+    for (const p of disableProblems(readFileSync(file, "utf-8"))) errors.push(`\`${file}\` skips, focuses or switches off a test, or could hide it: ${p}.`);
   }
 
   // 2 and 3. Only in PRs and local use: compares with the target branch.

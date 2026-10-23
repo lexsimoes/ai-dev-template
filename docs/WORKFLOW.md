@@ -317,6 +317,8 @@ A few tests (3 to 8) walk through the **critical flows** of the PRD in a real br
 
 The job installs with `npm ci --ignore-scripts` and calls `npx --no playwright test` directly, so a PR's `package.json` cannot run code after the guard or swap the test command.
 
+It reads the specs with a small tokenizer (strings, regex and template literals are tokens, comments are dropped), not as plain text. A locator argument is masked only when it is plain data; a call, an arrow, `await` or `function` inside it counts as a change. Aliases, computed keys and dynamic access (`Reflect`, `eval`, `require`) that could hide a skip fail too.
+
 What it does not catch: a locator pointed at a different element (that is what a selector change is), or a dependency swap in the lockfile (the `dependencies` check and the reviewer see it).
 
 The agents use the Playwright MCP server in `.mcp.json` (Claude Code asks you to approve it the first time). After updating `@playwright/test`, regenerate the agents, then reapply the project's edits: the "Project rules" section at the end, the healer's lines that said "fix assertions" and "mark `test.fixme()`", and no `browser_run_code_unsafe` for the planner. `tests/unit/web.test.ts` fails if any is missing.
