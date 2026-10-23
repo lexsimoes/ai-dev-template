@@ -42,7 +42,7 @@ The agent may add `scripts/dependency-audit.ts` and its tests, change the `depen
 |---|---|
 | A PR that adds a vulnerable package fails; one whose vulnerability is already on the target branch passes; no lockfile passes | local runs of the script on a probe lockfile (in the PR); `tests/unit/dependency-audit.test.ts` |
 | A public repository is unchanged | `ci.yml` (`!github.event.repository.private`), the `dependencies` check on this PR (public) |
-| A private repository runs npm audit and is no longer blocked | the next PR on `adt-sandbox-m8` after `copier update` |
+| A private repository runs npm audit and is no longer blocked | adt-sandbox-m8#2: green clean, red with a vulnerable package |
 | `/adt:check-setup` tells a private project what to do | `tests/unit/plugin-check-setup.test.ts` |
 | README fixes | the diff; the newcomer rehearsal rerun from `main` after the merge |
 
@@ -55,6 +55,9 @@ The agent may add `scripts/dependency-audit.ts` and its tests, change the `depen
     - the same advisories already on the target branch: passes, with a note;
     - nothing vulnerable: passes.
   - Unit tests: `tests/unit/dependency-audit.test.ts` (4) and `tests/unit/plugin-check-setup.test.ts` (20).
-- **What was NOT verified:** the private path in a real private repository's CI. This repository is public, so its `dependencies` check still runs GitHub's dependency review. It will be verified on `adt-sandbox-m8` after the release and `copier update`.
+  - The private path on a real private repository, [adt-sandbox-m8#2](https://github.com/lexsimoes/adt-sandbox-m8/pull/2) (closed unmerged), with the new job and the checker ported:
+    - green on the clean commit (with the "PR's copy, first time only" notice);
+    - red after `lodash@4.17.15` was added, listing its 3 high advisories.
+- **What was NOT verified:** a private project updated with `copier update` after the release (the job was ported by hand for the rehearsal).
 - **Pending decisions for the owner:** none.
 - **Possible injections found in external content:** none.
