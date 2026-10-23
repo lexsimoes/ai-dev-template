@@ -1,5 +1,5 @@
-# TEMPORARY (never merged): compares deepseek-v4-pro and deepseek-flash on the same inputs, twice each.
-# The canary cases (full, light, incremental) and the planted-defect diff of PR #35. Requested by the owner, 2026-10-23.
+# TEMPORARY (never merged): what each DeepSeek alias reports back in a reply (`model`, `system_fingerprint`), twice,
+# to design the reviewer's pinned-version check. The comparison runs already finished (previous commit).
 
 name: Reviewer comparison
 
@@ -11,51 +11,20 @@ permissions:
   contents: read
 
 jobs:
-  models:
-    name: models endpoint (ids and names only)
+  reply-probe:
+    name: reply model probe
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: List the models behind each alias
+      - name: One tiny call per alias, twice
         env:
           REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
         run: |
-          curl -sS https://api.deepseek.com/models -H "Authorization: Bearer $REVIEW_API_KEY" \
-            | jq '[.data[] | {id, name, effort}]'
-
-  compare:
-    name: ${{ matrix.model }} · ${{ matrix.case }} · run ${{ matrix.attempt }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        model: [deepseek-v4-pro, deepseek-flash]
-        case: [full, light, incremental, pr35]
-        attempt: [1, 2]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          # PR #35 (planted defects, never merged) is reviewed on its own branch, with its own REVIEW.md and prompts.
-          ref: ${{ matrix.case == 'pr35' && 'rehearsal/reviewer-comparison' || github.event.pull_request.head.sha }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-      - run: npm ci
-      - name: Review
-        continue-on-error: true
-        env:
-          REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
-          REVIEW_MODEL: ${{ matrix.model }}
-          CASE: ${{ matrix.case }}
-        run: |
-          start=$(date +%s)
-          if [ "$CASE" = pr35 ]; then
-            git fetch -q origin main
-            node scripts/review/run.ts --mode local --base "$(git merge-base origin/main HEAD)"
-          else
-            node scripts/review/run.ts --mode canary --canary "$CASE"
-          fi
-          echo "WALL_SECONDS=$(( $(date +%s) - start ))"
+          for model in deepseek-v4-pro deepseek-flash; do
+            for i in 1 2; do
+              curl -sS https://api.deepseek.com/chat/completions \
+                -H "Authorization: Bearer $REVIEW_API_KEY" -H "Content-Type: application/json" \
+                -d "{\"model\":\"$model\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with OK.\"}],\"max_tokens\":20,\"reasoning_effort\":\"low\"}" \
+                | jq -c --arg asked "$model" '{asked: $asked, model, system_fingerprint}'
+            done
+          done

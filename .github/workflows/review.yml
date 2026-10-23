@@ -85,6 +85,7 @@ jobs:
           REVIEW_DEEP_API_KEY: ${{ secrets.REVIEW_DEEP_API_KEY }}
           REVIEW_API_BASE_URL: ${{ vars.REVIEW_API_BASE_URL }}
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
+          REVIEW_MODEL_VERSION: ${{ vars.REVIEW_MODEL_VERSION }}
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}

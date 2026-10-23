@@ -119,6 +119,38 @@ async function callAnthropic(
   return { text, model: response.model, usage };
 }
 
+/**
+ * The model the provider says is behind the tier's id, before any call: the `name` in `{baseUrl}/models`
+ * ("openai-compatible", e.g. DeepSeek). Anthropic ids name one model, so the reply's `model` is checked instead.
+ */
+export async function listedVersion(tier: Tier, apiKey: string, timeoutMs: number): Promise<string> {
+  if (tier.provider === "anthropic") return tier.model;
+  if (!tier.baseUrl) throw new Error("tier without a configured baseUrl");
+  const response = await fetch(`${tier.baseUrl.replace(/\/$/, "")}/models`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) throw new Error(`could not read the provider's model list (HTTP ${response.status})`);
+  const data = (await response.json()) as { data?: Array<{ id?: string; name?: string }> };
+  const entry = data.data?.find((m) => m.id === tier.model);
+  if (!entry) throw new Error(`the provider no longer lists \`${tier.model}\``);
+  return entry.name ?? entry.id ?? tier.model;
+}
+
+/** Why the model is not the pinned one, or null. `listed` comes from `listedVersion`; `replied` is the reply's `model`, when known. */
+export function versionProblem(tier: Tier, listed: string, replied?: string): string | null {
+  if (!tier.pinnedVersion) return null;
+  const how = "Nothing was reviewed with it. Run the review canary with the new model, then update `pinnedVersion` in `.github/review.json` in a PR.";
+  if (listed !== tier.pinnedVersion) {
+    return `the provider now serves \`${listed}\` behind \`${tier.model}\`, not the pinned \`${tier.pinnedVersion}\`. ${how}`;
+  }
+  const expected = tier.provider === "anthropic" ? tier.pinnedVersion : tier.model;
+  if (replied !== undefined && replied !== expected) {
+    return `the reply came from \`${replied}\`, not the pinned \`${expected}\` (an upstream redirect or fallback). Its findings were discarded. Run the review canary with that model before trusting it.`;
+  }
+  return null;
+}
+
 export async function callModel(
   tier: Tier,
   apiKey: string,
