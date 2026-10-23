@@ -204,7 +204,7 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 
    | Tier | When | Default model | Secret |
    |---|---|---|---|
-   | `standard` | Regular PR | DeepSeek `deepseek-v4-pro` | `REVIEW_API_KEY` |
+   | `standard` | Regular PR | DeepSeek `deepseek-flash` | `REVIEW_API_KEY` |
    | `sensitive` | PR touches a sensitive path (`sensitivePaths` in `.github/review.json`: invariants, evals, CI, authentication, payment, AI…) | Claude `claude-sonnet-5-5` | `REVIEW_DEEP_API_KEY` |
    | `deep` | You apply the `deep-review` label | Claude `claude-opus-5-5` | `REVIEW_DEEP_API_KEY` |
 
@@ -229,7 +229,7 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 
 **Pinned versions.** A model name at a provider is often an alias (`deepseek-flash`, `deepseek-v4-pro`) that can move to a new model upstream, without notice. Each tier names the version its canary measured:
 - **`pinnedVersion`:**
-  - For an OpenAI-format provider, it is the `name` the provider lists for the model in `{baseUrl}/models` (DeepSeek: `DeepSeek-V4-Pro`). Before paying for a call, the reviewer checks it: if the alias now serves another model, the review stops with a red check and says so. It also checks the reply's `model`.
+  - For an OpenAI-format provider, it is the `name` the provider lists for the model in `{baseUrl}/models` (DeepSeek: `DeepSeek-V4.1-Flash`). Before paying for a call, the reviewer checks it: if the alias now serves another model, the review stops with a red check and says so. It also checks the reply's `model`.
   - For Anthropic, it is the model id. A reply from any other model, for example a server-side fallback, is discarded.
 - **`pinnedFingerprint`** (DeepSeek's `system_fingerprint`): a change only adds a note to the report, since the provider's own deploys change it too.
 - **To move to a new version:** run the review canary with it (Actions → Review canary, or a PR that changes `.github/review.json`), compare, then update `model`, `pinnedVersion`, `pinnedFingerprint` and `pricePerMTok` in one PR.
@@ -240,10 +240,12 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 
 | `model` | `pinnedVersion` | `pinnedFingerprint` (2026-10-23) | Input / cached / output |
 |---|---|---|---|
-| `deepseek-v4-pro` (V4-Pro-0813, the default) | `DeepSeek-V4-Pro` | `a307abda487cd1b463329ccb945ce396` | $1.32 / $0.044 / $3.96 |
-| `deepseek-flash` (V4.1-Flash-1017) | `DeepSeek-V4.1-Flash` | `e72d3c7f663d3e1383b00b3884cb4501` | $0.30 / $0.006 / $1.20 |
+| `deepseek-v4-pro` (V4-Pro-0813) | `DeepSeek-V4-Pro` | `a307abda487cd1b463329ccb945ce396` | $1.32 / $0.044 / $3.96 |
+| `deepseek-flash` (V4.1-Flash-1017, the default) | `DeepSeek-V4.1-Flash` | `e72d3c7f663d3e1383b00b3884cb4501` | $0.30 / $0.006 / $1.20 |
 
-The two were compared on 2026-10-23 (`docs/missions/0033-reviewer-model.md`): the same planted defects found, Flash about 4 to 5 times cheaper and 2 to 3 times faster.
+The two were compared on 2026-10-23 (`docs/missions/0033-reviewer-model.md`): the same planted defects found, Flash about 4 to 5 times cheaper and 2 to 3 times faster. Flash is the default since mission 0034. To go back to Pro, change the four fields of the `standard` and `light` tiers to the Pro row, in one PR (its canary measures it).
+
+DeepSeek has no dated id, so the pin is the name, not the release: a new release under the same name (say, a V4.1-Flash after 1017) passes `pinnedVersion` and shows only as a new fingerprint in the report's notes.
 
 ### Testing on your machine (without pasting the key anywhere)
 
@@ -280,11 +282,12 @@ Each run's report shows the tokens used and the estimated cost. For reference, a
 
 | Model | Price (input / output, per million tokens) | Average PR |
 |---|---|---|
+| DeepSeek `deepseek-flash` (default) | $0.30 / 1.20 at peak; half off-peak | ≈ $0.01 |
 | DeepSeek `deepseek-v4-pro` | $1.32 / 3.96 at peak; half off-peak | ≈ $0.04 |
 | Claude `claude-sonnet-5-5` | $2 / 10 (cache read $0.10, not used) | ≈ $0.07 |
 | Claude `claude-opus-5-5` | $4 / 20 (cache read $0.20, not used) | ≈ $0.14 |
 
-An incremental review usually costs much less than a full one (estimate: about $0.03), because the diff is small and the start of the prompt comes from the cache. The canary costs one call per month, plus one for each push on PRs that change the reviewer. GitHub Actions minutes follow the CI table above (free in a public repository).
+An incremental review usually costs much less than a full one (estimate: under $0.01 with Flash, about $0.03 with Pro), because the diff is small and the start of the prompt comes from the cache. The canary costs one call per month, plus one for each push on PRs that change the reviewer. GitHub Actions minutes follow the CI table above (free in a public repository).
 
 ### Why not "max-turns"
 

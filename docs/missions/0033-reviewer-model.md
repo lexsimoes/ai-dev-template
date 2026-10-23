@@ -1,6 +1,6 @@
 # Mission 0033: reviewer model pinned; deepseek-flash compared with deepseek-v4-pro
 
-**Status:** in review
+**Status:** done
 **Branch:** `mission/0033-reviewer-model` · **PR:** see the PR of `mission/0033-reviewer-model`
 **Created on:** 2026-10-23 · **Approved by the owner on:** 2026-10-23 ("compare … report side by side … If Flash matches or beats Pro with zero false positives, make it the default and keep Pro as an option. Also make the reviewer config state the pinned version, so an upstream alias change never silently switches models.")
 
@@ -29,7 +29,7 @@ The reviewer never reviews with a model nobody measured: each tier states the ve
   - DeepSeek: `DeepSeek-V4-Pro` and its fingerprint;
   - Anthropic: `claude-sonnet-5-5`, `claude-opus-5-5`.
 - [x] 4. Docs: `docs/WORKFLOW.md` ("Switching providers": pinned versions, the DeepSeek options with prices), `CHANGELOG.md`, `docs/HANDOFF.md`.
-- [ ] 5. Default model: **left as `deepseek-v4-pro`, pending the owner's decision** (see the report).
+- [x] 5. Default model: left as `deepseek-v4-pro` here; the owner chose Flash afterwards (mission 0034).
 
 ## Comparison (2 runs each)
 

@@ -61,26 +61,27 @@
   },
   "tiers": {
     "standard": {
+      "$comment": "deepseek-flash = DeepSeek-V4.1-Flash-1017, measured by the canary on 2026-10-23. DeepSeek has no dated id: its /models lists the name below, and a new release under the same name only changes the fingerprint (a note). The measured alternative is deepseek-v4-pro (V4-Pro-0813): docs/WORKFLOW.md, \"DeepSeek options\".",
       "provider": "openai-compatible",
       "baseUrl": "https://api.deepseek.com",
-      "model": "deepseek-v4-pro",
-      "pinnedVersion": "DeepSeek-V4-Pro",
-      "pinnedFingerprint": "a307abda487cd1b463329ccb945ce396",
+      "model": "deepseek-flash",
+      "pinnedVersion": "DeepSeek-V4.1-Flash",
+      "pinnedFingerprint": "e72d3c7f663d3e1383b00b3884cb4501",
       "apiKeyEnv": "REVIEW_API_KEY",
       "maxOutputTokens": 64000,
-      "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
+      "pricePerMTok": { "input": 0.3, "output": 1.2, "cachedInput": 0.006 }
     },
     "light": {
       "$comment": "Same model as standard, with short reasoning: for trivial PRs.",
       "provider": "openai-compatible",
       "baseUrl": "https://api.deepseek.com",
-      "model": "deepseek-v4-pro",
-      "pinnedVersion": "DeepSeek-V4-Pro",
-      "pinnedFingerprint": "a307abda487cd1b463329ccb945ce396",
+      "model": "deepseek-flash",
+      "pinnedVersion": "DeepSeek-V4.1-Flash",
+      "pinnedFingerprint": "e72d3c7f663d3e1383b00b3884cb4501",
       "apiKeyEnv": "REVIEW_API_KEY",
       "maxOutputTokens": 16000,
       "extraBody": { "reasoning_effort": "low" },
-      "pricePerMTok": { "input": 1.32, "output": 3.96, "cachedInput": 0.044 }
+      "pricePerMTok": { "input": 0.3, "output": 1.2, "cachedInput": 0.006 }
     },
     "sensitive": {
       "provider": "anthropic",

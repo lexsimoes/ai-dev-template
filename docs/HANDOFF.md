@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-23 · **By:** agent (mission 0033)
+**Updated on:** 2026-10-23 · **By:** agent (mission 0034)
 
 ## Current state
 
@@ -12,7 +12,7 @@
 - `npm run check` passes locally; `npm run eval:mock` passes (the mock does not measure real quality).
 - Evals in CI with DeepSeek (`EVAL_API_KEY`), thresholds and golden set from `main`, comment with the cost.
 - CI on GitHub (`.github/workflows/ci.yml`): jobs `quality`, `invariants` (with the guard `scripts/guard-invariants.ts`) and `dependencies`, on every PR and push to `main`.
-- Independent reviewer (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek by default, Sonnet on a sensitive path, Opus with the `deep-review` label. Monthly canary, and when a PR that changes the reviewer becomes ready (`.github/workflows/review-canary.yml`).
+- Independent reviewer (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek `deepseek-flash` by default (pinned to `DeepSeek-V4.1-Flash`), Sonnet on a sensitive path, Opus with the `deep-review` label. Monthly canary, and when a PR that changes the reviewer becomes ready (`.github/workflows/review-canary.yml`).
 - `main` protection: ruleset `protect-main` (`.github/rulesets/protect-main.json`) active since the M-EN merge; the old `proteger-main` was deleted after the new one was imported (5 required checks `quality`, `invariants`, `dependencies`, `review`, `evals`, from Actions only; PR required; 0 approvals). Verified in PR #11: with `quality` and `review` red, `mergeable_state` = `blocked`.
 - Labels renamed in place after the M-EN merge: `invariant-approved`, `eval-approved`, `deep-review`, `re-review`, `direction-check` (PR #11 confirmed `re-review` triggers the incremental review).
 - Weekly direction check (`.github/workflows/direction-check.yml`, `scripts/direction/`): an issue every Monday with the `direction-check` label.
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0034: the reviewer's `standard` and `light` tiers use `deepseek-flash` (V4.1-Flash-1017), owner's decision after mission 0033; `deepseek-v4-pro` documented as the alternative. The canary fixture shows the `applyCoupon` signature, which removes the false positive both models had.
 - Mission 0033: the reviewer pins each tier's model version and stops when an alias moves (DeepSeek has no dated ids: `/models` name and the reply are checked). `deepseek-flash` (V4.1-Flash-1017) compared with `deepseek-v4-pro` on the canary and #35 (#39): same planted defects, 4–5× cheaper, 2–3× faster, the same fixture false positive. The default stays Pro until the owner decides.
 - Mission 0032 (M8): `/adt:audit` sees personal data and external input in plain `node:http` and Express apps (found on `adt-sandbox-legacy`, whose audit marked both areas empty). The owner confirmed the legacy app's inferred PRD with INV-004 (code-only access, rate limited, no existence leak) and INV-005 (no personal data in logs); `/adt:adopt` on that repository is next.
 - Mission 0030 (M8, fixes from the rehearsal):
@@ -152,7 +153,7 @@ The adoption rehearsal PR (lexsimoes/goagentic#23) was closed without merge by t
 - Evals baseline required: if the `main` run fails, the `evals` check turns red.
 - Reviewer canary on PRs only when the PR becomes ready (and in the monthly run).
 
-- Default reviewer: `deepseek-v4-pro` (no switch to flash).
+- Default reviewer: `deepseek-v4-pro` (no switch to flash). Superseded on 2026-10-23: `deepseek-flash`, pinned (mission 0034).
 - `afterReviewPush: "require-re-review"` starting now: a push after the review stays red until `re-review`.
 - `trivial.mode: "light"`.
 - `@claude` mode in comments (`claude-code-action`): dropped for now.
