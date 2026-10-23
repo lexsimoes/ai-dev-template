@@ -27,6 +27,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 - Exploratory session, only on the owner's request (`/explore <area>`, `.claude/skills/explore/SKILL.md`): the agent explores the app in its isolated mode and reports what breaks a PRD requirement or an `AGENTS.md` rule. `scripts/explore-report.ts` pushes the screenshots to a branch of their own (`exploration/<date>-<topic>`, one commit with no parent) and opens one issue per finding with steps and screenshots. A confirmed bug becomes a mission with a new end-to-end test.
 - CI: `e2e-quarantine` declares read-only permissions, and `e2e-flaky` also checks that the push is to `main`.
 
+### Fixed
+- Demo contact form: a message within the 2,000-character limit was refused when it had many line breaks (the form sends each one as CRLF and the server counted it as two) or was written in a non-Latin alphabet (over the 16 KB body limit). The server now counts line breaks as the browser does, the body limit fits 2,000 characters in any alphabet, and the page and its error state the limit the same way. Found by the first exploratory session (#33); covered by a new end-to-end test.
+
 ## [0.3.0] - 2026-10-22
 
 Discovery and audit: a new project starts from a short PRD, and an existing project can be audited read-only and adopt the workflow in observe mode.
