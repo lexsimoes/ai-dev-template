@@ -41,6 +41,9 @@ test("versionProblem: the pinned model or its dated id passes; another model, a 
   assert.match(versionProblem(deepseek(), "DeepSeek-V4-Pro", "deepseek-v4-pro-max") ?? "", /reply came from `deepseek-v4-pro-max`/);
   assert.equal(versionProblem(claude, "claude-sonnet-5-5", "claude-sonnet-5-5"), null);
   assert.equal(versionProblem(claude, "claude-sonnet-5-5", "claude-sonnet-5-5-20260601"), null);
+  assert.equal(versionProblem(claude, "claude-sonnet-5-5", "claude-sonnet-5-5-2026-06-01"), null);
+  const older = { ...claude, model: "claude-sonnet-5", pinnedVersion: "claude-sonnet-5" };
+  assert.match(versionProblem(older, "claude-sonnet-5", "claude-sonnet-5-5") ?? "", /reply came from `claude-sonnet-5-5`/, "a version number is another model, not a date");
   assert.match(versionProblem(claude, "claude-sonnet-5-5", "claude-opus-5-5") ?? "", /reply came from `claude-opus-5-5`.*fallback/s, "a server-side fallback is not the pinned model");
   assert.equal(versionProblem({ ...claude, pinnedVersion: undefined }, "claude-sonnet-5-5", "anything"), null, "an unpinned tier is not checked");
 });
