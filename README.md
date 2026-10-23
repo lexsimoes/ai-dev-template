@@ -66,19 +66,19 @@ copier copy gh:lexsimoes/ai-dev-template my-project
 
 Copier uses the latest **release** of the template ([releases](https://github.com/lexsimoes/ai-dev-template/releases), [changelog](CHANGELOG.md)), never unreleased work on `main`. To pick a version: `--vcs-ref v0.1.0`. The version you got is `_commit` in the project's `.copier-answers.yml`.
 
-Copier asks a few questions: project name, your GitHub username (it becomes the owner in `.github/CODEOWNERS`), the language agents use to talk to you, the reviewer's provider (or "None" for no key), whether evals run with a real model, and optional sections. What each answer changes: [`docs/WORKFLOW.md`](docs/WORKFLOW.md#creating-a-project-from-this-template-copier).
+Copier asks a few questions: project name and package name, your GitHub username (it becomes the owner in `.github/CODEOWNERS`), the language agents use to talk to you, the reviewer's provider (or "None" for no key), whether evals run with a real model, and two optional sections of `AGENTS.md`, both on by default: library documentation through Context7, and UI/UX rules. Without a terminal (a script or an agent), pass the answers instead: `--defaults --data project_name=my-project --data github_owner=<you> --data reviewer_provider=none --data evals_with_model=false`. What each answer changes: [`docs/WORKFLOW.md`](docs/WORKFLOW.md#creating-a-project-from-this-template-copier).
 
-Check that everything passes on your machine, then create the repository:
+Make the first commit (local only; some checks compare against git), check that everything passes on your machine, then create the repository on GitHub:
 
 ```bash
 cd my-project
-npm ci
-npm run check       # lint, types, unit tests, invariants (stops at the first failure)
-npm run eval:mock   # evals with the fake provider: no key, no cost
-npx playwright install chromium   # once: the browser for the end-to-end tests
-npm run e2e         # end-to-end tests of the critical flows, with the fake AI provider
 git init -b main && git add -A && git commit -m "chore: project created from ai-dev-template"
-gh repo create my-project --public --source . --push
+npm ci
+npm run check       # lint, types, unit tests, invariants (stops at the first failure; search the output for "not ok")
+npm run eval:mock   # evals with the fake provider: no key, no cost
+npx playwright install chromium   # once: the browser for the end-to-end tests (on a fresh Linux machine: --with-deps chromium)
+npm run e2e         # end-to-end tests of the critical flows, with the fake AI provider
+gh repo create my-project --public --source . --push   # from here on, gh must be logged in
 ```
 
 A **public** repository gets branch protection and Actions minutes for free. A private one needs GitHub Pro (or Team) for the protection to be enforced ([details](docs/WORKFLOW.md#private-repository)).
