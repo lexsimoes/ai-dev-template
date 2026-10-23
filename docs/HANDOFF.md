@@ -22,7 +22,6 @@
 
 ## Last mission
 
-- Mission 0035: a regression test proves a PR that deletes `tests/invariants/` fails the guard, even with an unverified label (the missing-folder fix of #38 is not a bypass).
 - Mission 0033: the reviewer pins each tier's model version and stops when an alias moves (DeepSeek has no dated ids: `/models` name and the reply are checked). `deepseek-flash` (V4.1-Flash-1017) compared with `deepseek-v4-pro` on the canary and #35 (#39): same planted defects, 4–5× cheaper, 2–3× faster, the same fixture false positive. The default stays Pro until the owner decides.
 - Mission 0032 (M8): `/adt:audit` sees personal data and external input in plain `node:http` and Express apps (found on `adt-sandbox-legacy`, whose audit marked both areas empty). The owner confirmed the legacy app's inferred PRD with INV-004 (code-only access, rate limited, no existence leak) and INV-005 (no personal data in logs); `/adt:adopt` on that repository is next.
 - Mission 0030 (M8, fixes from the rehearsal):
