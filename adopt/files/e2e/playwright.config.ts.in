@@ -1,0 +1,45 @@
+// End-to-end tests of the critical flows (ai-dev-template, adopted with /adt:adopt). They run only against the app
+// started here, in its isolated mode (no real service: the variables below), and every browser request outside this
+// server is blocked (fixtures.ts). Changing this file needs the owner's approval label (scripts/guard-e2e.ts).
+// Docs: https://playwright.dev/docs/test-configuration (pinned @playwright/test 1.64.1, e2e/package.json).
+
+import { defineConfig, devices } from "@playwright/test";
+
+const PORT = Number(process.env.E2E_PORT ?? {{E2E_PORT}});
+
+export default defineConfig({
+  testDir: ".",
+  testMatch: "**/*.spec.ts",
+  testIgnore: "**/node_modules/**",
+  fullyParallel: false,
+  forbidOnly: true,
+  // In CI a test that passes only on a retry is reported as flaky (scripts/e2e-flaky.ts).
+  retries: process.env.CI ? 2 : 0,
+  workers: 1,
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  use: {
+    baseURL: `http://127.0.0.1:${PORT}`,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  },
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // Only for machines with a preinstalled Chromium of another revision; CI installs its own.
+        ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
+      },
+    },
+  ],
+  webServer: {
+    // The project's own start command, run from the project's root, in its isolated mode.
+    command: {{E2E_START}},
+    cwd: "..",
+    url: `http://127.0.0.1:${PORT}`,
+    env: { {{E2E_ENV}}PORT: String(PORT) },
+    // Never reuse a server that is already running: it could be connected to real services.
+    reuseExistingServer: false,
+    stdout: "pipe",
+  },
+});

@@ -1,5 +1,5 @@
 // The deterministic parts of /adt:adopt: bring the template's workflow into an existing project, on a branch, in observe
-// mode, never overwriting a file. The checks it adds (AI review, invariant guard, evals) run next to the project's own
+// mode, never overwriting a file. The checks it adds (AI review, invariant guard, evals, end-to-end) run next to the project's own
 // CI and are not required; the project's required checks stay as they were, and its label names are mapped, never
 // renamed. Tested in tests/unit/plugin-adopt.test.ts.
 
@@ -11,6 +11,8 @@ export interface Kit {
   reviewConfig: string;
   templateOnlySensitivePaths: string[];
   agentsSection: string;
+  /** The end-to-end tester, only for a project with a web UI (`--e2e-start`). `filled` files get the placeholders. */
+  e2e: { copy: string[]; files: Record<string, string>; filled: Record<string, string> };
 }
 
 /** Label roles the workflow uses, and the template's own names for them. */
@@ -19,6 +21,7 @@ export const LABEL_ROLES = {
   evalApproved: "eval-approved",
   rereview: "re-review",
   deep: "deep-review",
+  testApproved: "test-approved",
 } as const;
 export type LabelRole = keyof typeof LABEL_ROLES;
 
@@ -28,6 +31,8 @@ export interface AdoptAnswers {
   paths: { prd: string; handoff: string; invariants: string };
   /** null: the project has no AI code yet, so there is no evals check to observe. */
   evals: { command: string; paths: string[] } | null;
+  /** null: no web UI, so no end-to-end tester. Otherwise how Playwright starts the app in its isolated mode. */
+  e2e: { start: string; port: number; env: Record<string, string> } | null;
   /** Empty: the default branch requires no check yet. */
   requiredChecks: string[];
   /** Extra paths the reviewer treats as sensitive (stronger model), from the audit. */
@@ -41,10 +46,11 @@ export interface AdtConfig extends Omit<AdoptAnswers, "owner" | "sensitive"> {
   observeChecks: string[];
 }
 
-export const OBSERVE_CHECKS = ["adt-review", "adt-invariants", "adt-evals"];
+export const OBSERVE_CHECKS = ["adt-review", "adt-invariants", "adt-evals", "adt-e2e"];
 
-/** The checks adoption adds for these answers: no `adt-evals` in a project without AI code. */
-export const observeChecks = (answers: AdoptAnswers) => OBSERVE_CHECKS.filter((c) => c !== "adt-evals" || answers.evals !== null);
+/** The checks adoption adds for these answers: no `adt-evals` without AI code, no `adt-e2e` without a web UI. */
+export const observeChecks = (answers: AdoptAnswers) =>
+  OBSERVE_CHECKS.filter((c) => (c !== "adt-evals" || answers.evals !== null) && (c !== "adt-e2e" || answers.e2e !== null));
 
 const LABEL_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._:-]{0,49}$/u;
 const PATH_RE = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]{1,100}$/;
@@ -53,6 +59,10 @@ const GLOB_RE = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._*/[\]-]{1,100}$/;
 const EVAL_COMMAND_RE = /^npm run [a-z0-9][a-z0-9:_-]{0,40}(?: -- [A-Za-z0-9 ._/=:-]{1,200})?$/;
 const CHECK_RE = /^[A-Za-z0-9 ._()/-]{1,100}$/;
 const OWNER_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
+/** The app's start command, run by Playwright from the project's root: words and paths, no shell operators. */
+const START_RE = /^[A-Za-z0-9][A-Za-z0-9 ._/:=@-]{0,199}$/;
+/** One variable of the isolated mode: NAME=value, the value plain (empty unsets a real service's setting). */
+const ENV_RE = /^([A-Z][A-Z0-9_]{0,63})=([A-Za-z0-9 ._/:@-]{0,200})$/;
 
 const list = (raw: string | undefined) => (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -92,11 +102,29 @@ export function validateAdoptAnswers(raw: Record<string, string | undefined>): {
     errors.push("required: the names of the checks already required on the default branch, or `none`");
   if (requiredChecks.some((c) => OBSERVE_CHECKS.includes(c))) errors.push("required: the adopted checks start in observe mode; only the owner makes one required, later");
 
+  // "none": no web UI, so no end-to-end tester. Otherwise the app's isolated start command, its port and its variables.
+  const start = raw.e2eStart?.trim() ?? "";
+  let e2e: AdoptAnswers["e2e"] = null;
+  if (start !== "none") {
+    if (!START_RE.test(start)) errors.push("e2e-start: the command that starts the app in its isolated mode (no real service), like `npm start`, or `none` when the project has no web UI");
+    const port = Number(raw.e2ePort ?? "");
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) errors.push("e2e-port: the port the app listens on for the tests (1024 to 65535; the app gets it as PORT)");
+    const env: Record<string, string> = {};
+    for (const pair of list(raw.e2eEnv)) {
+      const m = ENV_RE.exec(pair);
+      if (!m || m[1] === "PORT") errors.push(`e2e-env: \`${pair.slice(0, 40)}\` is not NAME=value (plain value; PORT comes from e2e-port)`);
+      else env[m[1] as string] = m[2] ?? "";
+    }
+    e2e = { start, port, env };
+  } else if (raw.e2ePort || raw.e2eEnv) {
+    errors.push("e2e-port, e2e-env: leave them out when e2e-start is `none` (no web UI)");
+  }
+
   const sensitive = list(raw.sensitive);
   if (sensitive.some((p) => !GLOB_RE.test(p))) errors.push("sensitive: comma-separated globs");
 
   if (errors.length) return { errors };
-  return { answers: { owner, labels, paths, evals, requiredChecks, sensitive } };
+  return { answers: { owner, labels, paths, evals, e2e, requiredChecks, sensitive } };
 }
 
 export type PlanAction = { path: string; action: "add" | "identical" | "conflict" };
@@ -116,8 +144,8 @@ export function planFiles(rendered: Record<string, string>, read: (path: string)
 
 /** Replaces `{{NAME}}` placeholders; every placeholder must have a value, so a missing one is an error, not a blank. */
 export function fill(template: string, values: Record<string, string>): string {
-  const text = template.replace(/\{\{([A-Z_]+)\}\}/g, (whole, name: string) => values[name] ?? whole);
-  const left = /\{\{([A-Z_]+)\}\}/.exec(text);
+  const text = template.replace(/\{\{([A-Z][A-Z0-9_]*)\}\}/g, (whole, name: string) => values[name] ?? whole);
+  const left = /\{\{([A-Z][A-Z0-9_]*)\}\}/.exec(text);
   if (left) throw new Error(`No value for the placeholder ${left[0]}.`);
   return text;
 }
@@ -126,6 +154,7 @@ export function placeholderValues(answers: AdoptAnswers, release: string): Recor
   return {
     TEMPLATE_RELEASE: release,
     INVARIANT_LABEL: answers.labels.invariantApproved,
+    TEST_LABEL: answers.labels.testApproved,
     REREVIEW_LABEL: answers.labels.rereview,
     DEEP_LABEL: answers.labels.deep,
     INVARIANTS_DIR: answers.paths.invariants,
@@ -138,7 +167,27 @@ export function placeholderValues(answers: AdoptAnswers, release: string): Recor
     EVALS_LINE: answers.evals
       ? `Evals in CI run without a model: \`${answers.evals.command}\`. A real-model run happens only on the owner's request, with the project's own acceptance and budget.`
       : "No evals yet: the project has no AI code. The first LLM call comes with its evals (golden set and rules) and the `adt-evals` check, through `/adt:adopt` again.",
+    // Written into e2e/playwright.config.ts as TypeScript literals: JSON is valid TypeScript, so no value can break out.
+    E2E_START: JSON.stringify(answers.e2e?.start ?? ""),
+    E2E_PORT: String(answers.e2e?.port ?? 0),
+    // NAME: "value", pairs: the names match [A-Z][A-Z0-9_]*, so they are plain property names.
+    E2E_ENV: Object.entries(answers.e2e?.env ?? {}).map(([name, value]) => `${name}: ${JSON.stringify(value)}, `).join(""),
+    E2E_SECTION: answers.e2e ? e2eSection(answers) : "",
   };
+}
+
+/** The AGENTS.md rules for the end-to-end tests, with the project's label names. Empty without a web UI. */
+function e2eSection(answers: AdoptAnswers): string {
+  const test = answers.labels.testApproved;
+  return [
+    "",
+    "",
+    "### End-to-end tests",
+    "- `e2e/` holds the tests of the critical flows, run by `adt-e2e` against the app in its isolated mode (`e2e/playwright.config.ts`: no real service, every request outside the app blocked by `e2e/fixtures.ts`).",
+    "- Each test title starts with the requirement it covers, from the PRD. Keep 3 to 8 tests of critical flows.",
+    "- The Playwright test agents (`.claude/agents/playwright-test-*.md`: planner, generator, healer) write and repair them. Run locally: `npm ci --prefix e2e`, `npx --prefix e2e playwright install chromium`, then `npx --prefix e2e playwright test --config=e2e/playwright.config.ts`.",
+    `- An agent may update selectors only. Changing what a test checks, removing a test, or touching anything else in \`e2e/\` needs the owner's \`${test}\` label; no agent applies it. Never skip, focus or \`fixme\` a test: a flaky one gets an issue and, only with \`${test}\`, the \`@quarantine\` tag (\`scripts/guard-e2e.ts\` checks all of it).`,
+  ].join("\n");
 }
 
 /** The template's reviewer config, for the project: its label names, without the template's own paths, plus its sensitive paths. */
@@ -146,7 +195,7 @@ export function adaptReviewConfig(templateJson: string, kit: Kit, answers: Adopt
   const config = JSON.parse(templateJson) as Record<string, unknown> & { sensitivePaths?: string[] };
   config.deepLabel = answers.labels.deep;
   config.rereviewLabel = answers.labels.rereview;
-  config.approvalLabels = [answers.labels.invariantApproved, answers.labels.evalApproved];
+  config.approvalLabels = [answers.labels.invariantApproved, answers.labels.evalApproved, answers.labels.testApproved];
   const base = (config.sensitivePaths ?? []).filter((p) => !kit.templateOnlySensitivePaths.includes(p) && p !== "tests/invariants/**");
   config.sensitivePaths = [...new Set([`${answers.paths.invariants}/**`, ...base, ...answers.sensitive])];
   // The implementer never auto-fixes a finding in the project's invariants folder either.
@@ -175,6 +224,7 @@ export function codeowners(answers: AdoptAnswers): string {
   return [
     "# Owner of the non-negotiable tests: only this owner's approval label counts for the invariant guard (adt-invariants).",
     `/${answers.paths.invariants}/ @${answers.owner}`,
+    ...(answers.e2e ? ["# Owner of the end-to-end tests: only this owner's approval label counts for the end-to-end guard (adt-e2e).", `/e2e/ @${answers.owner}`] : []),
     "",
   ].join("\n");
 }
@@ -202,6 +252,7 @@ export function adtConfig(answers: AdoptAnswers, repository: string, release: st
     labels: answers.labels,
     paths: answers.paths,
     evals: answers.evals,
+    e2e: answers.e2e,
   };
   return `${JSON.stringify(config, null, 2)}\n`;
 }

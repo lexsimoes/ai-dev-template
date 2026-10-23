@@ -1,0 +1,100 @@
+# ai-dev-template: end-to-end tests of the critical flows, in OBSERVE mode (adopted with /adt:adopt).
+# The guard runs first, before any PR code is installed: without the owner's "{{TEST_LABEL}}" label, a PR may change an
+# existing test in its selectors only, and nothing in e2e/ (isolation, config, dependencies) except by adding a test
+# that follows the rules. Nothing may be skipped or focused. Then Playwright runs the tests against the app started by
+# e2e/playwright.config.ts in its isolated mode, with every browser request outside the app blocked (e2e/fixtures.ts).
+# It is not a required check: a red result does not block the merge. No secret reaches this job.
+
+name: adt e2e (observe)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adt-e2e-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  adt-e2e:
+    name: adt-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read # check who applied the approval label
+      issues: read # a quarantined test must point at an open issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # compare with the target branch
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.x"
+      - name: Parser for the guard (TypeScript, pinned by the target branch's e2e lockfile)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        # The guard reads specs as syntax trees. TypeScript comes from the target branch's e2e/package-lock.json
+        # (version and integrity checked), or the PR's own only on first setup, installed in a folder of its own,
+        # before any PR code and without the PR's .npmrc.
+        run: |
+          LOCK=e2e/package-lock.json
+          DIR="$RUNNER_TEMP/guard-modules"
+          mkdir -p "$DIR"
+          git show "origin/$BASE_REF:$LOCK" > "$RUNNER_TEMP/base-lock.json" 2>/dev/null || cp "$LOCK" "$RUNNER_TEMP/base-lock.json"
+          read -r VERSION INTEGRITY < <(node -e '
+            const ts = require(process.argv[1]).packages["node_modules/typescript"];
+            if (!ts?.version || !ts?.integrity) { console.error("typescript is not in the e2e lockfile"); process.exit(1); }
+            console.log(ts.version, ts.integrity);' "$RUNNER_TEMP/base-lock.json")
+          cd "$DIR"
+          npm install --no-audit --no-fund --ignore-scripts --save-exact --registry=https://registry.npmjs.org/ "typescript@$VERSION"
+          node -e '
+            const got = require(process.argv[1]).packages["node_modules/typescript"]?.integrity;
+            if (got !== process.argv[2]) { console.error(`typescript integrity ${got} differs from the lockfile ${process.argv[2]}`); process.exit(1); }' "$DIR/package-lock.json" "$INTEGRITY"
+          echo "E2E_GUARD_MODULES=$DIR" >> "$GITHUB_ENV"
+      - name: Guard (from the target branch; the PR's own copy only on first setup)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          E2E_APPROVAL_LABEL: "{{TEST_LABEL}}"
+          INVARIANTS_DIR: "{{INVARIANTS_DIR}}"
+        run: |
+          GUARD=scripts/guard-e2e.ts
+          if git show "origin/$BASE_REF:$GUARD" > "$RUNNER_TEMP/guard-e2e.ts" 2>/dev/null; then
+            GUARD="$RUNNER_TEMP/guard-e2e.ts"
+          fi
+          node "$GUARD"
+      # Only the tester's own dependencies, from e2e/package-lock.json, with no install script: the project's
+      # dependencies are installed by the start command's own needs, never by this job (see below).
+      - name: Install the tester (e2e/package-lock.json)
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix e2e
+      - name: Browser (the Chromium pinned by @playwright/test)
+        run: npx --no --prefix e2e playwright install --with-deps chromium
+      - name: The project's dependencies, if it has a lockfile (no install scripts)
+        run: |
+          if [ -f package-lock.json ]; then npm ci --ignore-scripts --no-audit --no-fund; else echo "No package-lock.json: nothing to install."; fi
+      - name: End-to-end tests of the critical flows
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-report.json
+        run: npx --no --prefix e2e playwright test --config=e2e/playwright.config.ts --grep-invert @quarantine --reporter=list,html,json
+      - name: Flaky tests (passed only on a retry)
+        if: always() && hashFiles('e2e/test-results/e2e-report.json') != ''
+        run: node scripts/e2e-flaky.ts e2e/test-results/e2e-report.json
+      - name: Quarantined tests (reported, never counted)
+        if: always()
+        continue-on-error: true
+        run: npx --no --prefix e2e playwright test --config=e2e/playwright.config.ts --grep @quarantine --pass-with-no-tests
+      - name: Report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7

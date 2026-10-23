@@ -10,6 +10,7 @@
 //
 // <answers>: --owner LOGIN --labels role=name,… --prd PATH --handoff PATH --invariants DIR
 //            --eval-command "npm run … -- --mock" --eval-paths GLOB,… --required CHECK,… [--sensitive GLOB,…]
+//            --e2e-start "COMMAND" --e2e-port PORT [--e2e-env NAME=value,…]   (or --e2e-start none: no web UI)
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -45,7 +46,7 @@ const parsed = (() => {
     return parseArgs({
       allowPositionals: true,
       options: Object.fromEntries(
-        ["kit", "base", "owner", "labels", "prd", "handoff", "invariants", "eval-command", "eval-paths", "required", "sensitive"].map((k) => [k, { type: "string" as const }]),
+        ["kit", "base", "owner", "labels", "prd", "handoff", "invariants", "eval-command", "eval-paths", "required", "sensitive", "e2e-start", "e2e-port", "e2e-env"].map((k) => [k, { type: "string" as const }]),
       ),
     });
   } catch (e) {
@@ -75,6 +76,9 @@ function answersOrExit(): AdoptAnswers {
     evalPaths: v["eval-paths"],
     required: v.required,
     sensitive: v.sensitive,
+    e2eStart: v["e2e-start"],
+    e2ePort: v["e2e-port"],
+    e2eEnv: v["e2e-env"],
   });
   if ("errors" in a) out({ errors: a.errors }, true);
   return a.answers;
@@ -103,6 +107,16 @@ function render(kitDir: string, answers: AdoptAnswers): { files: Record<string, 
   for (const [path, source] of Object.entries(kit.workflows)) {
     if (path.endsWith("/adt-evals.yml") && !answers.evals) continue; // no AI code: no evals check yet
     files[path] = fill(kitText(source), values);
+  }
+  if (answers.e2e) {
+    // The template's own wording (a demo app with a fake AI provider) becomes the project's isolated mode.
+    const own = (text: string) =>
+      text
+        .replaceAll("the demo app", "the app")
+        .replaceAll("(fake AI provider, no outside requests)", "(no real service: `e2e/playwright.config.ts`; no outside requests)");
+    for (const path of kit.e2e.copy) files[path] = own(path.endsWith(".md") ? adaptText(kitText(path), answers) : kitText(path));
+    for (const [path, source] of Object.entries(kit.e2e.files)) files[path] = kitText(source);
+    for (const [path, source] of Object.entries(kit.e2e.filled)) files[path] = fill(kitText(source), values);
   }
   files[".github/review.json"] = adaptReviewConfig(kitText(kit.reviewConfig), kit, answers);
   files[".github/adt.json"] = adtConfig(answers, template.repository, released);
