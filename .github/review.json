@@ -1,5 +1,5 @@
 {
-  "$comment": "Configuration of the automated reviewer (scripts/review). Read from the PR's target branch. REVIEW_API_BASE_URL and REVIEW_MODEL (repository variables) override baseUrl and model of the 'standard' and 'light' tiers; REVIEW_MODEL_VERSION pins the new model's version. pinnedVersion is the model each tier was measured with by the canary: the API has no dated ids, so the reviewer checks the provider's model list and the reply, and stops when an alias now serves another model. pinnedFingerprint (DeepSeek's system_fingerprint) only adds a note when the backend changes.",
+  "$comment": "Configuration of the automated reviewer (scripts/review). Read from the PR's target branch. REVIEW_API_BASE_URL and REVIEW_MODEL (repository variables) override baseUrl and model of the 'standard' and 'light' tiers; REVIEW_MODEL_VERSION pins the new model's version. pinnedVersion is the model each tier was measured with by the canary: the API has no dated ids, so the reviewer checks the provider's model list and the reply, and stops when an alias now serves another model. pinnedFingerprint (DeepSeek's system_fingerprint): when the backend changes, the report warns and the reviewer opens one issue per new fingerprint; the review goes on.",
   "maxDiffChars": 150000,
   "timeoutMs": 480000,
   "maxFindings": 20,
@@ -61,7 +61,7 @@
   },
   "tiers": {
     "standard": {
-      "$comment": "deepseek-flash = DeepSeek-V4.1-Flash-1017, measured by the canary on 2026-10-23. DeepSeek has no dated id: its /models lists the name below, and a new release under the same name only changes the fingerprint (a note). The measured alternative is deepseek-v4-pro (V4-Pro-0813): docs/WORKFLOW.md, \"DeepSeek options\".",
+      "$comment": "deepseek-flash = DeepSeek-V4.1-Flash-1017, measured by the canary on 2026-10-23. DeepSeek has no dated id: its /models lists the name below, and a new release under the same name only changes the fingerprint (a warning and an issue). The measured alternative is deepseek-v4-pro (V4-Pro-0813): docs/WORKFLOW.md, \"DeepSeek options\".",
       "provider": "openai-compatible",
       "baseUrl": "https://api.deepseek.com",
       "model": "deepseek-flash",

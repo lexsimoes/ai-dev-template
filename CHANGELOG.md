@@ -7,6 +7,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Changed
+- The reviewer warns and opens an issue when the provider's backend for a pinned model changes (a new `pinnedFingerprint`), once per fingerprint, with the steps to measure it and update the pin. Before, a new fingerprint was only a note in the report, easy to miss. The review still goes on, and a new model name still stops it. The `review` and `review-canary` jobs (and an adopted project's `adt-review`) get `issues: write`. Owner's decision after M8.
+
 ### Fixed
 - End-to-end tests: a PR could redirect `@playwright/test` through `paths` in the root `tsconfig.json`, which the e2e guard does not protect. That could mean an `expect` that accepts anything, or a `defineConfig` that leaves every test out, with no change in `e2e/`. Playwright now uses only the protected `e2e/tsconfig.json`: the `e2e` and `e2e-quarantine` jobs and `npm run e2e` pass `--tsconfig=e2e/tsconfig.json` (the flag also covers the config file), and `playwright.config.ts` names it. Adopted projects' `adt-e2e` passes it too. Projects get it with `copier update`; the PR that brings it needs the owner's `test-approved` label, as any change to the e2e setup. Found by the security review of mission 0036.
 

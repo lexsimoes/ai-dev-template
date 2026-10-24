@@ -17,7 +17,7 @@ export interface Tier {
   pinnedVersion?: string;
   /**
    * The provider's `system_fingerprint` when the canary last ran ("openai-compatible"). It also changes with the
-   * provider's own deploys, so a different one only adds a note to the report, never stops the review.
+   * provider's own deploys, so a different one warns and opens an issue (once per fingerprint), never stops the review.
    */
   pinnedFingerprint?: string;
   apiKeyEnv: string;

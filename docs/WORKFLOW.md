@@ -231,7 +231,7 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 - **`pinnedVersion`:**
   - For an OpenAI-format provider, it is the `name` the provider lists for the model in `{baseUrl}/models` (DeepSeek: `DeepSeek-V4.1-Flash`). Before paying for a call, the reviewer checks it: if the alias now serves another model, the review stops with a red check and says so. It also checks the reply's `model`.
   - For Anthropic, it is the model id. A reply from any other model, for example a server-side fallback, is discarded.
-- **`pinnedFingerprint`** (DeepSeek's `system_fingerprint`): a change only adds a note to the report, since the provider's own deploys change it too.
+- **`pinnedFingerprint`** (DeepSeek's `system_fingerprint`): a change warns in the report and opens one issue per new fingerprint, saying how to measure it (the review canary) and when to update the pin. The review goes on, since the provider's own deploys change the fingerprint too. A new model name still stops the review. The reviewer and the canary need `issues: write` for this; without it the report says the issue could not be opened.
 - **To move to a new version:** run the review canary with it (Actions → Review canary, or a PR that changes `.github/review.json`), compare, then update `model`, `pinnedVersion`, `pinnedFingerprint` and `pricePerMTok` in one PR.
 - A tier without `pinnedVersion` still works; the report notes that a change would go unnoticed.
 - Changing only `REVIEW_API_BASE_URL` keeps the pins: the new provider's `/models` must list the same name, or the review stops. For another model, set `REVIEW_MODEL` and `REVIEW_MODEL_VERSION` too.
@@ -245,7 +245,7 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 
 The two were compared on 2026-10-23 (`docs/missions/0033-reviewer-model.md`): the same planted defects found, Flash about 4 to 5 times cheaper and 2 to 3 times faster. Flash is the default since mission 0034. To go back to Pro, change the four fields of the `standard` and `light` tiers to the Pro row, in one PR (its canary measures it).
 
-DeepSeek has no dated id, so the pin is the name, not the release: a new release under the same name (say, a V4.1-Flash after 1017) passes `pinnedVersion` and shows only as a new fingerprint in the report's notes.
+DeepSeek has no dated id, so the pin is the name, not the release: a new release under the same name (say, a V4.1-Flash after 1017) passes `pinnedVersion` and shows as a new fingerprint: a warning and an issue.
 
 ### Testing on your machine (without pasting the key anywhere)
 
