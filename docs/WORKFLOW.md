@@ -171,7 +171,7 @@ Every **ready** PR (not drafts) gets an automated review, published as **one** c
 The reviewed commit and the open findings are stored in the reviewer's own comment, invisibly. That is how the incremental review knows where to start.
 - Nobody should edit that comment. If it is tampered with, the state is validated and, if invalid, ignored.
 - A force-push that erases the reviewed commit turns the check red, and the next review goes back to being full.
-- The incremental review only looks at the PR's files. A merge of `main` into the branch does not bring new files into the diff, but snippets from `main` **inside** the PR's files may show up.
+- The incremental review only looks at what the PR's own commits changed since the last review. It starts from the last reviewed commit merged with the base the PR has now, so a merge of `main` into the branch brings nothing from `main` into the diff, not even inside the PR's own files (a shared changelog, for example). When that merge conflicts, the PR resolved it by hand, so the review shows every change since the reviewed commit and says so in its notes.
 - A finding in a file that left the PR (deleted, or reverted to what is on `main`) resolves on its own.
 
 - **Secrets** are decided only by the detectors, which run over the whole PR on every run. The finding only goes away when the secret leaves the PR; the model never decides this.
