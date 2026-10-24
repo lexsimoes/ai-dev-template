@@ -39,6 +39,9 @@ jobs:
         case: [full, light, incremental]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write # open an issue when the provider's backend for a pinned model changes (pinnedFingerprint)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,5 +59,6 @@ jobs:
           REVIEW_API_BASE_URL: ${{ vars.REVIEW_API_BASE_URL }}
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
           REVIEW_MODEL_VERSION: ${{ vars.REVIEW_MODEL_VERSION }}
+          GITHUB_TOKEN: ${{ github.token }}
           CASE: ${{ matrix.case }}
         run: node scripts/review/run.ts --mode canary --canary "$CASE"

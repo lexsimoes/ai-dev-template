@@ -58,6 +58,7 @@ import type {
   ReviewKind,
   ReviewState,
   Severity,
+  Tier,
   TierName,
   Usage,
 } from "./lib.ts";
@@ -190,6 +191,50 @@ async function liveHead(): Promise<string> {
   const sha = ((await response.json()) as { head?: { sha?: string } }).head?.sha;
   if (!sha) throw new Error("the PR has no head commit in the API response");
   return sha;
+}
+
+/**
+ * Opens one issue when the provider's backend for a pinned model changed (a new `system_fingerprint`), or finds the
+ * open one for the same fingerprint. It only warns: the review goes on, and a failure here is a note, never a red
+ * check. A new model name stops the review instead (`versionProblem`). Needs `issues: write`; works without a PR
+ * (the monthly canary).
+ */
+async function fingerprintIssue(tierName: string, tier: Tier, fingerprint: string): Promise<string> {
+  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo } = process.env;
+  if (!token || !repo) return "no issue opened (no access to the GitHub API here)";
+  // The fingerprint comes from the provider's reply: data, written into the issue only in a closed format.
+  if (!/^[A-Za-z0-9_.:-]{1,100}$/.test(fingerprint)) return "no issue opened (the provider's fingerprint has an unexpected format)";
+  const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" };
+  const title = `Reviewer: the provider's backend for ${tier.model} changed (fingerprint ${fingerprint.slice(0, 12)})`;
+  try {
+    const list = await fetch(`${API}/repos/${repo}/issues?state=open&per_page=100`, { headers });
+    if (!list.ok) return `could not check the open issues (HTTP ${list.status})`;
+    const open = (await list.json()) as Array<{ title?: string; html_url?: string; pull_request?: unknown }>;
+    const same = open.find((i) => !i.pull_request && i.title === title);
+    if (same) return `already reported: ${same.html_url ?? title}`;
+    const { GITHUB_SERVER_URL: server, GITHUB_RUN_ID: runId } = process.env;
+    const body = [
+      `The reviewer's \`${tierName}\` tier asked for \`${tier.model}\` (pinned version \`${tier.pinnedVersion ?? "none"}\`). The model name still matches, but the provider reports a new backend:`,
+      "",
+      `- pinned fingerprint: \`${tier.pinnedFingerprint ?? ""}\``,
+      `- fingerprint now: \`${fingerprint}\``,
+      ...(server && runId ? [`- run: ${server}/${repo}/actions/runs/${runId}`] : []),
+      "",
+      "The reviews go on. The same model name may now be a different release, so it has not been measured yet.",
+      "1. Run the review canary (Actions → Review canary → Run workflow) and compare it with the last runs.",
+      "2. If it still finds every planted defect, update `pinnedFingerprint` in `.github/review.json` in a PR, and close this issue.",
+      "3. If not, choose another model or version with the owner (`docs/WORKFLOW.md`, \"Switching providers\").",
+    ].join("\n");
+    const created = await fetch(`${API}/repos/${repo}/issues`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ title, body }),
+    });
+    if (!created.ok) return `could not open the issue (HTTP ${created.status})`;
+    return `issue opened: ${((await created.json()) as { html_url?: string }).html_url ?? title}`;
+  } catch (e) {
+    return `could not open the issue (${e instanceof Error ? e.message : String(e)})`;
+  }
 }
 
 /** Removes the "re-review" label after using it, so it can be applied again. */
@@ -521,7 +566,8 @@ async function main(): Promise<number> {
       const after = versionProblem(tier, listed, reply.model);
       if (after) throw new ModelCallError(after, reply.usage);
       if (tier.pinnedFingerprint && reply.fingerprint && reply.fingerprint !== tier.pinnedFingerprint) {
-        notes.push(`The provider's backend for \`${tier.model}\` changed since the canary last ran (fingerprint \`${reply.fingerprint.slice(0, 12)}\`, pinned \`${tier.pinnedFingerprint.slice(0, 12)}\`). Run the review canary, then update \`pinnedFingerprint\`.`);
+        const issue = mode === "local" || values["dry-run"] ? "no issue opened locally" : await fingerprintIssue(tierName, tier, reply.fingerprint);
+        notes.push(`⚠️ The provider's backend for \`${tier.model}\` changed since the canary last ran (fingerprint \`${reply.fingerprint.slice(0, 12)}\`, pinned \`${tier.pinnedFingerprint.slice(0, 12)}\`); ${issue}. Run the review canary, then update \`pinnedFingerprint\`.`);
       }
       review = parseReview(reply.text, included.map((f) => f.path), config.maxFindings);
     } catch (e) {

@@ -55,6 +55,9 @@ let livePr = "";
 let listedName = "Fake-Model-1";
 let replyModel: string | null = null;
 let replyFingerprint = "fp-a";
+// Issues of the repository (the reviewer opens one when the provider's backend changes), and the answer to a new one.
+const issues: Array<{ title: string; body: string; html_url: string }> = [];
+let issueStatus = 201;
 let server: http.Server;
 let port = 0;
 let repo = "";
@@ -107,6 +110,13 @@ function startServer(): Promise<void> {
         const c = [...comments.values()].flat().find((x) => x.id === Number(m?.[1]));
         if (c) c.body = (JSON.parse(body) as { body: string }).body;
         return send(200, c);
+      }
+      if (/^\/repos\/o\/r\/issues\?state=open/.test(url) && req.method === "GET") return send(200, issues);
+      if (url === "/repos/o/r/issues" && req.method === "POST") {
+        if (issueStatus !== 201) return send(issueStatus, { message: "no" });
+        const i = { ...(JSON.parse(body) as { title: string; body: string }), html_url: `https://github.com/o/r/issues/${issues.length + 1}` };
+        issues.push(i);
+        return send(201, i);
       }
       m = /^\/repos\/o\/r\/pulls\/(\d+)$/.exec(url);
       if (m?.[1] && req.method === "GET") return send(200, { head: { sha: prHeads.get(m[1]) ?? livePr } });
@@ -508,9 +518,28 @@ test("pinned version: the reviewer stops before paying when an alias moves, disc
     replyModel = null;
 
     replyFingerprint = "fp-b";
+    issues.length = 0;
     const backend = await canary(pinned);
     assert.match(backend.out, /backend for `fake-model` changed since the canary last ran/);
-    assert.doesNotMatch(backend.out, /now serves|reply came from/, "a new backend only adds a note");
+    assert.doesNotMatch(backend.out, /now serves|reply came from/, "a new backend only warns: the review goes on");
+    assert.equal(issues.length, 1, "and opens one issue");
+    assert.equal(issues[0]?.title, "Reviewer: the provider's backend for fake-model changed (fingerprint fp-b)");
+    assert.match(issues[0]?.body ?? "", /pinned fingerprint: `fp-a`\n- fingerprint now: `fp-b`/);
+    assert.match(issues[0]?.body ?? "", /Run the review canary/);
+    assert.match(backend.out, /issue opened: https:\/\/github\.com\/o\/r\/issues\/1/);
+    const again = await canary(pinned);
+    assert.equal(issues.length, 1, "the same fingerprint is reported once");
+    assert.match(again.out, /already reported: https:\/\/github\.com\/o\/r\/issues\/1/);
+    issues.length = 0;
+    issueStatus = 403;
+    const noPermission = await canary(pinned);
+    assert.equal(noPermission.code, backend.code, "an issue that cannot be opened never changes the result");
+    assert.match(noPermission.out, /could not open the issue \(HTTP 403\)/);
+    issueStatus = 201;
+    replyFingerprint = "fp-c](https://evil.example) @owner";
+    const odd = await canary(pinned);
+    assert.equal(issues.length, 0, "a fingerprint in another format never reaches an issue");
+    assert.match(odd.out, /unexpected format/);
     replyFingerprint = "fp-a";
 
     assert.match((await canary(SCRIPT)).out, /model version is not pinned/, "an unpinned tier says so");
@@ -518,5 +547,7 @@ test("pinned version: the reviewer stops before paying when an alias moves, disc
     listedName = "Fake-Model-1";
     replyModel = null;
     replyFingerprint = "fp-a";
+    issueStatus = 201;
+    issues.length = 0;
   }
 });
