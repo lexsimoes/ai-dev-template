@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-23 · **By:** agent (mission 0034)
+**Updated on:** 2026-10-24 · **By:** agent (mission 0038)
 
 ## Current state
 
@@ -22,6 +22,14 @@
 
 ## Last mission
 
+- Mission 0038: the template's end-to-end tests use only the protected `e2e/tsconfig.json`. CI, `npm run e2e` and the kit's `adt-e2e` pass `--tsconfig`, which also covers the config, so `paths` in the root `tsconfig.json` cannot redirect `@playwright/test` (owner's decision, 2026-10-24; needs the owner's `test-approved`).
+- Mission 0037: M8 report (`docs/missions/0037-m8-report.md`) and the release PR for `v0.4.0`: CHANGELOG `[0.4.0]`, plugin `adt` version `0.4.0`, pinned template release `v0.4.0`. **M8 is done.** The owner merges and publishes the release.
+- Mission 0036: `/adt:adopt` brings the end-to-end tester to a project with a web UI:
+  - a self-contained `e2e/` with its own pinned Playwright and a protected `e2e/tsconfig.json`;
+  - the Playwright test agents, the guard, and `adt-e2e` in observe mode.
+
+  The e2e guard now protects every file in `e2e/`, reads file names with `git -z`, accepts a first setup, and falls back to the project's invariants owner. Rehearsed on adt-sandbox-legacy #1 (adoption) and #2 (its first three tests, green in `adt-e2e`).
+- Mission 0035: a regression test proves that a PR deleting `tests/invariants/` fails the guard, even with an unverified label.
 - Mission 0034: the reviewer's `standard` and `light` tiers use `deepseek-flash` (V4.1-Flash-1017), owner's decision after mission 0033; `deepseek-v4-pro` documented as the alternative. The canary fixture shows the `applyCoupon` signature, which removes the false positive both models had.
 - Mission 0033: the reviewer pins each tier's model version and stops when an alias moves (DeepSeek has no dated ids: `/models` name and the reply are checked). `deepseek-flash` (V4.1-Flash-1017) compared with `deepseek-v4-pro` on the canary and #35 (#39): same planted defects, 4–5× cheaper, 2–3× faster, the same fixture false positive. The default stays Pro until the owner decides.
 - Mission 0032 (M8): `/adt:audit` sees personal data and external input in plain `node:http` and Express apps (found on `adt-sandbox-legacy`, whose audit marked both areas empty). The owner confirmed the legacy app's inferred PRD with INV-004 (code-only access, rate limited, no existence leak) and INV-005 (no personal data in logs); `/adt:adopt` on that repository is next.
@@ -104,7 +112,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - Breaker and newcomer modes only on request.
 6. **M8 (rehearsal)**, on `lexsimoes/adt-sandbox-m7b` only (owner's decision, 2026-10-22): the new-project path as is; the existing-project path (`/adt:audit` + `/adt:adopt`) against the sandbox, after adding a small realistic UI to its sample app so the M7d tester has flows to cover; someone (or the newcomer agent) installing from the README alone; the reviewer comparisons already planned; a PR that weakens an invariant and is blocked; a real check that an unrelated label does not turn a red required check green (done on 2026-10-21 in PR #8 with a green check; repeat with a red one).
 
-7. **Release `v0.4.0`** after M8.
+7. **Release `v0.4.0`** after M8: M8 is done (report in mission 0037); the release PR is ready for the owner's merge and publish.
 8. **First real-world use, after the template is done:** a full `/adt:audit` + `/adt:adopt` on GoAgentic, with the owner watching. Until then GoAgentic is not a test bed (it is under active development by Codex).
 
 ## GoAgentic rehearsal: what it taught (closed, 2026-10-22)
@@ -130,6 +138,10 @@ The adoption rehearsal PR (lexsimoes/goagentic#23) was closed without merge by t
 
 ## Pending decisions (owner)
 
+- Decided on 2026-10-24, next PRs after the release:
+  - a new DeepSeek fingerprint warns and opens an issue, while a new model name keeps blocking;
+  - close the template's own root-`tsconfig` gap in the e2e setup, in a separate PR under the owner's `test-approved`.
+- adt-sandbox-legacy#2: its red `adt-review` stays as is (owner's decision, 2026-10-24), recorded as a reviewer limitation in the M8 report.
 - M7d PR 1 (mission 0025):
   - after the first green `e2e` on `main`, add `e2e` to this repository's live `protect-main` ruleset;
   - keep HTTP 422 on validation errors (the browser notes it in the console), or return 200 with the error on the page.

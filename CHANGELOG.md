@@ -10,6 +10,10 @@ An entry marked **Action needed** asks something of projects when they run `copi
 ### Fixed
 - End-to-end tests: a PR could redirect `@playwright/test` through `paths` in the root `tsconfig.json`, which the e2e guard does not protect. That could mean an `expect` that accepts anything, or a `defineConfig` that leaves every test out, with no change in `e2e/`. Playwright now uses only the protected `e2e/tsconfig.json`: the `e2e` and `e2e-quarantine` jobs and `npm run e2e` pass `--tsconfig=e2e/tsconfig.json` (the flag also covers the config file), and `playwright.config.ts` names it. Adopted projects' `adt-e2e` passes it too. Projects get it with `copier update`; the PR that brings it needs the owner's `test-approved` label, as any change to the e2e setup. Found by the security review of mission 0036.
 
+## [0.4.0] - 2026-10-24
+
+End-to-end tests and the M8 rehearsal. Projects get isolated end-to-end tests of their critical flows, with the Playwright test agents to write and repair them, and a guard that lets agents change selectors only. An existing project gets the same tester through `/adt:adopt`. The reviewer pins its model versions and defaults to `deepseek-flash`. A private project's dependency check works without Advanced Security. Everything the M8 rehearsal found is fixed (`docs/missions/0037-m8-report.md`).
+
 ### Added
 - The implementer handles the automated review before reporting to the owner (`AGENTS.md`, "Handle the review"): it fixes only obvious findings in a separate `fix: address review findings` commit, lists the rest (behavior, architecture, public interface, invariants, golden set, migrations, permissions, likely false positives, contradictions), stops above ~5 fixes or ~10 files, applies `re-review` and reports with the reviewer's cost.
   - `scripts/review/triage.ts findings --pr <n>` splits the open findings by path and origin and shows the cost; `check-fix` refuses a fix commit on a protected path, over the cap, or that weakens a test.
@@ -111,7 +115,8 @@ First release: the workflow, the checks and the Copier template.
 - No-key mode: `review` and `evals` pass with an "off" notice when the project has no AI key.
 - MIT license; generated projects get `THIRD_PARTY_NOTICES.md`.
 
-[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/lexsimoes/ai-dev-template/releases/tag/v0.1.0
