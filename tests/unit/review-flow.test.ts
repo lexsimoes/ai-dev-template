@@ -531,6 +531,9 @@ test("pinned version: the reviewer stops before paying when an alias moves, disc
     assert.equal(issues.length, 1, "the same fingerprint is reported once");
     assert.match(again.out, /already reported: https:\/\/github\.com\/o\/r\/issues\/1/);
     issues.length = 0;
+    const light = await review("", {}, ["--mode", "canary", "--canary", "light"], pinned);
+    assert.equal(issues.length, 0, "the canary's cases run at the same time: only `full` opens the issue");
+    assert.match(light.out, /the canary's `full` case opens the issue/);
     issueStatus = 403;
     const noPermission = await canary(pinned);
     assert.equal(noPermission.code, backend.code, "an issue that cannot be opened never changes the result");

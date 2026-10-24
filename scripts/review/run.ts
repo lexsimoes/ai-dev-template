@@ -206,12 +206,17 @@ async function fingerprintIssue(tierName: string, tier: Tier, fingerprint: strin
   if (!/^[A-Za-z0-9_.:-]{1,100}$/.test(fingerprint)) return "no issue opened (the provider's fingerprint has an unexpected format)";
   const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" };
   const title = `Reviewer: the provider's backend for ${tier.model} changed (fingerprint ${fingerprint.slice(0, 12)})`;
+  // A slow GitHub API must not hold up the review: this path only warns.
+  const signal = () => AbortSignal.timeout(15_000);
   try {
-    const list = await fetch(`${API}/repos/${repo}/issues?state=open&per_page=100`, { headers });
-    if (!list.ok) return `could not check the open issues (HTTP ${list.status})`;
-    const open = (await list.json()) as Array<{ title?: string; html_url?: string; pull_request?: unknown }>;
-    const same = open.find((i) => !i.pull_request && i.title === title);
-    if (same) return `already reported: ${same.html_url ?? title}`;
+    for (let page = 1; page <= 10; page++) {
+      const list = await fetch(`${API}/repos/${repo}/issues?state=open&per_page=100&page=${page}`, { headers, signal: signal() });
+      if (!list.ok) return `could not check the open issues (HTTP ${list.status})`;
+      const open = (await list.json()) as Array<{ title?: string; html_url?: string; pull_request?: unknown }>;
+      const same = open.find((i) => !i.pull_request && i.title === title);
+      if (same) return `already reported: ${same.html_url ?? title}`;
+      if (open.length < 100) break;
+    }
     const { GITHUB_SERVER_URL: server, GITHUB_RUN_ID: runId } = process.env;
     const body = [
       `The reviewer's \`${tierName}\` tier asked for \`${tier.model}\` (pinned version \`${tier.pinnedVersion ?? "none"}\`). The model name still matches, but the provider reports a new backend:`,
@@ -226,6 +231,7 @@ async function fingerprintIssue(tierName: string, tier: Tier, fingerprint: strin
       "3. If not, choose another model or version with the owner (`docs/WORKFLOW.md`, \"Switching providers\").",
     ].join("\n");
     const created = await fetch(`${API}/repos/${repo}/issues`, {
+      signal: signal(),
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ title, body }),
@@ -566,7 +572,13 @@ async function main(): Promise<number> {
       const after = versionProblem(tier, listed, reply.model);
       if (after) throw new ModelCallError(after, reply.usage);
       if (tier.pinnedFingerprint && reply.fingerprint && reply.fingerprint !== tier.pinnedFingerprint) {
-        const issue = mode === "local" || values["dry-run"] ? "no issue opened locally" : await fingerprintIssue(tierName, tier, reply.fingerprint);
+        // The canary's three cases run at the same time and would race to open the same issue: only `full` opens it.
+        const issue =
+          mode === "local" || values["dry-run"]
+            ? "no issue opened locally"
+            : mode === "canary" && canaryCase !== "full"
+              ? "the canary's `full` case opens the issue"
+              : await fingerprintIssue(tierName, tier, reply.fingerprint);
         notes.push(`⚠️ The provider's backend for \`${tier.model}\` changed since the canary last ran (fingerprint \`${reply.fingerprint.slice(0, 12)}\`, pinned \`${tier.pinnedFingerprint.slice(0, 12)}\`); ${issue}. Run the review canary, then update \`pinnedFingerprint\`.`);
       }
       review = parseReview(reply.text, included.map((f) => f.path), config.maxFindings);
