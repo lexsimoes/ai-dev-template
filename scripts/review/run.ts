@@ -139,6 +139,27 @@ function isAncestor(ancestor: string, descendant: string): boolean {
   }
 }
 
+/**
+ * Where an incremental review starts: the last reviewed commit, merged with the base the PR has now. Diffing from
+ * there shows only what the PR's own commits changed since the review, not what a merge of the base brought in
+ * (it often touches the same files, such as the changelog). When that merge conflicts, the PR resolved it by hand,
+ * so the review falls back to every change since the reviewed commit, and says so.
+ */
+function incrementalStart(reviewed: string, head: string, baseRef: string): { from: string; note: string | null } {
+  const base = git("merge-base", head, baseRef).trim();
+  try {
+    // --write-tree prints the merged tree first; it exits 1 when the merge conflicts.
+    const tree = git("merge-tree", "--write-tree", reviewed, base).split("\n")[0]?.trim() ?? "";
+    if (/^[0-9a-f]{40,64}$/.test(tree)) return { from: tree, note: null };
+  } catch {
+    // A conflict, handled below.
+  }
+  return {
+    from: reviewed,
+    note: "The base merged since the last review conflicts with the reviewed commit, so this incremental review shows every change since that commit, including what came in from the base.",
+  };
+}
+
 // ---------- GitHub ----------
 
 function githubEnv() {
@@ -373,6 +394,8 @@ async function main(): Promise<number> {
   let diff: string;
   let fullDiff: string;
   let prPaths: string[];
+  // The incremental review's starting point (a tree): see incrementalStart.
+  let incrementalFrom: string | null = null;
   if (mode === "canary") {
     const pr = JSON.parse(readFileSync(join(CANARY_DIR, "pr.json"), "utf-8")) as { title: string; body: string; labels?: string[] };
     title = pr.title;
@@ -388,11 +411,16 @@ async function main(): Promise<number> {
   } else {
     prPaths = git("diff", "--name-only", "-z", `${baseRef}...${headSha}`).split("\0").filter(Boolean);
     fullDiff = git("diff", "--no-color", "-U5", `${baseRef}...${headSha}`);
-    const incrementalBase = (kind === "incremental" || kind === "no-review") && state && stateReachable ? state.sha : null;
-    diff = incrementalBase ? git("diff", "--no-color", "-U5", incrementalBase, headSha) : fullDiff;
+    if ((kind === "incremental" || kind === "no-review") && state && stateReachable) {
+      const start = incrementalStart(state.sha, headSha, baseRef);
+      incrementalFrom = start.from;
+      if (start.note) notes.push(start.note);
+    }
+    diff = incrementalFrom ? git("diff", "--no-color", "-U5", incrementalFrom, headSha) : fullDiff;
   }
 
-  // Only PR files: merging main into the branch does not inflate the incremental diff.
+  // Only PR files. A base merge is already left out of the incremental diff (incrementalStart); this also drops
+  // files only the base touched when that merge conflicted.
   const prPathSet = new Set(prPaths);
   const allFiles = splitDiff(diff).filter((f) => prPathSet.has(f.path) || mode === "canary");
   const filtered = filterFiles(allFiles, config);
@@ -506,7 +534,7 @@ async function main(): Promise<number> {
   // File renamed since the last review: the finding moves to the new path (renaming does not close a finding).
   const renames =
     finalKind === "incremental" && state && mode !== "canary"
-      ? parseRenames(git("diff", "--name-status", "-z", "-M", state.sha, headSha))
+      ? parseRenames(git("diff", "--name-status", "-z", "-M", incrementalFrom ?? state.sha, headSha))
       : {};
   const previous: PreviousFinding[] =
     finalKind === "incremental"

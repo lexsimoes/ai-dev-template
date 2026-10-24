@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0040 (first of the next version): the incremental review starts from the last reviewed commit merged with the PR's current base, so a base merge no longer brings the base's lines into the diff (found on #45).
 - Mission 0039: a new model backend (a new `pinnedFingerprint`, same model name) warns in the review and opens one issue per fingerprint, with the steps to measure it; a new model name still stops the review (owner's decision, 2026-10-24). The reviewer jobs get `issues: write`.
 - Mission 0037: M8 report (`docs/missions/0037-m8-report.md`) and the release PR for `v0.4.0`: CHANGELOG `[0.4.0]`, plugin `adt` version `0.4.0`, pinned template release `v0.4.0`. **M8 is done.** The owner merges and publishes the release.
 - Mission 0036: `/adt:adopt` brings the end-to-end tester to a project with a web UI:

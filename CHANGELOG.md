@@ -7,6 +7,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Fixed
+- The reviewer's incremental review showed what a merge of the base brought into files the PR also changes, such as the changelog, and reported it as the PR's own change (found on #45 after the base merge). It now starts from the last reviewed commit merged with the base the PR has now, so it reviews only what the PR's own commits changed since the review. When that merge conflicts, it shows every change since the reviewed commit, with a note.
+
 ### Changed
 - The reviewer warns and opens an issue when the provider's backend for a pinned model changes (a new `pinnedFingerprint`), once per fingerprint, with the steps to measure it and update the pin. Before, a new fingerprint was only a note in the report, easy to miss. The review still goes on, and a new model name still stops it. The `review` and `review-canary` jobs (and an adopted project's `adt-review`) get `issues: write`. Owner's decision after M8.
 

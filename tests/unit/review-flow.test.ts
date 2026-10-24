@@ -41,7 +41,7 @@ interface Comment {
 }
 
 const comments = new Map<string, Comment[]>();
-const modelCalls: Array<{ incremental: boolean; reasoning: unknown; systemLength: number }> = [];
+const modelCalls: Array<{ incremental: boolean; reasoning: unknown; systemLength: number; user: string }> = [];
 // Verdict the fake model gives on the previous findings in an incremental review.
 let incrementalVerdicts: Array<{ id: number; status: string; comment: string }> = [{ id: 1, status: "resolved", comment: "the catch rethrows the error" }];
 const deletedLabels: string[] = [];
@@ -79,7 +79,7 @@ function startServer(): Promise<void> {
         const b = JSON.parse(body) as { model: string; reasoning_effort?: string; messages: Array<{ content: string }> };
         const user = b.messages[1]?.content ?? "";
         const incremental = user.includes("INCREMENTAL review");
-        modelCalls.push({ incremental, reasoning: b.reasoning_effort, systemLength: b.messages[0]?.content.length ?? 0 });
+        modelCalls.push({ incremental, reasoning: b.reasoning_effort, systemLength: b.messages[0]?.content.length ?? 0, user });
         const out = incremental
           ? { summary: "Fix applied.", findings: [], previous: incrementalVerdicts }
           : user.includes("tests/invariants/")
@@ -292,6 +292,50 @@ test("flow: a file with an accent enters the incremental diff", async () => {
   await review("13", { EVENT_ACTION: "ready_for_review", HEAD_SHA: sha.B! });
   const r = await review("13", { EVENT_ACTION: "synchronize", HEAD_SHA: sha.E! });
   assert.match(r.out, /docs\/decisão\.md/, r.out);
+});
+
+test("flow: after the PR merges its base, the incremental review shows only the PR's own changes", async () => {
+  const changelog = (unreleased: string[], released: string[]) => ["# Changelog", "", "## Unreleased", ...unreleased, "", "## 1.0", ...released, ""].join("\n");
+  const env = (head: string) => ({ BASE_REF: "base2", HEAD_SHA: head });
+  git("checkout", "-qb", "base2", "origin/main");
+  commit("M0", { "CHANGELOG.md": changelog([], ["- old"]) });
+  git("update-ref", "refs/remotes/origin/base2", "HEAD");
+  git("checkout", "-qb", "own");
+  commit("O1", { "CHANGELOG.md": changelog(["- the PR's entry"], ["- old"]), "docs/own.md": "# own\n" });
+  await review("21", { EVENT_ACTION: "ready_for_review", ...env(sha.O1!) });
+
+  // The base adds a line to the same file; the PR merges it, then changes its own file.
+  git("checkout", "-q", "base2");
+  commit("M1", { "CHANGELOG.md": changelog([], ["- old", "- the base's entry"]) });
+  git("update-ref", "refs/remotes/origin/base2", "HEAD");
+  git("checkout", "-q", "own");
+  git("-c", "commit.gpgsign=false", "merge", "-q", "--no-edit", "base2");
+  commit("O2", { "docs/own.md": "# own\nmore of the PR\n" });
+  prLabels.set("21", ["re-review"]);
+  const calls = modelCalls.length;
+  const r = await review("21", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", ...env(sha.O2!) });
+  assert.match(r.out, /incremental review/, r.out);
+  const user = modelCalls[calls]?.user ?? "";
+  assert.match(user, /more of the PR/, "the PR's own change is reviewed");
+  assert.doesNotMatch(user, /the base's entry/, "what the base merge brought in is not");
+  assert.doesNotMatch(r.out, /conflicts with the reviewed commit/);
+
+  // A base change that conflicts with the PR: the PR resolves it by hand, so every change since the review is shown.
+  git("checkout", "-q", "base2");
+  commit("M2", { "CHANGELOG.md": changelog(["- the base's top entry"], ["- old", "- the base's entry"]) });
+  git("update-ref", "refs/remotes/origin/base2", "HEAD");
+  git("checkout", "-q", "own");
+  try {
+    git("-c", "commit.gpgsign=false", "merge", "-q", "--no-edit", "base2");
+  } catch {
+    // The expected conflict, resolved below.
+  }
+  commit("O3", { "CHANGELOG.md": changelog(["- the PR's entry", "- the base's top entry"], ["- old", "- the base's entry"]) });
+  prLabels.set("21", ["re-review"]);
+  const calls2 = modelCalls.length;
+  const conflicted = await review("21", { EVENT_ACTION: "labeled", EVENT_LABEL: "re-review", ...env(sha.O3!) });
+  assert.match(conflicted.out, /conflicts with the reviewed commit, so this incremental review shows every change/, conflicted.out);
+  assert.match(modelCalls[calls2]?.user ?? "", /the base's top entry/);
 });
 
 test("flow: a secret keeps blocking in the incremental review until it leaves the PR", async () => {
