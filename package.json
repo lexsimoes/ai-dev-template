@@ -15,7 +15,7 @@
     "test:template": "node --test \"tests/template/**/*.test.ts\"",
     "guard:invariants": "node scripts/guard-invariants.ts",
     "start": "node src/web/server.ts",
-    "e2e": "playwright test",
+    "e2e": "playwright test --tsconfig=e2e/tsconfig.json",
     "eval": "node evals/run.ts",
     "eval:mock": "node evals/run.ts --provider mock",
     "review:local": "node --env-file-if-exists=.env.local scripts/review/run.ts --mode local",
