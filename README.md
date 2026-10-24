@@ -42,7 +42,8 @@ Then `/adt:discover`, in the new project:
 After the audit, `/adt:adopt` (run inside the project) brings the workflow on a branch, as a PR you review:
 - **Adds**, never overwrites or renames: an existing file that differs is shown to you as a conflict, and `AGENTS.md` gets a section appended.
 - **Keeps** your label names (mapped) and your required checks.
-- **Observes first:** the AI review, the invariant guard and your own evals without a model run on every PR, but they block nothing. `/adt:check-setup` tells you when each one has been green long enough to become required; you decide.
+- **Observes first:** the AI review, the invariant guard, your own evals without a model and, for an app with a web UI, the end-to-end tests run on every PR, but they block nothing. `/adt:check-setup` tells you when each one has been green long enough to become required; you decide.
+- **End-to-end tester** (web UI only): a self-contained `e2e/` folder with its own pinned Playwright (your `package.json` is not changed), the isolation that blocks every request outside your app, the guard that lets agents change selectors only, and the Playwright test agents (planner, generator, healer) to write the first tests in a mission of their own.
 
 `/adt:check-setup` checks everything at any time. The prerequisites are the ones in step 1 below.
 

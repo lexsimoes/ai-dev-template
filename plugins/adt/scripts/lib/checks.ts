@@ -423,7 +423,7 @@ export interface Adopted {
 
 const LABEL_NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._:-]{0,49}$/u;
 /** Workflow file of each observe check, as /adt:adopt writes them. */
-const OBSERVE_WORKFLOWS: Record<string, string> = { "adt-review": "adt-review.yml", "adt-invariants": "adt-invariants.yml", "adt-evals": "adt-evals.yml" };
+const OBSERVE_WORKFLOWS: Record<string, string> = { "adt-review": "adt-review.yml", "adt-invariants": "adt-invariants.yml", "adt-evals": "adt-evals.yml", "adt-e2e": "adt-e2e.yml" };
 /** Consecutive green runs before an observe check is worth making required (the owner decides). */
 export const STABLE_RUNS = 5;
 
