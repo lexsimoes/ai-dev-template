@@ -7,6 +7,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Fixed
+- End-to-end tests: a PR could redirect `@playwright/test` through `paths` in the root `tsconfig.json`, which the e2e guard does not protect. That could mean an `expect` that accepts anything, or a `defineConfig` that leaves every test out, with no change in `e2e/`. Playwright now uses only the protected `e2e/tsconfig.json`: the `e2e` and `e2e-quarantine` jobs and `npm run e2e` pass `--tsconfig=e2e/tsconfig.json` (the flag also covers the config file), and `playwright.config.ts` names it. Adopted projects' `adt-e2e` passes it too. Projects get it with `copier update`; the PR that brings it needs the owner's `test-approved` label, as any change to the e2e setup. Found by the security review of mission 0036.
+
 ### Added
 - The implementer handles the automated review before reporting to the owner (`AGENTS.md`, "Handle the review"): it fixes only obvious findings in a separate `fix: address review findings` commit, lists the rest (behavior, architecture, public interface, invariants, golden set, migrations, permissions, likely false positives, contradictions), stops above ~5 fixes or ~10 files, applies `re-review` and reports with the reviewer's cost.
   - `scripts/review/triage.ts findings --pr <n>` splits the open findings by path and origin and shows the cost; `check-fix` refuses a fix commit on a protected path, over the cap, or that weakens a test.

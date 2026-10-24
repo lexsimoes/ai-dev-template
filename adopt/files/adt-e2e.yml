@@ -83,14 +83,14 @@ jobs:
       - name: End-to-end tests of the critical flows
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-report.json
-        run: npx --no --prefix e2e playwright test --config=e2e/playwright.config.ts --grep-invert @quarantine --reporter=list,html,json
+        run: npx --no --prefix e2e playwright test --config=e2e/playwright.config.ts --tsconfig=e2e/tsconfig.json --grep-invert @quarantine --reporter=list,html,json
       - name: Flaky tests (passed only on a retry)
         if: always() && hashFiles('e2e/test-results/e2e-report.json') != ''
         run: node scripts/e2e-flaky.ts e2e/test-results/e2e-report.json
       - name: Quarantined tests (reported, never counted)
         if: always()
         continue-on-error: true
-        run: npx --no --prefix e2e playwright test --config=e2e/playwright.config.ts --grep @quarantine --pass-with-no-tests
+        run: npx --no --prefix e2e playwright test --config=e2e/playwright.config.ts --tsconfig=e2e/tsconfig.json --grep @quarantine --pass-with-no-tests
       - name: Report (on failure)
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

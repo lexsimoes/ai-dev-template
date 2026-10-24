@@ -338,7 +338,7 @@ A few tests (3 to 8) walk through the **critical flows** of the PRD in a real br
 - skipping, focusing or switching off a test (`.skip`, `.only`, `.fixme`, `.fail`, on any receiver, also `testInfo.skip()` or `["skip"]`) always fails, label or not: a flaky test goes to quarantine, never off;
 - the label counts only when the last person who applied it owns `e2e/` (or, without such a rule, `tests/invariants/`) in the target branch's `CODEOWNERS`.
 
-The job installs with `npm ci --ignore-scripts` and calls `npx --no playwright test` directly, so a PR's `package.json` cannot run code after the guard or swap the test command.
+The job installs with `npm ci --ignore-scripts` and calls `npx --no playwright test` directly, so a PR's `package.json` cannot run code after the guard or swap the test command. It passes `--tsconfig=e2e/tsconfig.json`, so only that protected file applies to the config and the tests: Playwright otherwise uses the nearest `tsconfig.json`, and `paths` in the root one (which a PR may change) could redirect `@playwright/test`, for example to an `expect` that accepts anything.
 
 It reads the specs with the TypeScript parser, as syntax trees, never as text (the owner's choice after two review rounds found holes in a hand-written reader). CI installs the TypeScript version pinned by the target branch's lockfile, with its integrity checked, in a folder of its own and before any PR code. A file that does not parse is never taken as unchanged. A locator argument is masked only when it is plain data; a call, an arrow, `await` or a function inside it counts as a change. Aliases, computed keys (`x[k]`, `x?.[k]`, `{ [k]: v }`) and dynamic access (`Reflect`, `eval`, `require`, `import()`) that could hide a skip fail too.
 
