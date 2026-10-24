@@ -148,11 +148,16 @@ function isAncestor(ancestor: string, descendant: string): boolean {
 function incrementalStart(reviewed: string, head: string, baseRef: string): { from: string; note: string | null } {
   const base = git("merge-base", head, baseRef).trim();
   try {
-    // --write-tree prints the merged tree first; it exits 1 when the merge conflicts.
+    // --write-tree prints the merged tree first. It exits 1 when the merge conflicts; any other failure is an error.
     const tree = git("merge-tree", "--write-tree", reviewed, base).split("\n")[0]?.trim() ?? "";
-    if (/^[0-9a-f]{40,64}$/.test(tree)) return { from: tree, note: null };
-  } catch {
-    // A conflict, handled below.
+    if (!/^[0-9a-f]{40,64}$/.test(tree)) throw new Error(`git merge-tree printed no tree: ${tree.slice(0, 80)}`);
+    return { from: tree, note: null };
+  } catch (e) {
+    const err = e as { status?: number; stderr?: Buffer | string };
+    if (err.status !== 1) {
+      const stderr = String(err.stderr ?? (e instanceof Error ? e.message : e)).trim().slice(0, 300);
+      throw new Error(`could not replay the base merge for the incremental review (git merge-tree needs git 2.38 or newer): ${stderr}`, { cause: e });
+    }
   }
   return {
     from: reviewed,
