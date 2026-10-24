@@ -15,7 +15,18 @@ diff --git a/src/pricing.ts b/src/pricing.ts
 index 3333333..4444444 100644
 --- a/src/pricing.ts
 +++ b/src/pricing.ts
-@@ -35,3 +35,12 @@ export function applyCoupon(subtotalCents: number, coupon: Coupon | null, now: D
+@@ -24,14 +24,23 @@ export function isCouponActive(coupon: Coupon, now: Date): boolean {
+ export function applyCoupon(subtotalCents: number, coupon: Coupon | null, now: Date = new Date()): number {
+   if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {
+     throw new RangeError("Subtotal must be an integer number of cents >= 0");
+   }
+   if (coupon === null) return subtotalCents;
+ 
+   if (!Number.isFinite(coupon.percentOff) || coupon.percentOff < 0 || coupon.percentOff > 100) {
+     throw new RangeError(`Coupon ${coupon.code}: the discount must be between 0 and 100%`);
+   }
+   if (!isCouponActive(coupon, now)) return subtotalCents;
+ 
    const discount = Math.round((subtotalCents * coupon.percentOff) / 100);
    return subtotalCents - discount;
  }
