@@ -28,5 +28,28 @@
     "src/ai/**",
     "evals/**"
   ],
-  "agentsSection": "adopt/files/AGENTS-section.md"
+  "agentsSection": "adopt/files/AGENTS-section.md",
+  "e2e": {
+    "$comment": "The end-to-end tester, only when the owner gives the app's isolated start command (--e2e-start). e2e/ is self-contained: its own package.json and lockfile (Playwright, and the TypeScript parser of the guard), so the project's package.json is never changed. 'filled' files get the answers' placeholders.",
+    "copy": [
+      ".claude/agents/playwright-test-planner.md",
+      ".claude/agents/playwright-test-generator.md",
+      ".claude/agents/playwright-test-healer.md",
+      "e2e/fixtures.ts",
+      "scripts/guard-e2e.ts",
+      "scripts/e2e-flaky.ts"
+    ],
+    "files": {
+      "e2e/package.json": "adopt/files/e2e/package.json",
+      "e2e/package-lock.json": "adopt/files/e2e/package-lock.json",
+      "e2e/seed.spec.ts": "adopt/files/e2e/seed.spec.ts.in",
+      "e2e/.gitignore": "adopt/files/e2e/gitignore",
+      ".mcp.json": "adopt/files/mcp.json",
+      "e2e/tsconfig.json": "adopt/files/e2e/tsconfig.json"
+    },
+    "filled": {
+      "e2e/playwright.config.ts": "adopt/files/e2e/playwright.config.ts.in",
+      ".github/workflows/adt-e2e.yml": "adopt/files/adt-e2e.yml"
+    }
+  }
 }

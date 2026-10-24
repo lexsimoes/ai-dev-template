@@ -1,0 +1,10 @@
+{
+  "name": "adt-e2e",
+  "private": true,
+  "type": "module",
+  "description": "The end-to-end tester's own dependencies (Playwright, and the TypeScript parser its guard reads specs with), installed with npm ci in e2e/ by the adt-e2e workflow. Not part of the project's own dependencies.",
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "typescript": "6.0.3"
+  }
+}

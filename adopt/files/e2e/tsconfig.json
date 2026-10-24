@@ -1,0 +1,11 @@
+{
+  "$comment": "The tests' own TypeScript settings. Playwright looks for the nearest tsconfig.json, so this file keeps the project's root tsconfig.json (its paths could redirect @playwright/test) from reaching the tests. Protected like the rest of e2e/.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true
+  }
+}
