@@ -156,7 +156,7 @@ function incrementalStart(reviewed: string, head: string, baseRef: string): { fr
     const err = e as { status?: number; stderr?: Buffer | string };
     if (err.status !== 1) {
       const stderr = String(err.stderr ?? (e instanceof Error ? e.message : e)).trim().slice(0, 300);
-      throw new Error(`could not replay the base merge for the incremental review (git merge-tree needs git 2.38 or newer): ${stderr}`, { cause: e });
+      throw new Error(`could not replay the base merge for the incremental review: ${stderr} (a possible cause: git older than 2.38, which has no merge-tree --write-tree)`, { cause: e });
     }
   }
   return {
