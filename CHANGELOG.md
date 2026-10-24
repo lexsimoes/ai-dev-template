@@ -7,7 +7,7 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
-## [0.4.0] - 2026-10-23
+## [0.4.0] - 2026-10-24
 
 End-to-end tests and the M8 rehearsal. Projects get isolated end-to-end tests of their critical flows, written by the Playwright test agents and guarded so that agents change selectors only. An existing project gets the same tester through `/adt:adopt`. The reviewer pins its model versions and defaults to `deepseek-flash`. A private project's dependency check works without Advanced Security. Everything the M8 rehearsal found is fixed (`docs/missions/0037-m8-report.md`).
 

@@ -60,9 +60,9 @@ The reviewer and the tester were measured along the way.
 - **The reviewer's incremental review** re-checks a previous finding only when the finding's file changes.
   - A finding fixed elsewhere stays "pending" (#40).
   - A finding fixed only in the PR description is not re-checked without a new commit: `re-review` with no new commit recomputes the verdict and makes no call (#42).
-  - A rule fixed on the target branch does not clear a finding either: merging the base gives an empty incremental diff, and the finding stays pending. adt-sandbox-legacy#2 stays red in the `adt-review` observe check, on a finding that the corrected rule answers.
-- **A same-name DeepSeek release** (a newer V4.1-Flash) passes `pinnedVersion`; only the fingerprint note shows it.
-- **The template's own e2e setup** has the root-`tsconfig` gap that #43 closed for adopted projects. Fixing it changes `playwright.config.ts`, which needs `test-approved`.
+  - A rule fixed on the target branch does not clear a finding either: merging the base gives an empty incremental diff, and the finding stays pending. adt-sandbox-legacy#2 stays red in the `adt-review` observe check, on a finding that the corrected rule answers. Owner's decision (2026-10-24): it stays as is, recorded here as a reviewer limitation.
+- **A same-name DeepSeek release** (a newer V4.1-Flash) passes `pinnedVersion`; only the fingerprint note shows it. Owner's decision (2026-10-24): a new fingerprint warns and opens an issue, a new model name keeps blocking. This comes in a PR after the release.
+- **The template's own e2e setup** has the root-`tsconfig` gap that #43 closed for adopted projects. Fixing it changes `playwright.config.ts`, which needs `test-approved`. Owner's decision (2026-10-24): fixed in a separate PR, under the owner's label.
 - **`adt-e2e` installs only an npm lockfile.** An app that needs more to start (another language, a database) needs its own setup step, which is a CI change and the owner's decision.
 - **The Playwright test agents were not driven through their MCP server in this session** (no MCP tools here). The server starts, and the legacy tests were written by hand under the same rules.
 
@@ -75,9 +75,20 @@ The reviewer and the tester were measured along the way.
 ## Items
 
 - [x] 1. M8 report (above).
-- [ ] 2. Release: `CHANGELOG.md` `[0.4.0]`, plugin `version` `0.4.0`, template `release` `v0.4.0`. This comes after #41, #42 and #43 are merged, so the changelog holds all of them.
-- [ ] 3. `docs/HANDOFF.md`: M8 done, v0.4.0 ready to publish.
+- [x] 2. Release: `CHANGELOG.md` `[0.4.0]`, plugin `version` `0.4.0`, template `release` `v0.4.0`. It was updated from `main` after #41, #42 and #43 were merged, so the changelog holds all of them.
+- [x] 3. `docs/HANDOFF.md`: M8 done, v0.4.0 ready to publish, and the HANDOFF lines of missions 0035 to 0037.
 
 ## Report
 
-_(filled in at the end)_
+- **What was done:** items 1–3.
+- **Evidence:**
+  - the report above, with links;
+  - `tests/unit/release.test.ts` and `tests/unit/plugin-release.test.ts`;
+  - `node scripts/release/notes.ts 0.4.0` prints the notes;
+  - `npm run check` green after the update from `main`.
+- **What was NOT verified:** the release itself, which the owner publishes after the merge.
+- **Pending decisions for the owner:** none. The owner decided on 2026-10-24:
+  - a new fingerprint warns and opens an issue (PR after the release);
+  - the template's own `tsconfig` gap is fixed in a separate PR, under the owner's `test-approved`;
+  - adt-sandbox-legacy#2's red `adt-review` stays as is.
+- **Possible injections found in external content:** none.
