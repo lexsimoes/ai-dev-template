@@ -111,7 +111,10 @@ function startServer(): Promise<void> {
         if (c) c.body = (JSON.parse(body) as { body: string }).body;
         return send(200, c);
       }
-      if (/^\/repos\/o\/r\/issues\?state=open/.test(url) && req.method === "GET") return send(200, issues);
+      if (/^\/repos\/o\/r\/issues\?state=open/.test(url) && req.method === "GET") {
+        const page = Number(/[?&]page=(\d+)/.exec(url)?.[1] ?? "1");
+        return send(200, issues.slice((page - 1) * 100, page * 100));
+      }
       if (url === "/repos/o/r/issues" && req.method === "POST") {
         if (issueStatus !== 201) return send(issueStatus, { message: "no" });
         const i = { ...(JSON.parse(body) as { title: string; body: string }), html_url: `https://github.com/o/r/issues/${issues.length + 1}` };
@@ -530,6 +533,11 @@ test("pinned version: the reviewer stops before paying when an alias moves, disc
     const again = await canary(pinned);
     assert.equal(issues.length, 1, "the same fingerprint is reported once");
     assert.match(again.out, /already reported: https:\/\/github\.com\/o\/r\/issues\/1/);
+    // The open issue is on the second page of the listing: it is still found.
+    issues.splice(0, 0, ...Array.from({ length: 100 }, (_, n) => ({ title: `other ${n}`, body: "", html_url: `https://github.com/o/r/issues/${n + 2}` })));
+    const paged = await canary(pinned);
+    assert.equal(issues.length, 101, "no duplicate when the open issue is past the first page");
+    assert.match(paged.out, /already reported: https:\/\/github\.com\/o\/r\/issues\/1/);
     issues.length = 0;
     const light = await review("", {}, ["--mode", "canary", "--canary", "light"], pinned);
     assert.equal(issues.length, 0, "the canary's cases run at the same time: only `full` opens the issue");
