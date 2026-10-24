@@ -172,13 +172,15 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Browser (the Chromium pinned by @playwright/test)
         run: npx --no playwright install --with-deps chromium
+      # --tsconfig: only the protected e2e/tsconfig.json applies, to the config too; the root tsconfig.json (its paths)
+      # could otherwise redirect @playwright/test.
       # Isolated: the demo app runs with APP_ENV=e2e and the fake AI provider, no secret reaches this job,
       # and the browser can only reach the app (playwright.config.ts, e2e/fixtures.ts).
       # Quarantined tests (@quarantine) run in the e2e-quarantine check instead, which is not required.
       - name: End-to-end tests of the critical flows
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-report.json
-        run: npx --no playwright test --config=playwright.config.ts --grep-invert @quarantine --reporter=list,html,json
+        run: npx --no playwright test --config=playwright.config.ts --tsconfig=e2e/tsconfig.json --grep-invert @quarantine --reporter=list,html,json
       - name: Flaky tests (passed only on a retry)
         if: always() && hashFiles('test-results/e2e-report.json') != ''
         run: node scripts/e2e-flaky.ts test-results/e2e-report.json
@@ -258,7 +260,7 @@ jobs:
         run: npx --no playwright install --with-deps chromium
       - name: Quarantined tests
         if: steps.any.outputs.found == 'true'
-        run: npx --no playwright test --config=playwright.config.ts --grep @quarantine
+        run: npx --no playwright test --config=playwright.config.ts --tsconfig=e2e/tsconfig.json --grep @quarantine
 
   dependencies:
     name: dependencies

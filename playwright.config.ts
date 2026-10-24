@@ -9,6 +9,8 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 
 export default defineConfig({
   testDir: "e2e",
+  // The tests use only e2e/tsconfig.json (CI and npm run e2e also pass --tsconfig, which covers this file too).
+  tsconfig: "./e2e/tsconfig.json",
   fullyParallel: false,
   forbidOnly: true,
   // In CI a test that passes only on a retry is reported as flaky (see docs/WORKFLOW.md, "End-to-end tests").
