@@ -7,6 +7,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Fixed
+- Generated projects started with a failing `quality` check because the e2e tsconfig test read template-only files; split those assertions into a template-only test and ensure the template suite actually runs generated projects' tests.
+
 ## [0.5.0] - 2026-10-27
 
 ### Added
