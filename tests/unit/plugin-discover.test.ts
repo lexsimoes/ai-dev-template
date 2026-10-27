@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   checkDiscovery,
+  checkMockup,
   openMissions,
   parseNeeds,
   placeholders,
@@ -240,4 +241,62 @@ test("suggestions: closed list of needs, only catalog entries, every entry docum
     if (t.install) assert.ok(skillsDoc.includes(t.install), `${t.id}: same install command as docs/SKILLS.md`);
     assert.ok(t.when.length > 0 && t.for.length > 10);
   }
+});
+
+const E2E_MISSION = `# Mission 0003: End-to-end tests of ordering
+
+**Status:** draft
+
+## Goal
+
+The ordering flow is checked in a browser on every PR.
+
+## Items
+
+- [ ] 1. Test plan in \`specs/e2e/ordering.md\`, from CA-01 and CA-03 and the mockup, before mission 0002 starts.
+- [ ] 2. After mission 0002 is merged, the Playwright test agents write the tests; another agent than the one that implemented mission 0002, when one is available.
+
+## Acceptance
+
+| Criterion | Expected evidence |
+|---|---|
+| CA-01, CA-03 tested in a browser | the \`e2e\` check |
+`;
+
+test("a product with screens: its end-to-end tests are a mission of their own, planned from the criteria", () => {
+  const without = checkDiscovery(base({ e2e: true }));
+  assert.match(without.problems.join("\n"), /add a separate mission "# Mission NNNN: End-to-end tests of <the main flow>"/);
+  assert.equal(checkDiscovery(base()).ok, true, "without screens (no --e2e), nothing is asked");
+  const ok = checkDiscovery(base({ e2e: true, missions: { "0002-order-form.md": MISSION, "0003-e2e-ordering.md": E2E_MISSION } }));
+  assert.deepEqual(ok.problems, []);
+  const noPlan = checkDiscovery(base({ e2e: true, missions: { "0002-order-form.md": MISSION, "0003-e2e.md": E2E_MISSION.replace("specs/e2e/ordering.md", "a plan") } }));
+  assert.match(noPlan.problems.join("\n"), /writes the test plan in `specs\/e2e\/`/);
+  const noCriteria = checkDiscovery(base({ e2e: true, missions: { "0002-order-form.md": MISSION, "0003-e2e.md": E2E_MISSION.replaceAll(/CA-0\d/g, "the flow") } }));
+  assert.match(noCriteria.problems.join("\n"), /name the acceptance criteria \(CA-xx\)/);
+});
+
+test("mockup: plain offline pages, marked as a mockup, links that lead somewhere", () => {
+  const page = (body: string) => `<!doctype html><html><head><style>body{font:16px system-ui}</style></head><body data-mockup><p>Mockup: not the real app</p>${body}</body></html>`;
+  const good = { "index.html": page('<a href="order.html">Order</a>'), "order.html": page('<a href="index.html">Back</a>') };
+  assert.deepEqual(checkMockup(good).problems, []);
+  const problems = (pages: Record<string, string>) => checkMockup(pages).problems.join("\n");
+  assert.match(problems({ "order.html": page("") }), /index\.html is missing/);
+  assert.match(problems({}), /no pages/);
+  assert.match(problems({ ...good, "index.html": good["index.html"].replace(" data-mockup", "") }), /mark the page as a mockup/);
+  assert.match(problems({ ...good, "index.html": page('<a href="pay.html">Pay</a>') }), /links to pay\.html, which does not exist/);
+  assert.match(problems({ ...good, "index.html": page("<script>alert(1)</script>") }), /no scripts/);
+  for (const remote of ['<img src="https://example.com/a.png">', '<link href="//fonts.example.com/x.css" rel="stylesheet">', '<form action="https://x.example/submit">', "<style>@import 'x.css';</style>", "<div style=\"background:url(https://x.example/i.png)\"></div>"]) {
+    assert.match(problems({ ...good, "index.html": page(remote) }), /nothing from the network/, remote);
+  }
+});
+
+test("the skill and the rules carry it: the mockup step, the --e2e check, and end-to-end tests written apart from the code", () => {
+  const skill = readFileSync("plugins/adt/skills/discover/SKILL.md", "utf-8");
+  assert.ok(skill.indexOf("## 2b. A clickable mockup") < skill.indexOf("## 3. Write the files"), "the mockup comes before the PRD is written");
+  assert.match(skill, /scripts\/discover\.ts" mockup/);
+  assert.match(skill, /`--e2e` if the product has screens/);
+  assert.match(skill, /git add specs\/PRD\.md docs\/missions docs\/HANDOFF\.md prototype\/mockup/);
+  const rule = /End-to-end tests of a feature come from its acceptance criteria, in a mission of their own, with the plan in `specs\/e2e\/` written before the code\. When another agent is available, it writes the tests, not the one that implemented the feature/;
+  for (const path of ["AGENTS.md", "AGENTS.md.jinja"]) assert.match(readFileSync(path, "utf-8"), rule, path);
+  assert.match(readFileSync("plugins/adt/scripts/lib/adopt.ts", "utf-8"), /The tests of a feature come from its acceptance criteria, in a mission of their own/, "adopted projects get it too");
 });

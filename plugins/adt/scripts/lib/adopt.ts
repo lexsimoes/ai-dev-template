@@ -185,6 +185,7 @@ function e2eSection(answers: AdoptAnswers): string {
     "### End-to-end tests",
     "- `e2e/` holds the tests of the critical flows, run by `adt-e2e` against the app in its isolated mode (`e2e/playwright.config.ts`: no real service, every request outside the app blocked by `e2e/fixtures.ts`).",
     "- Each test title starts with the requirement it covers, from the PRD. Keep 3 to 8 tests of critical flows.",
+    "- The tests of a feature come from its acceptance criteria, in a mission of their own, with the plan in `specs/e2e/` written before the code. When another agent is available, it writes them, not the one that implemented the feature.",
     "- The Playwright test agents (`.claude/agents/playwright-test-*.md`: planner, generator, healer) write and repair them. Run locally: `npm ci --prefix e2e`, `npx --prefix e2e playwright install chromium`, then `npx --prefix e2e playwright test --config=e2e/playwright.config.ts`.",
     // Mirrors scripts/guard-e2e.ts, rule 2 (`newSpecProblems`): change both together.
     "- A new test needs no label when it imports only `./fixtures.ts` and does not route, mock or reconfigure the browser.",

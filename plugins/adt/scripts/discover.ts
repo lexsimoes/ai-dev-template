@@ -4,12 +4,13 @@
 // In the project folder:
 //   node <plugin>/scripts/discover.ts inspect                  folder, PRD state, demo app, next invariant ID and mission, git
 //   node <plugin>/scripts/discover.ts suggest --needs ui,react  skills and MCPs from the fixed catalog (catalog.json)
-//   node <plugin>/scripts/discover.ts check [--prototype T]    checks of the written PRD and missions (exit 1 on a problem)
+//   node <plugin>/scripts/discover.ts mockup                   checks of the clickable mockup in prototype/mockup/
+//   node <plugin>/scripts/discover.ts check [--prototype T] [--e2e]   checks of the written PRD and missions (exit 1 on a problem)
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { checkDiscovery, openMissions, parseNeeds, projectState, suggestTools } from "./lib/discover.ts";
+import { MOCKUP_DIR, checkDiscovery, checkMockup, openMissions, parseNeeds, projectState, suggestTools } from "./lib/discover.ts";
 import type { Files, Tool } from "./lib/discover.ts";
 import { inspectFolder } from "./lib/new-project.ts";
 import type { Template } from "./lib/new-project.ts";
@@ -31,7 +32,7 @@ function out(result: unknown, failed = false): never {
 
 const parsed = (() => {
   try {
-    return parseArgs({ allowPositionals: true, options: { needs: { type: "string", default: "" }, prototype: { type: "string" } } });
+    return parseArgs({ allowPositionals: true, options: { needs: { type: "string", default: "" }, prototype: { type: "string" }, e2e: { type: "boolean", default: false } } });
   } catch (e) {
     return out({ errors: [e instanceof Error ? e.message.split("\n")[0] : String(e)] }, true);
   }
@@ -68,8 +69,20 @@ if (command === "check") {
     missions: openMissions(files),
     invariants: projectState(files).invariants,
     prototype: values.prototype,
+    e2e: values.e2e,
   });
   out(result, !result.ok);
 }
 
-out({ errors: ["usage: discover.ts inspect | suggest --needs … | check [--prototype <topic>]"] }, true);
+if (command === "mockup") {
+  const pages = Object.fromEntries(
+    files
+      .list(MOCKUP_DIR)
+      .filter((name) => name.endsWith(".html"))
+      .map((name) => [name, files.read(`${MOCKUP_DIR}/${name}`) ?? ""]),
+  );
+  const result = checkMockup(pages);
+  out({ ...result, open: `${MOCKUP_DIR}/index.html`, pages: Object.keys(pages) }, !result.ok);
+}
+
+out({ errors: ["usage: discover.ts inspect | suggest --needs … | mockup | check [--prototype <topic>] [--e2e]"] }, true);
