@@ -22,7 +22,7 @@
 
 ## Last mission
 
-- Mission 0046: the evals default to `deepseek-flash` (V4.1-Flash-1017), like the reviewer, owner's decision on 2026-10-27; `reasoning_effort: "none"` kept, accepted by Flash (consultor-ia run, 26 output tokens per answer). A unit test pins the default and checks it is priced.
+- Mission 0046: the evals default to `deepseek-flash` (V4.1-Flash-1017), like the reviewer, owner's decision on 2026-10-27; `reasoning_effort: "none"` kept, accepted by Flash (PR #55's evals: 100%, about 27 output tokens per answer). A unit test pins the default and checks it is priced.
 - Mission 0044: generated projects' e2e tsconfig tests no longer read excluded `adopt/**` or rendered-away `package.json.jinja`; those assertions remain in a template-only test. The template runner removes inherited `NODE_TEST_CONTEXT` so generated projects actually execute their tests. A planted copied test reading `copier.yml` proves the `npm run check` failure propagates. Local checks: 234 unit tests, 8 invariants and 7 template cases pass. See the mission report and correction PR for reproduction and red/green evidence. The v0.5.1 release PR waits for the owner's merge of this fix.
 - Mission 0043: the release PR for `v0.5.0`: CHANGELOG `[0.5.0]` (missions 0038 to 0042), plugin `adt` version `0.5.0`, pinned template release `v0.5.0`. The owner merges and publishes the release.
 - Mission 0041: `/adt:guide` and the first step of `/adt:new-project` show the adt commands, where and when to run each, and what comes next (owner's request after the first real use).

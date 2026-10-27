@@ -74,7 +74,7 @@ Repository variables (Settings → Secrets and variables → Actions → Variabl
 | `EVAL_EXTRA_BODY` | `{"reasoning_effort":"none"}` | Extra fields. **Use the same config as the app in production**, or the eval measures something else |
 | `EVAL_JUDGE` | `0` | `1` turns on the LLM judge (doubles the calls) |
 
-> Why reasoning is off: DeepSeek "thinks" by default, and the reasoning counts toward the output limit. In a classifier that asks for 1,024 tokens, it can use it all up before answering. If the app uses reasoning in production, adjust `EVAL_EXTRA_BODY` **and** the function's output limit. `deepseek-flash` accepts `"none"`: on 2026-10-27 its 10-case run used 261 output tokens in all, about 26 per answer, so no reasoning ran.
+> Why reasoning is off: DeepSeek "thinks" by default, and the reasoning counts toward the output limit. In a classifier that asks for 1,024 tokens, it can use it all up before answering. If the app uses reasoning in production, adjust `EVAL_EXTRA_BODY` **and** the function's output limit. `deepseek-flash` accepts `"none"`: on 2026-10-27 the sample's 10 cases used 266 output tokens in all, about 27 per answer, so no reasoning ran.
 
 > ⚠️ The `mock` provider is a keyword classifier. It **does not measure any real AI**: it only proves that tests, evals and CI work.
 
