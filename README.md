@@ -133,7 +133,7 @@ With keys:
 | GitHub Actions | Free in a public repository. Private: 2,000 free minutes a month (Free plan); each PR uses a few minutes |
 | Review of a medium PR (DeepSeek Flash) | ≈ $0.01 full review, less incremental (`re-review`) |
 | Review on sensitive paths (Claude Sonnet) / `deep-review` (Claude Opus) | ≈ $0.07 / ≈ $0.14 |
-| Evals (only PRs that touch AI) | under $0.01 per run |
+| Evals with DeepSeek Flash (only PRs that touch AI) | under $0.01 per run |
 | Review canary | one review a month, plus one when a PR changes the reviewer |
 | No-key mode | $0 |
 

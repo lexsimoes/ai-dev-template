@@ -3,14 +3,14 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-27 · **By:** agent (mission 0044)
+**Updated on:** 2026-10-27 · **By:** agent (mission 0046)
 
 ## Current state
 
 - Template skeleton created: rules for agents (`AGENTS.md`), sample PRD, mission template, sample invariants, sample evals, PR template.
 - Demo app (an online store, in English since M7 PR 1): `src/pricing.ts` (coupon) and `src/ai/classify-message.ts` (LLM classifier, categories `exchange`/`delivery`/`payment`/`other`).
 - `npm run check` passes locally; `npm run eval:mock` passes (the mock does not measure real quality).
-- Evals in CI with DeepSeek (`EVAL_API_KEY`), thresholds and golden set from `main`, comment with the cost.
+- Evals in CI with DeepSeek `deepseek-flash` by default (`EVAL_API_KEY`; `EVAL_MODEL` overrides it), thresholds and golden set from `main`, comment with the cost.
 - CI on GitHub (`.github/workflows/ci.yml`): jobs `quality`, `invariants` (with the guard `scripts/guard-invariants.ts`) and `dependencies`, on every PR and push to `main`.
 - Independent reviewer (`.github/workflows/review.yml`, `scripts/review/`, `REVIEW.md`): DeepSeek `deepseek-flash` by default (pinned to `DeepSeek-V4.1-Flash`), Sonnet on a sensitive path, Opus with the `deep-review` label. Monthly canary, and when a PR that changes the reviewer becomes ready (`.github/workflows/review-canary.yml`).
 - `main` protection: ruleset `protect-main` (`.github/rulesets/protect-main.json`) active since the M-EN merge; the old `proteger-main` was deleted after the new one was imported (5 required checks `quality`, `invariants`, `dependencies`, `review`, `evals`, from Actions only; PR required; 0 approvals). Verified in PR #11: with `quality` and `review` red, `mergeable_state` = `blocked`.
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0046: the evals default to `deepseek-flash` (V4.1-Flash-1017), like the reviewer, owner's decision on 2026-10-27; `reasoning_effort: "none"` kept, accepted by Flash (consultor-ia run, 26 output tokens per answer). A unit test pins the default and checks it is priced.
 - Mission 0044: generated projects' e2e tsconfig tests no longer read excluded `adopt/**` or rendered-away `package.json.jinja`; those assertions remain in a template-only test. The template runner removes inherited `NODE_TEST_CONTEXT` so generated projects actually execute their tests. A planted copied test reading `copier.yml` proves the `npm run check` failure propagates. Local checks: 234 unit tests, 8 invariants and 7 template cases pass. See the mission report and correction PR for reproduction and red/green evidence. The v0.5.1 release PR waits for the owner's merge of this fix.
 - Mission 0043: the release PR for `v0.5.0`: CHANGELOG `[0.5.0]` (missions 0038 to 0042), plugin `adt` version `0.5.0`, pinned template release `v0.5.0`. The owner merges and publishes the release.
 - Mission 0041: `/adt:guide` and the first step of `/adt:new-project` show the adt commands, where and when to run each, and what comes next (owner's request after the first real use).

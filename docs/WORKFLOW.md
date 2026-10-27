@@ -243,7 +243,7 @@ Whether a candidate is really "obvious" stays the implementer's judgment; the re
 | `deepseek-v4-pro` (V4-Pro-0813) | `DeepSeek-V4-Pro` | `a307abda487cd1b463329ccb945ce396` | $1.32 / $0.044 / $3.96 |
 | `deepseek-flash` (V4.1-Flash-1017, the default) | `DeepSeek-V4.1-Flash` | `e72d3c7f663d3e1383b00b3884cb4501` | $0.30 / $0.006 / $1.20 |
 
-The two were compared on 2026-10-23 (`docs/missions/0033-reviewer-model.md`): the same planted defects found, Flash about 4 to 5 times cheaper and 2 to 3 times faster. Flash is the default since mission 0034. To go back to Pro, change the four fields of the `standard` and `light` tiers to the Pro row, in one PR (its canary measures it).
+The two were compared on 2026-10-23 (`docs/missions/0033-reviewer-model.md`): the same planted defects found, Flash about 4 to 5 times cheaper and 2 to 3 times faster. Flash is the reviewer's default since mission 0034, and the evals' default (`EVAL_MODEL`, `evals/README.md`) since mission 0046. To go back to Pro in the reviewer, change the four fields of the `standard` and `light` tiers to the Pro row, in one PR (its canary measures it).
 
 DeepSeek has no dated id, so the pin is the name, not the release: a new release under the same name (say, a V4.1-Flash after 1017) passes `pinnedVersion` and shows as a new fingerprint: a warning and an issue.
 
@@ -299,7 +299,7 @@ The reviewer makes **one** call per run, with no tools and no loop. That is why 
 ## Evals in CI (check `evals`)
 
 When a **ready** PR touches AI files (`aiPaths` in `evals/config.json`), the `evals.yml` workflow:
-1. runs the golden set with the real model (DeepSeek by default, key `EVAL_API_KEY`);
+1. runs the golden set with the real model (DeepSeek `deepseek-flash` by default, key `EVAL_API_KEY`; repository variable `EVAL_MODEL` changes it);
 2. compares it with `main`, run now with the same model;
 3. comments the table on the PR.
 

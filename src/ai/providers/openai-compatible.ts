@@ -24,7 +24,7 @@ export function createOpenAICompatibleClient(options: OpenAICompatibleOptions = 
   const model = options.model ?? process.env.LLM_MODEL;
   const apiKey = options.apiKey ?? process.env.LLM_API_KEY;
   if (!baseUrl) throw new Error("LLM_BASE_URL is not set (e.g. https://api.deepseek.com)");
-  if (!model) throw new Error("LLM_MODEL is not set (e.g. deepseek-v4-pro)");
+  if (!model) throw new Error("LLM_MODEL is not set (e.g. deepseek-flash)");
   if (!apiKey) throw new Error("LLM_API_KEY is not set");
   const extraBody = options.extraBody ?? (process.env.LLM_EXTRA_BODY ? (JSON.parse(process.env.LLM_EXTRA_BODY) as Record<string, unknown>) : {});
 
