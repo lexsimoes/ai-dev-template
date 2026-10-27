@@ -19,6 +19,7 @@ test("the guide names every adt command, with where and when to run it", () => {
   const discover = GUIDE.split("\n").find((line) => line.includes("`/adt:discover`")) ?? "";
   assert.match(discover, /prototype\/mockup\/index\.html/, "the discover step shows the mockup");
   assert.match(discover, /end-to-end tests as a mission of their own/, "and plans the end-to-end tests apart from the code");
+  assert.match(GUIDE, /end-to-end tests mission to another agent than the one that wrote the code/, "step 3 hands those tests to another agent");
 });
 
 test("the user meets the guide where they start: /adt:guide, the first step of /adt:new-project, the project README", () => {
