@@ -292,7 +292,7 @@ export function checkDiscovery(input: CheckInput): CheckResult {
     else {
       const [name, text] = e2eMission;
       if (!text.includes("specs/e2e/")) problems.push(`docs/missions/${name}: its first item writes the test plan in \`specs/e2e/\`, from the acceptance criteria, before the code mission starts.`);
-      if (!caIds.some((id) => text.includes(id))) problems.push(`docs/missions/${name}: name the acceptance criteria (CA-xx) its tests cover; each test title starts with one.`);
+      if (!caIds.some((id) => new RegExp(`\\b${id}\\b`).test(text))) problems.push(`docs/missions/${name}: name the acceptance criteria (CA-xx) its tests cover; each test title starts with one.`);
     }
   }
 
@@ -309,8 +309,9 @@ export const MOCKUP_DIR = "prototype/mockup";
 
 /**
  * The throwaway mockup discovery shows before writing the PRD: plain HTML pages in `prototype/mockup/`, one per
- * screen of the main flow. It works offline, sends nothing anywhere, says on every page that it is a mockup, and every
- * link between pages leads to a page that exists. Pages: file name → text.
+ * screen of the main flow. It works offline, runs no code, sends nothing anywhere, says on every page that it is a
+ * mockup, and every link to another page (`x.html` or `./x.html`) leads to a page that exists. Links to anything else
+ * are not followed. Pages: file name → text.
  */
 export function checkMockup(pages: Record<string, string>): CheckResult {
   const problems: string[] = [];
@@ -319,11 +320,12 @@ export function checkMockup(pages: Record<string, string>): CheckResult {
   for (const [name, html] of Object.entries(pages)) {
     const file = `${MOCKUP_DIR}/${name}`;
     if (!/<body[^>]*\bdata-mockup\b/i.test(html)) problems.push(`${file}: mark the page as a mockup (<body data-mockup>) and show a banner saying it is not the real app.`);
-    if (/<script\b/i.test(html)) problems.push(`${file}: no scripts. A mockup is plain pages and links.`);
+    // No code at all: no script tag, no inline event handler (onclick=…), no javascript: link.
+    if (/<script\b|<[^>]*\son[a-z]+\s*=|(?:src|href|action)\s*=\s*["']?\s*javascript:/i.test(html)) problems.push(`${file}: no scripts. A mockup is plain pages and links.`);
     // Nothing loads from or goes to the network: no CDN, font, image, form target or tracking.
     if (/(?:src|href|action)\s*=\s*["']?\s*(?:https?:)?\/\/|url\(\s*["']?\s*(?:https?:)?\/\/|@import/i.test(html))
       problems.push(`${file}: everything inline, nothing from the network (no CDN, web font, remote image, form target or @import).`);
-    for (const [, target] of html.matchAll(/href\s*=\s*["']([^"'#?]+\.html)/gi)) {
+    for (const [, target] of html.matchAll(/href\s*=\s*["'](?:\.\/)?([^"'#?]+\.html)/gi)) {
       if (target && !names.includes(target)) problems.push(`${file} links to ${target}, which does not exist in ${MOCKUP_DIR}/.`);
     }
   }

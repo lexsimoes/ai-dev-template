@@ -1,7 +1,7 @@
 # Mission 0042: a clickable mockup in discovery, and end-to-end tests written apart from the code
 
 **Status:** in review
-**Branch:** `mission/0042-discover-mockup` · **PR:** see the PR of `mission/0042-discover-mockup`
+**Created on:** 2026-10-27 · **Approved by the owner on:** 2026-10-27 (a mockup after the interview; the end-to-end tests of a feature come from a separate mission, written from the acceptance criteria, preferably by another agent or before the code; then "let's go on", all translated from Portuguese)
 **Created on:** 2026-10-27 · **Approved by the owner on:** 2026-10-27 (the mockup after the interview; "os testes de ponta a ponta de uma funcionalidade vêm de uma missão separada, escrita a partir dos critérios de aceite, de preferência por outro agente ou antes do código"; "ótimo, vamos seguir")
 
 ## Goal

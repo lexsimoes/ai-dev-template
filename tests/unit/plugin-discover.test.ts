@@ -273,6 +273,8 @@ test("a product with screens: its end-to-end tests are a mission of their own, p
   assert.match(noPlan.problems.join("\n"), /writes the test plan in `specs\/e2e\/`/);
   const noCriteria = checkDiscovery(base({ e2e: true, missions: { "0002-order-form.md": MISSION, "0003-e2e.md": E2E_MISSION.replaceAll(/CA-0\d/g, "the flow") } }));
   assert.match(noCriteria.problems.join("\n"), /name the acceptance criteria \(CA-xx\)/);
+  const onlyPrefix = checkDiscovery(base({ e2e: true, missions: { "0002-order-form.md": MISSION, "0003-e2e.md": E2E_MISSION.replaceAll(/CA-0(\d)/g, "CA-0$19") } }));
+  assert.match(onlyPrefix.problems.join("\n"), /name the acceptance criteria \(CA-xx\)/, "CA-019 does not name CA-01");
 });
 
 test("mockup: plain offline pages, marked as a mockup, links that lead somewhere", () => {
@@ -284,7 +286,11 @@ test("mockup: plain offline pages, marked as a mockup, links that lead somewhere
   assert.match(problems({}), /no pages/);
   assert.match(problems({ ...good, "index.html": good["index.html"].replace(" data-mockup", "") }), /mark the page as a mockup/);
   assert.match(problems({ ...good, "index.html": page('<a href="pay.html">Pay</a>') }), /links to pay\.html, which does not exist/);
-  assert.match(problems({ ...good, "index.html": page("<script>alert(1)</script>") }), /no scripts/);
+  for (const code of ["<script>alert(1)</script>", '<button onclick="pay()">Pay</button>', "<img src=x.png onerror=go()>", '<a href="javascript:pay()">Pay</a>', "<a href=' JavaScript:pay()'>Pay</a>"]) {
+    assert.match(problems({ ...good, "index.html": page(code) }), /no scripts/, code);
+  }
+  assert.deepEqual(problems({ ...good, "index.html": page('<p>Pay online = no queue</p><a href="./order.html">Order</a>') }), "", "plain text and ./ links pass");
+  assert.match(problems({ ...good, "index.html": page('<a href="./pay.html">Pay</a>') }), /links to pay\.html, which does not exist/);
   for (const remote of ['<img src="https://example.com/a.png">', '<link href="//fonts.example.com/x.css" rel="stylesheet">', '<form action="https://x.example/submit">', "<style>@import 'x.css';</style>", "<div style=\"background:url(https://x.example/i.png)\"></div>"]) {
     assert.match(problems({ ...good, "index.html": page(remote) }), /nothing from the network/, remote);
   }

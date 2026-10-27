@@ -43,7 +43,7 @@ Accept short answers. Ask again only about what is missing or vague, once, offer
 If the answer to question 6 includes screens (a site, a web app, a phone app), show the user the screens before writing anything else. It is the cheapest moment to find that a flow does not make sense. It is throwaway: it shows the flow, not the final design, and no code is built on it.
 
 Write plain HTML pages in `prototype/mockup/`:
-- `index.html` is the first screen. Add one page per step of the main flow (question 2) and per criterion that shows a screen (question 3), linked to each other as the user would move.
+- `index.html` is the first screen. Add one page per step of the main flow (question 2) and per criterion that shows a screen (question 3), linked to each other as the user would move, by file name (`order.html`). The check follows only links to `.html` pages.
 - Use realistic fake data, and the language the product will be used in.
 - Each page has `<body data-mockup>` and a banner at the top: "Mockup: not the real app".
 - No scripts. Everything inline: no CDN, web font, remote image or form target, so it opens offline and sends nothing anywhere. The UI/UX rules of `AGENTS.md` apply: one main action per screen, plain words.
