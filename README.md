@@ -32,7 +32,8 @@ The full flow, check by check: [`docs/WORKFLOW.md`](docs/WORKFLOW.md).
 Then `/adt:discover`, in the new project:
 - **Asks** about the product in one message: the problem, the main task, how you will know it works, what must never happen.
 - **Writes** a short `specs/PRD.md`: verifiable acceptance criteria, and non-negotiables with their test cases.
-- **Plans** the first mission. Each non-negotiable's test is created with the code it protects, under your `invariant-approved` label.
+- **Shows a clickable mockup** of the main flow (for a product with screens) in `prototype/mockup/`, for your "ok" before anything is written. It is throwaway: it shows the flow, not the final design.
+- **Plans** the first mission. Each non-negotiable's test is created with the code it protects, under your `invariant-approved` label. For a product with screens, the end-to-end tests are a mission of their own, planned from the acceptance criteria before the code.
 - **Suggests** skills and MCPs from a fixed list, without installing them.
 - **Waits for your "ok"** before the commit, then opens a PR.
 
