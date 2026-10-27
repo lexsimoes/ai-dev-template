@@ -23,6 +23,7 @@ The agent may add `plugins/adt/GUIDE.md` and the `guide` skill, and change the `
 - [x] 3. `/adt:new-project` shows the path first, in a few lines, before its questions, and names `/adt:guide` at the end.
 - [x] 4. The README of a new project (`README.md.jinja`) and the template's own README point to `/adt:guide`.
 - [x] 5. `tests/unit/plugin-guide.test.ts`: every skill of the plugin is in the guide, and the guide is reachable from the places above.
+- [x] 6. After mission 0042 was merged first: the `/adt:discover` row names the mockup and the separate end-to-end tests mission, and step 3 says to give that mission to another agent when there is one; the test checks the discover row.
 
 ## Acceptance
 

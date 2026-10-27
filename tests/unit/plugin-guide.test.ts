@@ -16,6 +16,9 @@ test("the guide names every adt command, with where and when to run it", () => {
   assert.ok(existsSync(".claude/skills/explore/SKILL.md"), "the project command the guide names exists");
   for (const label of ["invariant-approved", "eval-approved", "test-approved", "deep-review", "re-review"]) assert.match(GUIDE, new RegExp(`\`${label}\``), label);
   assert.match(GUIDE, /never in the chat/, "keys stay out of the conversation");
+  const discover = GUIDE.split("\n").find((line) => line.includes("`/adt:discover`")) ?? "";
+  assert.match(discover, /prototype\/mockup\/index\.html/, "the discover step shows the mockup");
+  assert.match(discover, /end-to-end tests as a mission of their own/, "and plans the end-to-end tests apart from the code");
 });
 
 test("the user meets the guide where they start: /adt:guide, the first step of /adt:new-project, the project README", () => {
