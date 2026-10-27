@@ -23,7 +23,10 @@ test("the user meets the guide where they start: /adt:guide, the first step of /
   assert.match(guideSkill, /\$\{CLAUDE_PLUGIN_ROOT\}\/GUIDE\.md/);
   assert.match(guideSkill, /Do not run any command/);
   const newProject = readFileSync("plugins/adt/skills/new-project/SKILL.md", "utf-8");
-  assert.ok(newProject.indexOf("GUIDE.md") < newProject.indexOf("## 1. What is in this folder"), "new-project shows the path before anything else");
+  // The body (after the frontmatter) shows the guide in a step 0, before step 1.
+  const body = newProject.replace(/^---\n[\s\S]*?\n---\n/, "");
+  const step0 = /## 0\. The path, before anything else\n([\s\S]*?)\n## 1\. What is in this folder/.exec(body)?.[1] ?? "";
+  assert.match(step0, /\$\{CLAUDE_PLUGIN_ROOT\}\/GUIDE\.md/, "new-project shows the path before anything else");
   assert.match(newProject, /^allowed-tools: Read\(\$\{CLAUDE_PLUGIN_ROOT\}\/GUIDE\.md\)/m);
   assert.match(readFileSync("README.md.jinja", "utf-8"), /`\/adt:guide`/);
   assert.match(readFileSync("README.md", "utf-8"), /`\/adt:guide`/);
