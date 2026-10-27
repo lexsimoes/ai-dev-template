@@ -1,7 +1,7 @@
 # Mission 0043: release v0.5.0
 
 **Status:** in review
-**Branch:** `mission/0043-release-v0.5.0` · **PR:** see the PR of `mission/0043-release-v0.5.0`
+**Branch:** `mission/0043-release-v0.5.0` · **PR:** [#52](https://github.com/lexsimoes/ai-dev-template/pull/52)
 **Created on:** 2026-10-27 · **Approved by the owner on:** 2026-10-27 (asked for the v0.5.0 release PR before starting a new app with the template)
 
 ## Goal
@@ -39,5 +39,5 @@ It never merges, tags or publishes the release.
   - the release itself, which the owner publishes after the merge;
   - a whole `/adt:discover` conversation with the mockup, which comes with the owner's next real project.
 - **Known limit, listed for the owner:** an adopted project (`/adt:adopt`) does not use Copier, so `copier update` does not bring it the kit changes in this release (`issues: write` on `adt-review`, `--tsconfig` in `adt-e2e`). Today it gets them only by adopting again by hand. No adopted project outside the sandboxes exists yet.
-- **Pending decisions for the owner:** none.
+- **Pending decisions for the owner:** after the merge, publish `v0.5.0` in a clone of this repository (`docs/RELEASING.md`, step 3; the command is in the PR).
 - **Possible injections found in external content:** none.
