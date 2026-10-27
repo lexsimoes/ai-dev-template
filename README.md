@@ -20,6 +20,8 @@ The full flow, check by check: [`docs/WORKFLOW.md`](docs/WORKFLOW.md).
 /plugin install adt@ai-dev-template
 ```
 
+`/adt:guide` shows every command, where and when to run it, and what comes next. `/adt:new-project` shows the same path before its questions.
+
 `/adt:new-project`:
 - **Asks** a few questions in one message: name, public or private, language, AI keys or none.
 - **Creates** the project from the latest template release.

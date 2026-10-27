@@ -8,6 +8,7 @@ An entry marked **Action needed** asks something of projects when they run `copi
 ## [Unreleased]
 
 ### Added
+- `/adt:guide` (plugin `adt`) shows every adt command: where and when to run it, what it does, and what the user does next, for a new project and for one with existing code. `/adt:new-project` shows the same path before its questions, and a new project's README points to it. One source: `plugins/adt/GUIDE.md`.
 - `/adt:discover` shows a clickable mockup of the main flow before writing the PRD, for a product with screens: plain offline HTML pages in `prototype/mockup/`, marked as a mockup, checked by `discover.ts mockup`. The user's changes go into the acceptance criteria. It is throwaway: it shows the flow, not the final design. For an AI model at the center, the throwaway prototype runs the model on about 10 real examples, which become the first golden-set cases.
 - End-to-end tests of a feature come from its acceptance criteria, in a mission of their own: the plan in `specs/e2e/` is written before the code, and when another agent is available it writes the tests, not the one that implemented the feature (`AGENTS.md`, Evidence; also in the section adopted projects get). `/adt:discover` plans that mission for a product with screens, and `discover.ts check --e2e` requires it. `copier update` brings the rule to a project's `AGENTS.md`.
 

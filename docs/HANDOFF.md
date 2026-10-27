@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-27 · **By:** agent (mission 0042)
+**Updated on:** 2026-10-27 · **By:** agent (mission 0041)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0041: `/adt:guide` and the first step of `/adt:new-project` show the adt commands, where and when to run each, and what comes next (owner's request after the first real use).
 - Mission 0042: `/adt:discover` shows a clickable mockup (`prototype/mockup/`) before writing the PRD, for a product with screens, and plans the end-to-end tests as a mission of their own, from the acceptance criteria, before the code; `AGENTS.md` asks for another agent than the implementer to write them when one is available (owner's request after the first real use).
 - Mission 0040 (first of the next version): the incremental review starts from the last reviewed commit merged with the PR's current base, so a base merge no longer brings the base's lines into the diff (found on #45).
 - Mission 0038: the template's end-to-end tests use only the protected `e2e/tsconfig.json`. CI, `npm run e2e` and the kit's `adt-e2e` pass `--tsconfig`, which also covers the config, so `paths` in the root `tsconfig.json` cannot redirect `@playwright/test` (owner's decision, 2026-10-24; needs the owner's `test-approved`).
