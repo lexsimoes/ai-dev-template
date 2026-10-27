@@ -177,6 +177,8 @@ export interface CheckInput {
   invariants: Invariant[];
   /** Topic of the throwaway prototype the owner agreed to, if any. */
   prototype?: string;
+  /** The product has screens: its first slice comes with a separate end-to-end test mission. */
+  e2e?: boolean;
 }
 
 export interface CheckResult {
@@ -282,12 +284,53 @@ export function checkDiscovery(input: CheckInput): CheckResult {
   }
   if (Object.keys(input.missions).length === 0) problems.push("docs/missions/: write the first mission (copy `_TEMPLATE.md`, Status: draft).");
 
+  // A product with screens: the end-to-end tests of the first slice are a mission of their own, planned from the
+  // acceptance criteria before the code (AGENTS.md, Evidence), not written by the same pass that writes the code.
+  if (input.e2e) {
+    const e2eMission = Object.entries(input.missions).find(([, t]) => /^# Mission \d+: End-to-end tests\b/m.test(t));
+    if (!e2eMission) problems.push('The product has screens: add a separate mission "# Mission NNNN: End-to-end tests of <the main flow>", planned from the acceptance criteria.');
+    else {
+      const [name, text] = e2eMission;
+      if (!text.includes("specs/e2e/")) problems.push(`docs/missions/${name}: its first item writes the test plan in \`specs/e2e/\`, from the acceptance criteria, before the code mission starts.`);
+      if (!caIds.some((id) => new RegExp(`\\b${id}\\b`).test(text))) problems.push(`docs/missions/${name}: name the acceptance criteria (CA-xx) its tests cover; each test title starts with one.`);
+    }
+  }
+
   if (input.prototype !== undefined) {
     if (!PROTOTYPE_RE.test(input.prototype)) problems.push("prototype: a topic in lowercase letters, digits and hyphens.");
     else if (!missionTexts.some((t) => t.includes(`prototype/${input.prototype}`)))
       problems.push(`The prototype was agreed but no open mission starts with it: add an item "throwaway prototype in \`prototype/${input.prototype}\`" before the implementation.`);
   }
   return done();
+}
+
+/** The clickable mockup's folder, from the project's root. */
+export const MOCKUP_DIR = "prototype/mockup";
+
+/**
+ * The throwaway mockup discovery shows before writing the PRD: plain HTML pages in `prototype/mockup/`, one per
+ * screen of the main flow. It works offline, runs no code, sends nothing anywhere, says on every page that it is a
+ * mockup, and every link to another page (`x.html` or `./x.html`) leads to a page that exists. Links to anything else
+ * are not followed. Pages: file name → text.
+ */
+export function checkMockup(pages: Record<string, string>): CheckResult {
+  const problems: string[] = [];
+  const names = Object.keys(pages);
+  if (!names.includes("index.html")) problems.push(`${MOCKUP_DIR}/index.html is missing: it is the first screen, which links to the others.`);
+  for (const [name, html] of Object.entries(pages)) {
+    const file = `${MOCKUP_DIR}/${name}`;
+    if (!/<body[^>]*\bdata-mockup\b/i.test(html)) problems.push(`${file}: mark the page as a mockup (<body data-mockup>) and show a banner saying it is not the real app.`);
+    // No code at all: no script tag, no inline event handler (onclick=…), no javascript: link.
+    if (/<script\b|<[^>]*\son[a-z]+\s*=|(?:src|href|action)\s*=\s*["']?\s*javascript:/i.test(html)) problems.push(`${file}: no scripts. A mockup is plain pages and links.`);
+    // Nothing loads from or goes to the network: no CDN, font, image, form target or tracking.
+    if (/(?:src|href|action)\s*=\s*["']?\s*(?:https?:)?\/\/|url\(\s*["']?\s*(?:https?:)?\/\/|@import/i.test(html))
+      problems.push(`${file}: everything inline, nothing from the network (no CDN, web font, remote image, form target or @import).`);
+    for (const [, target] of html.matchAll(/href\s*=\s*["'](?:\.\/)?([^"'#?]+\.html)/gi)) {
+      if (target && !names.includes(target)) problems.push(`${file} links to ${target}, which does not exist in ${MOCKUP_DIR}/.`);
+    }
+  }
+  if (names.length === 0) problems.push(`${MOCKUP_DIR}/ has no pages.`);
+  return { ok: problems.length === 0, problems, warnings: [] };
 }
 
 /** Bullets of the `### INV-00N cases` subsection, or null if there is none. */

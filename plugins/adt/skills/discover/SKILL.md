@@ -1,8 +1,8 @@
 ---
 name: discover
-description: Product discovery for a project created by /adt:new-project. A short conversation becomes specs/PRD.md (goal, verifiable acceptance criteria, non-negotiables with test cases) and the first mission, approved by the owner before anything is committed, plus skills and MCPs suggested from a fixed list.
+description: Product discovery for a project created by /adt:new-project. A short conversation, and a clickable mockup for a product with screens, becomes specs/PRD.md (goal, verifiable acceptance criteria, non-negotiables with test cases) and the first mission, approved by the owner before anything is committed, plus skills and MCPs suggested from a fixed list.
 disable-model-invocation: true
-allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" inspect), Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" check *), Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" suggest *)
+allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" inspect), Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" mockup), Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" check *), Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" suggest *)
 ---
 
 # Product discovery
@@ -38,6 +38,28 @@ Ask these in one message, numbered, each with a short example, so they can answe
 
 Accept short answers. Ask again only about what is missing or vague, once, offering concrete options instead of an open question.
 
+## 2b. A clickable mockup (a product with screens)
+
+If the answer to question 6 includes screens (a site, a web app, a phone app), show the user the screens before writing anything else. It is the cheapest moment to find that a flow does not make sense. It is throwaway: it shows the flow, not the final design, and no code is built on it.
+
+Write plain HTML pages in `prototype/mockup/`:
+- `index.html` is the first screen. Add one page per step of the main flow (question 2) and per criterion that shows a screen (question 3), linked to each other as the user would move, by file name (`order.html`). The check follows only links to `.html` pages.
+- Use realistic fake data, and the language the product will be used in.
+- Each page has `<body data-mockup>` and a banner at the top: "Mockup: not the real app".
+- No scripts. Everything inline: no CDN, web font, remote image or form target, so it opens offline and sends nothing anywhere. The UI/UX rules of `AGENTS.md` apply: one main action per screen, plain words.
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" mockup
+```
+
+Fix every item in `problems`. Then tell the user how to open `index.html` from the folder (double-click it, or `open prototype/mockup/index.html` on a Mac), and ask in one message:
+- does the flow match what they had in mind;
+- what is missing, extra or in the wrong order.
+
+Change the pages and ask again, at most 3 rounds. What the user changes becomes part of the answers: carry it into the criteria in step 3. If the user prefers to skip the mockup, say in one line what it is for, and go on.
+
+If question 5 says an AI model is central and a wrong answer is costly, a mockup does not show whether the model answers well: that is the throwaway prototype of step 3, which runs the model on about 10 real examples. Those examples become the first cases of the golden set.
+
 ## 3. Write the files
 
 Use `state` from `inspect` for the IDs and numbers. Write only these files:
@@ -62,7 +84,12 @@ Use `state` from `inspect` for the IDs and numbers. Write only these files:
 - Then the first slice of the product: the main thing from question 2, as small as still useful.
   - Its Acceptance creates the invariant test of each rule it implements, from the PRD cases. Name the ID and the test file. The owner applies `invariant-approved` on that PR.
   - Rules that no mission implements yet: list them in the HANDOFF queue ("INV-00N test: with the mission that implements it").
-- A risky idea or AI model (question 8, or question 5 with a costly wrong answer): the mission's first item is a throwaway prototype in `prototype/<topic>`, before the implementation (`AGENTS.md`, 1.1). Ask the user first. If they agree, remember the topic for `check --prototype`.
+- A risky idea or AI model (question 8, or question 5 with a costly wrong answer): the mission's first item is a throwaway prototype in `prototype/<topic>`, before the implementation (`AGENTS.md`, 1.1). For an AI model, the prototype runs it on about 10 real examples, which become the first golden-set cases. Ask the user first. If they agree, remember the topic for `check --prototype`.
+- A product with screens: a separate mission `# Mission NNNN: End-to-end tests of <the main flow>`, right after the first slice's mission. Tests written apart from the code catch what the code's author did not think of (`AGENTS.md`, Evidence).
+  - Item 1: the test plan in `specs/e2e/<flow>.md`, from the acceptance criteria (name each CA-xx) and the mockup, written before the code mission starts.
+  - Item 2: after the code mission is merged, the Playwright test agents (`.claude/agents/`) write the tests from that plan. When another agent is available (for example Codex, if the code was written with Claude Code), that agent writes them, not the one that implemented the code.
+  - Its Acceptance: each test title starts with its CA-xx, and the tests pass in the `e2e` check.
+  - Remember it for `check --e2e`.
 - Never write in `tests/invariants/`. Invariant tests are created with the code they protect, in a mission, with the owner's label.
 
 **`docs/HANDOFF.md`**: Current state (discovery done, PRD and missions waiting for approval), Queue (the missions in order, then the invariant tests still to create).
@@ -73,7 +100,7 @@ Use `state` from `inspect` for the IDs and numbers. Write only these files:
 node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ts" check
 ```
 
-Add `--prototype <topic>` if a prototype was agreed. Fix every item in `problems` and run it again until `ok` is true. Read `warnings` to the user in one line each.
+Add `--prototype <topic>` if a prototype was agreed, and `--e2e` if the product has screens. Fix every item in `problems` and run it again until `ok` is true. Read `warnings` to the user in one line each.
 
 ## 5. Skills and MCPs (suggest, never install)
 
@@ -92,6 +119,7 @@ Show each tool: what it is for, and its install command for their own terminal (
 
 Show a short summary:
 - the goal;
+- the mockup, if there is one (`prototype/mockup/index.html`), with the changes the user asked for;
 - the criteria, one line each;
 - each non-negotiable with its cases;
 - the missions;
@@ -107,11 +135,11 @@ npm run check
 
 If it fails, fix what discovery wrote and run it again. Do not commit, push or open the PR until it is green.
 
-Write the PR description to a file outside the project (for example `/tmp/discovery-pr.md`): the summary above, and "nothing in `tests/invariants/`". Never put conversation text inside a shell string. Then:
+Write the PR description to a file outside the project (for example `/tmp/discovery-pr.md`): the summary above, "nothing in `tests/invariants/`", and that `prototype/mockup/` is a throwaway reference no code is built on. Leave `prototype/mockup` out of `git add` when there is no mockup. Never put conversation text inside a shell string. Then:
 
 ```bash
 git switch -c mission/0000-discovery
-git add specs/PRD.md docs/missions docs/HANDOFF.md
+git add specs/PRD.md docs/missions docs/HANDOFF.md prototype/mockup
 git commit -m "docs: product discovery (PRD and first missions)"
 git push -u origin mission/0000-discovery
 gh pr create --draft --title "docs: product discovery" --body-file /tmp/discovery-pr.md
