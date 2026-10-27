@@ -7,6 +7,8 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-27
+
 ### Added
 - `/adt:guide` (plugin `adt`) shows every adt command: where and when to run it, what it does, and what the user does next, for a new project and for one with existing code. `/adt:new-project` shows the same path before its questions, and a new project's README points to it. One source: `plugins/adt/GUIDE.md`.
 - `/adt:discover` shows a clickable mockup of the main flow before writing the PRD, for a product with screens: plain offline HTML pages in `prototype/mockup/`, marked as a mockup, checked by `discover.ts mockup`. The user's changes go into the acceptance criteria. It is throwaway: it shows the flow, not the final design. For an AI model at the center, the throwaway prototype runs the model on about 10 real examples, which become the first golden-set cases.
@@ -17,7 +19,7 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ### Fixed
 - The reviewer's incremental review showed what a merge of the base brought into files the PR also changes, such as the changelog, and reported it as the PR's own change (found on #45 after the base merge). It now starts from the last reviewed commit merged with the base the PR has now, so it reviews only what the PR's own commits changed since the review. When that merge conflicts, it shows every change since the reviewed commit, with a note.
-- End-to-end tests: a PR could redirect `@playwright/test` through `paths` in the root `tsconfig.json`, which the e2e guard does not protect. That could mean an `expect` that accepts anything, or a `defineConfig` that leaves every test out, with no change in `e2e/`. Playwright now uses only the protected `e2e/tsconfig.json`: the `e2e` and `e2e-quarantine` jobs and `npm run e2e` pass `--tsconfig=e2e/tsconfig.json` (the flag also covers the config file), and `playwright.config.ts` names it. Adopted projects' `adt-e2e` passes it too. Projects get it with `copier update`; the PR that brings it needs the owner's `test-approved` label, as any change to the e2e setup. Found by the security review of mission 0036.
+- End-to-end tests: a PR could redirect `@playwright/test` through `paths` in the root `tsconfig.json`, which the e2e guard does not protect. That could mean an `expect` that accepts anything, or a `defineConfig` that leaves every test out, with no change in `e2e/`. Playwright now uses only the protected `e2e/tsconfig.json`: the `e2e` and `e2e-quarantine` jobs and `npm run e2e` pass `--tsconfig=e2e/tsconfig.json` (the flag also covers the config file), and `playwright.config.ts` names it. Adopted projects' `adt-e2e` passes it too. **Action needed:** projects get it with `copier update`, and the owner applies `test-approved` to the PR that brings it, as to any change to the e2e setup. Found by the security review of mission 0036.
 
 ## [0.4.0] - 2026-10-24
 
@@ -124,7 +126,8 @@ First release: the workflow, the checks and the Copier template.
 - No-key mode: `review` and `evals` pass with an "off" notice when the project has no AI key.
 - MIT license; generated projects get `THIRD_PARTY_NOTICES.md`.
 
-[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.1.0...v0.2.0

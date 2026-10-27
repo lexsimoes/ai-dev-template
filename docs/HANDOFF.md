@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-27 · **By:** agent (mission 0041)
+**Updated on:** 2026-10-27 · **By:** agent (mission 0043)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0043: the release PR for `v0.5.0`: CHANGELOG `[0.5.0]` (missions 0038 to 0042), plugin `adt` version `0.5.0`, pinned template release `v0.5.0`. The owner merges and publishes the release.
 - Mission 0041: `/adt:guide` and the first step of `/adt:new-project` show the adt commands, where and when to run each, and what comes next (owner's request after the first real use).
 - Mission 0042: `/adt:discover` shows a clickable mockup (`prototype/mockup/`) before writing the PRD, for a product with screens, and plans the end-to-end tests as a mission of their own, from the acceptance criteria, before the code; `AGENTS.md` asks for another agent than the implementer to write them when one is available (owner's request after the first real use).
 - Mission 0040 (first of the next version): the incremental review starts from the last reviewed commit merged with the PR's current base, so a base merge no longer brings the base's lines into the diff (found on #45).
@@ -116,7 +117,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - Breaker and newcomer modes only on request.
 6. **M8 (rehearsal)**, on `lexsimoes/adt-sandbox-m7b` only (owner's decision, 2026-10-22): the new-project path as is; the existing-project path (`/adt:audit` + `/adt:adopt`) against the sandbox, after adding a small realistic UI to its sample app so the M7d tester has flows to cover; someone (or the newcomer agent) installing from the README alone; the reviewer comparisons already planned; a PR that weakens an invariant and is blocked; a real check that an unrelated label does not turn a red required check green (done on 2026-10-21 in PR #8 with a green check; repeat with a red one).
 
-7. **Release `v0.4.0`** after M8: M8 is done (report in mission 0037); the release PR is ready for the owner's merge and publish.
+7. **Release `v0.4.0`** after M8: published on 2026-10-24. **Release `v0.5.0`** (mission 0043): the guide, the discovery mockup and end-to-end tests planned apart from the code, after the owner's first real use; the release PR is ready for the owner's merge and publish.
 8. **First real-world use, after the template is done:** a full `/adt:audit` + `/adt:adopt` on GoAgentic, with the owner watching. Until then GoAgentic is not a test bed (it is under active development by Codex).
 
 ## GoAgentic rehearsal: what it taught (closed, 2026-10-22)
