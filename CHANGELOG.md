@@ -7,6 +7,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Added
+- `/adt:guide` (plugin `adt`) shows every adt command: where and when to run it, what it does, and what the user does next, for a new project and for one with existing code. `/adt:new-project` shows the same path before its questions, and a new project's README points to it. One source: `plugins/adt/GUIDE.md`.
+
 ### Changed
 - The reviewer warns and opens an issue when the provider's backend for a pinned model changes (a new `pinnedFingerprint`), once per fingerprint, with the steps to measure it and update the pin. Before, a new fingerprint was only a note in the report, easy to miss. The review still goes on, and a new model name still stops it. The `review` and `review-canary` jobs (and an adopted project's `adt-review`) get `issues: write`. Owner's decision after M8.
 

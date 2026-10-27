@@ -9,6 +9,13 @@ Built with the ai-dev-template workflow: an agent implements, another model revi
 3. `AGENTS.md`: the rules every coding agent follows here.
 4. `docs/WORKFLOW.md`: the full flow (mission → PR → CI → review → merge) and what each check means.
 
+## Working with the agents
+
+In Claude Code, with the `adt` plugin installed, `/adt:guide` shows every command, where and when to run it, and what comes next. The usual order:
+1. `/adt:discover` turns a short conversation into `specs/PRD.md` and the first missions.
+2. You ask the agent to carry out a mission. It opens a PR, and you merge it.
+3. `/adt:check-setup` checks the setup at any time.
+
 ## Local commands
 
 ```bash
