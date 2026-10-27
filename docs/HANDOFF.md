@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-27 · **By:** agent (mission 0043)
+**Updated on:** 2026-10-27 · **By:** agent (mission 0044)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0044: generated projects' e2e tsconfig tests no longer read excluded `adopt/**` or rendered-away `package.json.jinja`; those assertions remain in a template-only test. The template runner removes inherited `NODE_TEST_CONTEXT` so generated projects actually execute their tests. A planted copied test reading `copier.yml` proves the `npm run check` failure propagates. Local checks: 234 unit tests, 8 invariants and 7 template cases pass. See the mission report and correction PR for reproduction and red/green evidence. The v0.5.1 release PR waits for the owner's merge of this fix.
 - Mission 0043: the release PR for `v0.5.0`: CHANGELOG `[0.5.0]` (missions 0038 to 0042), plugin `adt` version `0.5.0`, pinned template release `v0.5.0`. The owner merges and publishes the release.
 - Mission 0041: `/adt:guide` and the first step of `/adt:new-project` show the adt commands, where and when to run each, and what comes next (owner's request after the first real use).
 - Mission 0042: `/adt:discover` shows a clickable mockup (`prototype/mockup/`) before writing the PRD, for a product with screens, and plans the end-to-end tests as a mission of their own, from the acceptance criteria, before the code; `AGENTS.md` asks for another agent than the implementer to write them when one is available (owner's request after the first real use).

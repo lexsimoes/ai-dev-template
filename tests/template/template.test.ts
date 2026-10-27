@@ -25,7 +25,10 @@ let work = "";
 const NO_AUTO_GC = { GIT_CONFIG_COUNT: "2", GIT_CONFIG_KEY_0: "gc.auto", GIT_CONFIG_VALUE_0: "0", GIT_CONFIG_KEY_1: "maintenance.auto", GIT_CONFIG_VALUE_1: "false" };
 
 function sh(cmd: string, args: string[], cwd: string, env: Record<string, string> = {}): string {
-  return execFileSync(cmd, args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...NO_AUTO_GC, ...env } });
+  const childEnv: NodeJS.ProcessEnv = { ...process.env, ...NO_AUTO_GC, ...env };
+  // A new test runner must not inherit our worker context: Node otherwise runs no files and exits 0.
+  delete childEnv.NODE_TEST_CONTEXT;
+  return execFileSync(cmd, args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], env: childEnv });
 }
 
 function git(cwd: string, ...args: string[]): string {
@@ -176,6 +179,7 @@ for (const p of PROJECTS) {
       "adopt",
       "tests/unit/plugin-adopt.test.ts",
       "tests/unit/plugin-check-setup.test.ts",
+      "tests/unit/plugin-e2e-tsconfig.test.ts",
       "tests/unit/plugin-release.test.ts",
       "tests/unit/plugin-new-project.test.ts",
       "docs/PLUGIN-TEST.md",
@@ -192,6 +196,30 @@ for (const p of PROJECTS) {
     runProjectChecks(dest);
   });
 }
+
+test("project checks fail when a copied test reads a template-only file", () => {
+  const brokenTemplate = templateRepo(join(work, "template-broken-test"));
+  const dest = join(work, "broken-project");
+  writeFileSync(join(brokenTemplate, "tests/unit/template-only-file.test.ts"), [
+    'import { test } from "node:test";',
+    'import { readFileSync } from "node:fs";',
+    'test("copied test reads template-only copier.yml", () => {',
+    '  readFileSync("copier.yml", "utf-8");',
+    '});',
+    '',
+  ].join("\n"));
+  git(brokenTemplate, "add", "tests/unit/template-only-file.test.ts");
+  git(brokenTemplate, "commit", "-qm", "plant a copied test that reads a template-only file");
+  copy(brokenTemplate, dest, PROJECTS[0]!.answers);
+
+  assert.throws(() => runProjectChecks(dest), (error: unknown) => {
+    assert.ok(error instanceof Error && "status" in error && "stdout" in error);
+    assert.equal(error.status, 1);
+    assert.match(String(error.stdout), /copied test reads template-only copier\.yml/);
+    assert.match(String(error.stdout), /ENOENT.*copier\.yml/);
+    return true;
+  });
+});
 
 test("no owner of this template leaks into a generated project", () => {
   const owner = templateOwner().toLowerCase();
