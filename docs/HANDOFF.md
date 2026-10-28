@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-27 · **By:** agent (mission 0046)
+**Updated on:** 2026-10-28 · **By:** agent (mission 0047)
 
 ## Current state
 
@@ -22,8 +22,9 @@
 
 ## Last mission
 
-- Mission 0046: the evals default to `deepseek-flash` (V4.1-Flash-1017), like the reviewer, owner's decision on 2026-10-27; `reasoning_effort: "none"` kept, accepted by Flash (PR #55's evals: 100%, about 27 output tokens per answer). A unit test pins the default and checks it is priced.
-- Release `v0.5.1` prepared from `main` at `221116f`, after the owner merged [PR #53](https://github.com/lexsimoes/ai-dev-template/pull/53): CHANGELOG `[0.5.1]` dated 2026-10-27, empty `[Unreleased]`, plugin `adt` version `0.5.1` and pinned template release `v0.5.1`. Next: the owner merges the release PR and publishes `v0.5.1` immediately afterwards, following `docs/RELEASING.md`, steps 2–4. No tag or release has been created by the agent; the plugin's new pin requires the owner's publication.
+- Mission 0047: the release PR for `v0.6.0`, prepared from `main` at `f36f7dc`: CHANGELOG `[0.6.0]` dated 2026-10-28 (mission 0046), empty `[Unreleased]`, plugin `adt` version `0.6.0` and pinned template release `v0.6.0`. Minor: it changes the model the evals measure in every project that does not set `EVAL_MODEL`, with a conditional **Action needed**. Next: the owner merges the release PR and publishes `v0.6.0` right afterwards (`docs/RELEASING.md`, steps 2–4). The agent created no tag or release.
+- Mission 0046 is done ([PR #55](https://github.com/lexsimoes/ai-dev-template/pull/55), merged as `f36f7dc`): the evals default to `deepseek-flash` (V4.1-Flash-1017), like the reviewer, owner's decision on 2026-10-27; `reasoning_effort: "none"` kept, accepted by Flash (PR #55's evals: 100%, about 27 output tokens per answer). A unit test pins the default and checks it is priced.
+- Release `v0.5.1` (published by the owner on 2026-10-28) prepared from `main` at `221116f`, after the owner merged [PR #53](https://github.com/lexsimoes/ai-dev-template/pull/53): CHANGELOG `[0.5.1]` dated 2026-10-27, empty `[Unreleased]`, plugin `adt` version `0.5.1` and pinned template release `v0.5.1`. Next: the owner merges the release PR and publishes `v0.5.1` immediately afterwards, following `docs/RELEASING.md`, steps 2–4. No tag or release has been created by the agent; the plugin's new pin requires the owner's publication.
 - With the owner's authorization, [release PR #54](https://github.com/lexsimoes/ai-dev-template/pull/54) also corrects the notes CLI test: it compares the full notes with the newest version's changelog content instead of requiring `### Added`, so a patch with only `### Fixed` is valid. Local verification: `npm run check` passes (234 unit tests and 8 invariants), `npm run test:template` passes (7 cases), and `node scripts/release/notes.ts 0.5.1` prints the notes with exit 0. Remote checks and automated review are recorded on the PR; the owner merges and publishes only after they pass.
 - Mission 0044 is done ([PR #53](https://github.com/lexsimoes/ai-dev-template/pull/53), merged as `221116f`): generated projects' e2e tsconfig tests no longer read excluded `adopt/**` or rendered-away `package.json.jinja`; those assertions remain in a template-only test. The template runner removes inherited `NODE_TEST_CONTEXT` so generated projects actually execute their tests. A planted copied test reading `copier.yml` proves the `npm run check` failure propagates. Local checks: 234 unit tests, 8 invariants and 7 template cases pass. See the mission report and correction PR for reproduction and red/green evidence.
 - Mission 0043: the release PR for `v0.5.0`: CHANGELOG `[0.5.0]` (missions 0038 to 0042), plugin `adt` version `0.5.0`, pinned template release `v0.5.0`. The owner merges and publishes the release.
@@ -121,7 +122,7 @@ Roadmap decided by the owner on 2026-10-21 (recorded here; not implemented yet).
    - Breaker and newcomer modes only on request.
 6. **M8 (rehearsal)**, on `lexsimoes/adt-sandbox-m7b` only (owner's decision, 2026-10-22): the new-project path as is; the existing-project path (`/adt:audit` + `/adt:adopt`) against the sandbox, after adding a small realistic UI to its sample app so the M7d tester has flows to cover; someone (or the newcomer agent) installing from the README alone; the reviewer comparisons already planned; a PR that weakens an invariant and is blocked; a real check that an unrelated label does not turn a red required check green (done on 2026-10-21 in PR #8 with a green check; repeat with a red one).
 
-7. **Release `v0.4.0`** after M8: published on 2026-10-24. **Release `v0.5.0`** (mission 0043): the guide, the discovery mockup and end-to-end tests planned apart from the code, after the owner's first real use; the release PR is ready for the owner's merge and publish.
+7. **Release `v0.4.0`** after M8: published on 2026-10-24. **Release `v0.5.0`** (mission 0043): the guide, the discovery mockup and end-to-end tests planned apart from the code, after the owner's first real use; published on 2026-10-27, followed by the `v0.5.1` fix on 2026-10-28. **Release `v0.6.0`** (mission 0047): the evals default to `deepseek-flash`; the release PR is ready for the owner's merge and publish.
 8. **First real-world use, after the template is done:** a full `/adt:audit` + `/adt:adopt` on GoAgentic, with the owner watching. Until then GoAgentic is not a test bed (it is under active development by Codex).
 
 ## GoAgentic rehearsal: what it taught (closed, 2026-10-22)

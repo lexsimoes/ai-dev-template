@@ -1,7 +1,7 @@
 # Mission 0046: the evals' default model is deepseek-flash
 
-**Status:** in review
-**Branch:** `mission/0046-evals-flash` · **PR:** [#55](https://github.com/lexsimoes/ai-dev-template/pull/55)
+**Status:** done
+**Branch:** `mission/0046-evals-flash` · **PR:** [#55](https://github.com/lexsimoes/ai-dev-template/pull/55) (merged as `f36f7dc`)
 **Created on:** 2026-10-27 · **Approved by the owner on:** 2026-10-27 (decision first relayed by the owner's consultor-ia session: DeepSeek V4.1 Flash 1017, `deepseek-flash`, is the best and most recent model and is the default in the template, for the evals as it already is for the reviewer's `standard` tier; confirmed by the owner directly in this mission's session on 2026-10-27: "ok")
 
 ## Goal
