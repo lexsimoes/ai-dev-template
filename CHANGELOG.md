@@ -7,6 +7,8 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-28
+
 ### Changed
 - The evals default to `deepseek-flash` (DeepSeek-V4.1-Flash-1017), the model the reviewer's `standard` and `light` tiers already use, instead of `deepseek-v4-pro`: about a quarter of the price. `reasoning_effort: "none"` stays the default; Flash accepts it. A project that sets the `EVAL_MODEL` repository variable keeps its model. **Action needed** only if your app runs another model in production: set `EVAL_MODEL` to it after `copier update`, since the evals must measure the production config.
 
@@ -134,7 +136,8 @@ First release: the workflow, the checks and the Copier template.
 - No-key mode: `review` and `evals` pass with an "off" notice when the project has no AI key.
 - MIT license; generated projects get `THIRD_PARTY_NOTICES.md`.
 
-[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/lexsimoes/ai-dev-template/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.3.0...v0.4.0
