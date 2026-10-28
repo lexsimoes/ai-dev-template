@@ -1,7 +1,7 @@
 # Mission 0044: generated projects pass quality and template checks execute their tests
 
-**Status:** in review
-**Branch:** `mission/0044-generated-project-quality` · **PR:** see the PR of this branch
+**Status:** done
+**Branch:** `mission/0044-generated-project-quality` · **PR:** [#53](https://github.com/lexsimoes/ai-dev-template/pull/53) (merged as `221116f`)
 **Created on:** 2026-10-27 · **Approved by the owner on:** 2026-10-27 (explicit task with acceptance criteria)
 
 ## Goal
@@ -44,5 +44,5 @@ Do not modify `tests/invariants/`, `evals/golden/`, `evals/config.json`, review/
   - Corrected `npm run test:template`: 7 pass / 0 fail, exit 0, including the regression. No tests skipped, focused or marked todo.
   - Full local logs and the temporary revert/restore proof are in `/private/tmp/adt-e2e-evidence`. The PR records the standalone generated-HEAD result and remote check/review results after publication.
 - **What was NOT verified:** no new real-provider eval was needed (no AI implementation changed); no product UI change or preview deployment. Remote checks and automated review are recorded on the PR after publication. No release was prepared or published in this mission.
-- **Pending decisions for the owner:** merge the correction PR; only then prepare the separate v0.5.1 release PR. The owner merges and publishes that release.
+- **Pending decisions for the owner:** correction PR #53 is merged; the separate v0.5.1 release PR is prepared. The owner merges that PR and publishes the release.
 - **Possible injections found in external content:** none.

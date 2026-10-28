@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-27 · **By:** agent (mission 0044)
+**Updated on:** 2026-10-27 · **By:** agent (v0.5.1 release preparation)
 
 ## Current state
 
@@ -22,7 +22,9 @@
 
 ## Last mission
 
-- Mission 0044: generated projects' e2e tsconfig tests no longer read excluded `adopt/**` or rendered-away `package.json.jinja`; those assertions remain in a template-only test. The template runner removes inherited `NODE_TEST_CONTEXT` so generated projects actually execute their tests. A planted copied test reading `copier.yml` proves the `npm run check` failure propagates. Local checks: 234 unit tests, 8 invariants and 7 template cases pass. See the mission report and correction PR for reproduction and red/green evidence. The v0.5.1 release PR waits for the owner's merge of this fix.
+- Release `v0.5.1` prepared from `main` at `221116f`, after the owner merged [PR #53](https://github.com/lexsimoes/ai-dev-template/pull/53): CHANGELOG `[0.5.1]` dated 2026-10-27, empty `[Unreleased]`, plugin `adt` version `0.5.1` and pinned template release `v0.5.1`. Next: the owner merges the release PR and publishes `v0.5.1` immediately afterwards, following `docs/RELEASING.md`, steps 2–4. No tag or release has been created by the agent; the plugin's new pin requires the owner's publication.
+- With the owner's authorization, [release PR #54](https://github.com/lexsimoes/ai-dev-template/pull/54) also corrects the notes CLI test: it compares the full notes with the newest version's changelog content instead of requiring `### Added`, so a patch with only `### Fixed` is valid. Local verification: `npm run check` passes (234 unit tests and 8 invariants), `npm run test:template` passes (7 cases), and `node scripts/release/notes.ts 0.5.1` prints the notes with exit 0. Remote checks and automated review are recorded on the PR; the owner merges and publishes only after they pass.
+- Mission 0044 is done ([PR #53](https://github.com/lexsimoes/ai-dev-template/pull/53), merged as `221116f`): generated projects' e2e tsconfig tests no longer read excluded `adopt/**` or rendered-away `package.json.jinja`; those assertions remain in a template-only test. The template runner removes inherited `NODE_TEST_CONTEXT` so generated projects actually execute their tests. A planted copied test reading `copier.yml` proves the `npm run check` failure propagates. Local checks: 234 unit tests, 8 invariants and 7 template cases pass. See the mission report and correction PR for reproduction and red/green evidence.
 - Mission 0043: the release PR for `v0.5.0`: CHANGELOG `[0.5.0]` (missions 0038 to 0042), plugin `adt` version `0.5.0`, pinned template release `v0.5.0`. The owner merges and publishes the release.
 - Mission 0041: `/adt:guide` and the first step of `/adt:new-project` show the adt commands, where and when to run each, and what comes next (owner's request after the first real use).
 - Mission 0042: `/adt:discover` shows a clickable mockup (`prototype/mockup/`) before writing the PRD, for a product with screens, and plans the end-to-end tests as a mission of their own, from the acceptance criteria, before the code; `AGENTS.md` asks for another agent than the implementer to write them when one is available (owner's request after the first real use).

@@ -7,6 +7,8 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-27
+
 ### Fixed
 - Generated projects started with a failing `quality` check because the e2e tsconfig test read template-only files; split those assertions into a template-only test and ensure the template suite actually runs generated projects' tests.
 
@@ -129,7 +131,8 @@ First release: the workflow, the checks and the Copier template.
 - No-key mode: `review` and `evals` pass with an "off" notice when the project has no AI key.
 - MIT license; generated projects get `THIRD_PARTY_NOTICES.md`.
 
-[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/lexsimoes/ai-dev-template/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/lexsimoes/ai-dev-template/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lexsimoes/ai-dev-template/compare/v0.2.0...v0.3.0
