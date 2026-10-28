@@ -1,7 +1,7 @@
 # Mission 0047: release v0.6.0
 
 **Status:** in review
-**Branch:** `mission/0047-release-v0.6.0` · **PR:** opened on the first push
+**Branch:** `mission/0047-release-v0.6.0` · **PR:** [#56](https://github.com/lexsimoes/ai-dev-template/pull/56)
 **Created on:** 2026-10-28 · **Approved by the owner on:** 2026-10-28 (asked for the v0.6.0 release PR, minor, after PR #55 was merged)
 
 ## Goal
