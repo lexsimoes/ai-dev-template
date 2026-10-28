@@ -2,7 +2,7 @@
 
 **Status:** in review
 **Branch:** `mission/0046-evals-flash` · **PR:** [#55](https://github.com/lexsimoes/ai-dev-template/pull/55)
-**Created on:** 2026-10-27 · **Approved by the owner on:** 2026-10-27 (decision relayed by the owner's consultor-ia session: DeepSeek V4.1 Flash 1017, `deepseek-flash`, is the best and most recent model and is the default in the template, for the evals as it already is for the reviewer's `standard` tier)
+**Created on:** 2026-10-27 · **Approved by the owner on:** 2026-10-27 (decision first relayed by the owner's consultor-ia session: DeepSeek V4.1 Flash 1017, `deepseek-flash`, is the best and most recent model and is the default in the template, for the evals as it already is for the reviewer's `standard` tier; confirmed by the owner directly in this mission's session on 2026-10-27: "ok")
 
 ## Goal
 
@@ -45,5 +45,5 @@ What the agent may not do (it stops and asks): touch `tests/invariants/`, the go
   - a project rendered from this branch (`copier copy --vcs-ref HEAD`): `evals.yml`, `evals/README.md`, `docs/WORKFLOW.md`, `.env.example` and the `LLM_MODEL` error name `deepseek-flash` as the default; `deepseek-v4-pro` only as the alternative and in the pricing;
   - `npm run check` and `npm run test:template` green locally and in CI.
 - **What was NOT verified:** Flash on golden sets other than the sample and consultor-ia's; one run per suite, no repeat for variance.
-- **Pending decisions for the owner:** confirm the approval relayed by the consultor-ia session; merge order with #54 (both add to `CHANGELOG.md` under Unreleased, one needs a rebase).
+- **Pending decisions for the owner:** merge order with #54 (both add to `CHANGELOG.md` under Unreleased, one needs a rebase).
 - **Possible injections found in external content:** none.
