@@ -34,7 +34,7 @@ jobs:
       # Evals provider: repository variables, with DeepSeek as the default.
       LLM_PROVIDER: ${{ vars.EVAL_PROVIDER || 'openai-compatible' }}
       LLM_BASE_URL: ${{ vars.EVAL_BASE_URL || 'https://api.deepseek.com' }}
-      LLM_MODEL: ${{ vars.EVAL_MODEL || 'deepseek-v4-pro' }}
+      LLM_MODEL: ${{ vars.EVAL_MODEL || 'deepseek-flash' }}
       # Must be the same config as the app in production. "none" turns off DeepSeek's reasoning:
       # in a short classifier, reasoning would use up the output limit before the answer.
       LLM_EXTRA_BODY: ${{ vars.EVAL_EXTRA_BODY || '{"reasoning_effort":"none"}' }}

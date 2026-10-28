@@ -7,6 +7,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Changed
+- The evals default to `deepseek-flash` (DeepSeek-V4.1-Flash-1017), the model the reviewer's `standard` and `light` tiers already use, instead of `deepseek-v4-pro`: about a quarter of the price. `reasoning_effort: "none"` stays the default; Flash accepts it. A project that sets the `EVAL_MODEL` repository variable keeps its model. **Action needed** only if your app runs another model in production: set `EVAL_MODEL` to it after `copier update`, since the evals must measure the production config.
+
 ## [0.5.1] - 2026-10-27
 
 ### Fixed

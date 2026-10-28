@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { estimateCost, goldenChanges, priceFor, protectedSuites, renderEvalComment, touchesAi, trustedConfig } from "../../evals/lib.ts";
 import type { EvalConfig, GoldenCase } from "../../evals/lib.ts";
@@ -46,6 +47,15 @@ test("cost: price by the longest prefix of the model name", () => {
   assert.equal(priceFor(c, "other-model"), null);
   assert.equal(estimateCost({ input: 1, output: 2 }, { inputTokens: 1e6, outputTokens: 1e6 }), 3);
   assert.equal(estimateCost(null, { inputTokens: 1, outputTokens: 1 }), null);
+});
+
+test("cost: the evals workflow's default model is deepseek-flash and has a price", () => {
+  const workflow = readFileSync(".github/workflows/evals.yml", "utf-8");
+  const model = /LLM_MODEL: \$\{\{ vars\.EVAL_MODEL \|\| '([^']+)' \}\}/.exec(workflow)?.[1];
+  assert.equal(model, "deepseek-flash");
+  const config = JSON.parse(readFileSync("evals/config.json", "utf-8")) as EvalConfig;
+  assert.ok(priceFor(config, model), "evals/config.json prices the default model");
+  assert.match(workflow, /vars\.EVAL_EXTRA_BODY \|\| '\{"reasoning_effort":"none"\}'/, "reasoning stays off for the classifier");
 });
 
 test("evals comment: marker, status and cost", () => {
