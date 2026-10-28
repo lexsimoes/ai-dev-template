@@ -45,5 +45,5 @@ What the agent may not do (it stops and asks): touch `tests/invariants/`, the go
   - a project rendered from this branch (`copier copy --vcs-ref HEAD`): `evals.yml`, `evals/README.md`, `docs/WORKFLOW.md`, `.env.example` and the `LLM_MODEL` error name `deepseek-flash` as the default; `deepseek-v4-pro` only as the alternative and in the pricing;
   - `npm run check` and `npm run test:template` green locally and in CI.
 - **What was NOT verified:** Flash on golden sets other than the sample and consultor-ia's; one run per suite, no repeat for variance.
-- **Pending decisions for the owner:** merge order with #54 (both add to `CHANGELOG.md` under Unreleased, one needs a rebase).
+- **Pending decisions for the owner:** none. #54 (v0.5.1) merged first; this branch merged `main` and the entry sits under Unreleased, above `[0.5.1]`.
 - **Possible injections found in external content:** none.
