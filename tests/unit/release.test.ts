@@ -57,9 +57,10 @@ test("this repository's CHANGELOG.md is ready for its newest version", () => {
 
 test("notes script: prints the notes, or fails with the reason (accepts a leading v)", async () => {
   const run = promisify(execFile);
-  const newest = releasedVersions(readFileSync("CHANGELOG.md", "utf-8"))[0]!.version;
+  const changelog = readFileSync("CHANGELOG.md", "utf-8");
+  const newest = releasedVersions(changelog)[0]!.version;
   const { stdout } = await run("node", ["scripts/release/notes.ts", `v${newest}`]);
-  assert.match(stdout, /### Added/);
+  assert.equal(stdout.trim(), releaseNotes(changelog, newest));
   const bad = await run("node", ["scripts/release/notes.ts", "99.0.0"]).then(
     () => ({ code: 0, err: "" }),
     (e: { code?: number; stderr?: string }) => ({ code: e.code ?? 1, err: e.stderr ?? "" }),
