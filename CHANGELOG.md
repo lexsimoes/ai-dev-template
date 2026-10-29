@@ -7,6 +7,9 @@ An entry marked **Action needed** asks something of projects when they run `copi
 
 ## [Unreleased]
 
+### Added
+- `AGENTS.md` gains a last section, "Autonomous loop": how Claude Code orchestrates Codex step by step (with the owner's global `codex-loop` skill) and when it must stop for the owner.
+
 ## [0.3.0] - 2026-10-22
 
 Discovery and audit: a new project starts from a short PRD, and an existing project can be audited read-only and adopt the workflow in observe mode.

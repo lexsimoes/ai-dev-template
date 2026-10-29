@@ -144,3 +144,23 @@ Load on demand, only when the task calls for it; none is loaded by default. If t
 | React / Next.js | `react-best-practices` | `react-best-practices`, `nextjs` |
 | Libraries and APIs | Context7 (MCP) | Context7 (MCP) |
 | Security (diff only) | `/security-review` | `security-diff-scan`, `security-best-practices` |
+
+## {{ sec_skills + 1 }}. Autonomous loop (Claude Code orchestrates Codex)
+
+Used only when the owner asks Claude Code to run work in the loop. Claude Code plans one step,
+dispatches it to Codex with the `codex-loop` skill (Codex runs non-interactively in a separate
+worktree and only commits), then reviews the diff, runs this project's checks itself and compares
+the result with the mission and the owner's intent. Correct work is pushed to a draft PR and the
+next step is dispatched; otherwise Claude Code sends one correction or stops.
+
+Codex's final message starts with `DONE: <summary>` or `STOP: <reason>`. A `STOP` ends the loop.
+
+**Stop and call the owner** when:
+- a merge, an owner-only label or a mission's review stop is reached;
+- a product, price, copy, legal or design decision is needed;
+- spending would pass the mission's budget, or any paid service outside it;
+- the same point fails twice;
+- the diff leaves the mission's scope or touches `tests/invariants/`, `.github/workflows/` or test fixtures;
+- a check fails and the cause is not clear.
+
+Two agents agreeing is not evidence: checks and the owner's intent are. When unsure, stop and say why.
