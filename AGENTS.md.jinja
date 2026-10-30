@@ -149,7 +149,7 @@ Load on demand, only when the task calls for it; none is loaded by default. If t
 
 Used only when the owner asks Claude Code to run work in the loop. Claude Code plans one step,
 dispatches it to Codex with the `codex-loop` skill (Codex runs non-interactively in a separate
-worktree and only commits), then reviews the diff, runs this project's checks itself and compares
+worktree and leaves its changes uncommitted), then reviews the diff, commits it, runs this project's checks itself and compares
 the result with the mission and the owner's intent. Correct work is pushed to a draft PR and the
 next step is dispatched; otherwise Claude Code sends one correction or stops.
 
