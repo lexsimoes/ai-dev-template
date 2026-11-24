@@ -1,7 +1,7 @@
 # Mission 0048: sales page for adt
 
 **Status:** in review
-**Branch:** `claude/intelligent-fermi-qwtkv3` (the session's branch; the method asks for `mission/0048-landing-page`, the owner's call) · **PR:** none yet
+**Branch:** `claude/intelligent-fermi-qwtkv3` (the session's branch; the method asks for `mission/0048-landing-page`) · **PR:** part 1 [#59](https://github.com/lexsimoes/ai-dev-template/pull/59) (merged), part 2 next
 **Created on:** 2026-11-24 · **Approved by the owner on:** 2026-11-24 ("pode postar no getadt.online, tá na Hostinger já", then "pode fazer você tudo")
 
 ## Goal
@@ -98,3 +98,8 @@ _(publication stage, 2026-11-24)_
 _(split, 2026-11-24)_
 
 - The automated review refused the first version of PR #59: its diff had 180,314 characters, above the reviewer's limit of 150,000 (`maxDiffChars` in `.github/review.json`). Following the reviewer, the mission is split in two pull requests: #59 brings the English page, the shared stylesheet, the brief, the tests and the Copier exclusion (about 116,000 characters); the next one, opened from `main` after #59 is merged, brings the Portuguese page, `.github/workflows/site.yml` and the README, RELEASING and HANDOFF updates. Nothing is published until that second merge.
+
+_(part 2, 2026-11-24)_
+
+- Part 1 (#59) merged: the English page, the stylesheet, the brief, the tests and the Copier exclusion. Part 2 brings `site/pt/index.html`, `.github/workflows/site.yml`, the site tests for both languages and the README, RELEASING and HANDOFF updates. Merging it publishes the site, once the owner has set `FTP_SERVER`, `FTP_USERNAME` and `FTP_PASSWORD`.
+- From the review of #59: the Portuguese proof tile is tied to release v0.6.0 like the English one; the template-only check for `.github/workflows/site.yml` now tests a real file; the "PT" link now has its page.
