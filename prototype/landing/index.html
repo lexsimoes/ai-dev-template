@@ -25,7 +25,7 @@
     <nav class="nav" aria-label="Main">
       <a href="#how">How it works</a>
       <a href="#checks">Checks</a>
-      <a href="#pricing">Pricing</a>
+      <a href="#before-after">Before &amp; after</a>
       <a href="#faq">FAQ</a>
       <a href="https://github.com/lexsimoes/ai-dev-template">GitHub</a>
     </nav>
@@ -472,46 +472,34 @@
   </div>
 </section>
 
-<!-- PRICING -->
-<section class="band" id="pricing" aria-labelledby="pricing-title">
+<!-- BEFORE AND AFTER -->
+<section class="band" id="before-after" aria-labelledby="ba-title">
   <div class="frame section">
     <header class="sec-head">
-      <p class="eyebrow">Pricing</p>
-      <h2 id="pricing-title">Free. AI checks cost cents, paid to your&nbsp;provider.</h2>
-      <p class="lead">No seats and no subscription. Bring your own keys with a spending limit at the provider, or run with none.</p>
+      <p class="eyebrow">Before and after</p>
+      <h2 id="ba-title">Same agent. Different&nbsp;process.</h2>
+      <p class="lead">adt doesn't replace your coding agent. It changes what happens around every change the agent makes.</p>
     </header>
-    <div class="price-wrap">
-      <table class="price">
-        <caption class="sr-only">What each mode includes</caption>
+    <div class="compare-wrap">
+      <table class="compare">
+        <caption class="sr-only">Your repository without adt and with adt</caption>
         <thead>
-          <tr>
-            <th scope="col"><span class="sr-only">Feature</span></th>
-            <th scope="col"><span class="plan"><span class="plan__name">No-key mode</span><span class="plan__price">$0</span><span class="plan__sub">every guardrail that needs no model</span></span></th>
-            <th scope="col" class="col-keys"><span class="plan"><span class="plan__name">With your keys</span><span class="plan__price">≈ $0.01</span><span class="plan__sub">per AI review, paid to your provider</span></span></th>
-          </tr>
+          <tr><th scope="col"><span class="sr-only">Moment</span></th><th scope="col" class="col-before">Without adt</th><th scope="col" class="col-after">With adt</th></tr>
         </thead>
         <tbody>
-          <tr class="group"><th scope="colgroup" colspan="3">Guardrails</th></tr>
-          <tr><th scope="row">Rules for any agent in <code>AGENTS.md</code></th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
-          <tr><th scope="row">Non-negotiable tests and their guard</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
-          <tr><th scope="row">Quality and dependency checks</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
-          <tr><th scope="row">End-to-end tests, isolated</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
-          <tr><th scope="row">Secret detectors and golden-set guard</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
-          <tr><th scope="row">Protected <code>main</code> branch</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
-          <tr class="group"><th scope="colgroup" colspan="3">AI checks</th></tr>
-          <tr><th scope="row">Independent review of every ready pull request</th><td class="off">Off</td><td class="col-keys">≈ $0.01</td></tr>
-          <tr><th scope="row">Claude Sonnet on sensitive paths</th><td class="off">Off</td><td class="col-keys">≈ $0.07</td></tr>
-          <tr><th scope="row">Deep review with Claude Opus, on request</th><td class="off">Off</td><td class="col-keys">≈ $0.14</td></tr>
-          <tr><th scope="row">Evals with a real model, per run</th><td class="off">Off</td><td class="col-keys">&lt; $0.01</td></tr>
-          <tr class="group"><th scope="colgroup" colspan="3">Setup</th></tr>
-          <tr><th scope="row">Claude Code plugin: new project, discover, audit, adopt</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
-          <tr><th scope="row">New releases with <code>copier update</code></th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr><th scope="row">Starting a project</th><td class="col-before" data-label="Without adt">You set up CI, branch protection, labels and a reviewer by hand, in every repository.</td><td class="col-after" data-label="With adt"><code>/adt:new-project</code> creates the repository with all of it from a few questions.</td></tr>
+          <tr><th scope="row">A codebase you already have</th><td class="col-before" data-label="Without adt">Adding a process means changing CI and rules by hand, on code that is already in use.</td><td class="col-after" data-label="With adt"><code>/adt:audit</code> only reads. <code>/adt:adopt</code> only adds files, and its checks report without blocking until you decide.</td></tr>
+          <tr><th scope="row">Asking for work</th><td class="col-before" data-label="Without adt">A prompt in the chat. “Done” depends on who is looking.</td><td class="col-after" data-label="With adt">A mission with acceptance criteria someone can check. <code>/adt:discover</code> writes the PRD and the first missions with you.</td></tr>
+          <tr><th scope="row">Rules that must never break</th><td class="col-before" data-label="Without adt">They live in your head, and the agent can edit the test that guards them.</td><td class="col-after" data-label="With adt">They become non-negotiable tests in CI. Changing one needs your label.</td></tr>
+          <tr><th scope="row">Reviewing a pull request</th><td class="col-before" data-label="Without adt">You read every line of every pull request, alone.</td><td class="col-after" data-label="With adt">A second model reviews it, the agent fixes the obvious, and you read requirement → evidence → status.</td></tr>
+          <tr><th scope="row">AI features</th><td class="col-before" data-label="Without adt">A prompt or model change makes the answers worse, and nobody notices.</td><td class="col-after" data-label="With adt">Evals against a golden set run on every pull request that touches AI code.</td></tr>
+          <tr><th scope="row">Cost</th><td class="col-before" data-label="Without adt">Your review time, or an AI review tool paid per seat.</td><td class="col-after" data-label="With adt">The template is free (MIT). AI review costs about $0.01 per pull request, paid to your provider, or $0 with no key.</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="price-foot">
+    <div class="compare-foot">
       <a class="btn btn--primary" href="#start">Install the plugin</a>
-      <p class="fine">You choose keys or no keys during setup and can switch later. Prices are estimates for a medium pull request at list prices; each review and eval comment shows its real tokens and cost. Sonnet and Opus need an Anthropic key; without one, the standard reviewer covers those pull requests and says so. GitHub Actions is free in public repositories. A private repository needs GitHub Pro or Team for branch protection.</p>
+      <p class="fine">Costs are estimates for a medium pull request at list prices; each review and eval comment shows its real tokens and cost. Claude Sonnet on sensitive paths costs about $0.07 and a deep review with Claude Opus about $0.14; both need an Anthropic key. GitHub Actions is free in public repositories. A private repository needs GitHub Pro or Team for branch protection.</p>
     </div>
   </div>
 </section>
@@ -653,7 +641,7 @@
           <ul>
             <li><a href="#how">How it works</a></li>
             <li><a href="#checks">The checks</a></li>
-            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#before-after">Before and after</a></li>
             <li><a href="#faq">FAQ</a></li>
           </ul>
         </div>

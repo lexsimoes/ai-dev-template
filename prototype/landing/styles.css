@@ -291,7 +291,7 @@ svg { flex: none; }
 .nav a {
   font-family: var(--font-mono); font-size: var(--step--2); font-weight: 500;
   text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--fg-2); text-decoration: none; padding: 12px 10px;
+  color: var(--fg-2); text-decoration: none; padding: 12px 10px; white-space: nowrap;
 }
 .nav a:hover { color: var(--fg); }
 .head-cta { display: flex; align-items: center; gap: 8px; }
@@ -299,7 +299,7 @@ svg { flex: none; }
   .nav { display: none; }
   .head-cta { margin-left: auto; }
 }
-@media (max-width: 520px) { .wordmark__sub { display: none; } }
+@media (max-width: 1100px) { .wordmark__sub { display: none; } }
 
 /* ---------- hero ---------- */
 .hero { border-top: 0; }
@@ -570,33 +570,38 @@ figcaption { font-family: var(--font-mono); font-size: var(--step--1); line-heig
 .own h3 { font-size: clamp(1.2rem, 1.05rem + 0.6vw, 1.45rem); }
 .own p { color: var(--fg-2); }
 
-/* ---------- pricing ---------- */
-.price-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); }
-.price { width: 100%; min-width: 280px; border-collapse: collapse; font-size: 0.9375rem; line-height: 1.4; }
-.price th, .price td { padding: 12px clamp(10px, 2vw, 20px); border-bottom: 1px dashed var(--rule); text-align: left; vertical-align: middle; }
-.price thead th { vertical-align: bottom; border-bottom: 1px solid var(--rule); padding-block: 24px 20px; }
-.price tbody th { font-weight: 500; }
-.price td { text-align: center; width: 25%; font-family: var(--font-mono); font-size: var(--step--1); white-space: nowrap; }
-.price .col-keys { background: var(--feature); }
-.price thead .col-keys { box-shadow: inset 0 3px 0 var(--accent); }
-.price .group th { padding-block: 9px; background: var(--surface-2); font-family: var(--font-mono); font-size: var(--step--2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-2); }
-.price tbody tr:last-child th, .price tbody tr:last-child td { border-bottom: 0; }
-@media (max-width: 560px) {
-  .price th, .price td { padding-inline: 10px; }
-  .price td { width: 21%; }
+/* ---------- before and after ---------- */
+.compare-wrap { background: var(--surface); border: 1px solid var(--rule); }
+.compare { width: 100%; border-collapse: collapse; font-size: 0.9875rem; line-height: 1.5; }
+.compare th, .compare td { padding: 16px clamp(12px, 2vw, 22px); border-bottom: 1px dashed var(--rule); text-align: left; vertical-align: top; }
+.compare thead th {
+  padding-block: 16px; border-bottom: 1px solid var(--rule); vertical-align: bottom;
+  font-family: var(--font-mono); font-size: var(--step--2); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-2);
 }
-@media (max-width: 380px) {
-  .price th, .price td { padding-inline: 8px; }
+.compare thead .col-after { color: var(--fg); box-shadow: inset 0 3px 0 var(--accent); }
+.compare tbody th { width: 22%; font-family: var(--font-display); font-weight: 700; font-stretch: 105%; font-size: 1rem; line-height: 1.35; color: var(--fg); }
+.compare td { width: 39%; }
+.compare .col-before { color: var(--fg-2); }
+.compare .col-after { background: var(--feature); color: var(--fg); }
+.compare tbody tr:last-child > * { border-bottom: 0; }
+@media (max-width: 720px) {
+  .compare thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .compare, .compare tbody, .compare tr, .compare th, .compare td { display: block; width: auto; }
+  .compare tbody tr { padding-block: 6px 14px; border-bottom: 1px dashed var(--rule); }
+  .compare tbody tr:last-child { border-bottom: 0; }
+  .compare tbody th, .compare td { border-bottom: 0; padding-block: 8px; }
+  .compare tbody th { width: auto; font-size: 1.0625rem; }
+  .compare td::before {
+    content: attr(data-label); display: block; margin-bottom: 4px;
+    font-family: var(--font-mono); font-size: var(--step--2); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-2);
+  }
+  .compare td.col-after { margin-inline: 12px; }
+  .compare td.col-after::before { color: var(--fg); }
 }
-.plan { display: grid; gap: 4px; text-align: center; justify-items: center; }
-.plan__name { font-family: var(--font-mono); font-size: var(--step--2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-2); }
-.plan__price { font-family: var(--font-display); font-weight: 800; font-stretch: 120%; font-size: clamp(1.6rem, 1.15rem + 1.8vw, 2.5rem); line-height: 1.05; color: var(--fg); white-space: nowrap; }
-.plan__sub { font-size: var(--step--1); font-weight: 400; color: var(--fg-2); max-width: 18ch; }
-.yes { display: inline-grid; place-items: center; color: var(--ok); }
-.yes svg { width: 18px; height: 18px; }
-.off { color: var(--fg-2); }
-.price-foot { display: grid; gap: 20px; margin-top: 28px; }
-@media (min-width: 860px) { .price-foot { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 32px; } }
+.compare-foot { display: grid; gap: 20px; margin-top: 28px; }
+@media (min-width: 860px) { .compare-foot { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 32px; } }
 .fine { font-size: var(--step--1); color: var(--fg-2); max-width: 80ch; }
 
 /* ---------- get started ---------- */
@@ -680,10 +685,4 @@ figcaption { font-family: var(--font-mono); font-size: var(--step--1); line-heig
 html:lang(pt) .hero h1 { font-size: clamp(2rem, 0.3rem + 7.4vw, 4.2rem); }
 @media (min-width: 1040px) {
   html:lang(pt) .hero h1 { font-size: min(3.8rem, calc(0.5rem + 4.1vw)); }
-}
-
-/* ---------- pricing heads on narrow screens: the price may wrap ---------- */
-@media (max-width: 560px) {
-  .plan__price { white-space: normal; font-size: 1.35rem; }
-  .plan__name { letter-spacing: 0.04em; }
 }
