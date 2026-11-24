@@ -1,13 +1,13 @@
-// The product website in site/ (template-only, published at https://getadt.online by .github/workflows/site.yml).
+// The product website in site/ (template-only, to be published at https://getadt.online).
 // It must stay static, load nothing but its own files and Google Fonts, and agree with the repository on the
 // latest release and the install commands.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// The Portuguese page (site/pt/) and the deploy workflow come in the next pull request of mission 0048.
 const pages = {
   en: readFileSync("site/index.html", "utf-8"),
-  pt: readFileSync("site/pt/index.html", "utf-8"),
 };
 
 function latestRelease(): string {
@@ -47,15 +47,11 @@ for (const [lang, html] of Object.entries(pages)) {
   });
 }
 
-test("site: each language links to the other and declares both", () => {
+test("site: the English page links to the Portuguese one and declares both", () => {
   assert.match(pages.en, /href="pt\/index\.html" hreflang="pt-BR"/);
-  assert.match(pages.pt, /href="\.\.\/index\.html" hreflang="en"/);
-  for (const html of Object.values(pages)) {
-    assert.match(html, /<link rel="alternate" hreflang="en" href="https:\/\/getadt\.online\/">/);
-    assert.match(html, /<link rel="alternate" hreflang="pt-BR" href="https:\/\/getadt\.online\/pt\/">/);
-  }
+  assert.match(pages.en, /<link rel="alternate" hreflang="en" href="https:\/\/getadt\.online\/">/);
+  assert.match(pages.en, /<link rel="alternate" hreflang="pt-BR" href="https:\/\/getadt\.online\/pt\/">/);
   assert.match(pages.en, /<html lang="en">/);
-  assert.match(pages.pt, /<html lang="pt-BR">/);
 });
 
 test("site: template-only, never copied into a project", () => {

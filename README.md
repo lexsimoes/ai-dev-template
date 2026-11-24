@@ -1,6 +1,6 @@
 # ai-dev-template
 
-A repository template for developing with AI agents ([getadt.online](https://getadt.online)). The agent implements, another model reviews, the bots verify everything and **you decide and approve**.
+A repository template for developing with AI agents. The agent implements, another model reviews, the bots verify everything and **you decide and approve**.
 
 - Every change goes through a PR with required checks: code quality, **non-negotiable rules** (tests no agent may touch), dependencies, an **independent AI review** and **evals** for the functions that call an LLM.
 - Agents follow written rules ([`AGENTS.md`](AGENTS.md)) and stop to ask you when a decision is yours.
@@ -193,7 +193,6 @@ These parts exist only in this repository; Copier does not copy them into projec
 | `.claude-plugin/marketplace.json`, `plugins/adt/`, `docs/PLUGIN-TEST.md` | The Claude Code plugin and its marketplace (installed from this repository), and its manual test. `plugins/adt/template.json` pins the release it creates projects from |
 | `adopt/` | What `/adt:adopt` brings into an existing project: the kit list and the observe-mode workflows |
 | `CHANGELOG.md`, `docs/RELEASING.md`, `scripts/release/` | Versions and the release flow: projects are created and updated only from release tags |
-| `site/`, `.github/workflows/site.yml`, `tests/unit/site.test.ts` | The product website, https://getadt.online, in English and Portuguese. A merge into `main` that changes `site/` publishes it to Hostinger over FTP with TLS; the secrets `FTP_SERVER`, `FTP_USERNAME` and `FTP_PASSWORD` are set by the owner |
 | `LICENSE` | The template's license. Projects get its notice in `THIRD_PARTY_NOTICES.md` instead (from `THIRD_PARTY_NOTICES.md.jinja`), which does not set the project's own license |
 
 ### Traffic export

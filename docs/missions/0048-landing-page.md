@@ -94,3 +94,7 @@ _(publication stage, 2026-11-24)_
 - **Evidence:** `npm run check` green (243 unit tests, 8 invariants); the site tests fail if the page shows another release than the changelog.
 - **What was NOT verified:** the workflow itself (it runs only on GitHub, after the secrets exist and the PR is merged); FTP with TLS on the Hostinger account and the remote folder (`public_html` by default); `npm run test:template` (Copier is not installed in this session; CI runs it); the live pages.
 - **Pending decisions for the owner:** set `FTP_SERVER`, `FTP_USERNAME` and `FTP_PASSWORD` in your own terminal; merge; decisions 4 to 7 above still stand.
+
+_(split, 2026-11-24)_
+
+- The automated review refused the first version of PR #59: its diff had 180,314 characters, above the reviewer's limit of 150,000 (`maxDiffChars` in `.github/review.json`). Following the reviewer, the mission is split in two pull requests: #59 brings the English page, the shared stylesheet, the brief, the tests and the Copier exclusion (about 116,000 characters); the next one, opened from `main` after #59 is merged, brings the Portuguese page, `.github/workflows/site.yml` and the README, RELEASING and HANDOFF updates. Nothing is published until that second merge.
