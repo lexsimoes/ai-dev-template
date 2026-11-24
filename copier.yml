@@ -92,6 +92,10 @@ _exclude:
   - adopt
   - "tests/unit/plugin-*.test.ts"
   - docs/PLUGIN-TEST.md
+  # The product website (getadt.online) and its deploy belong to the template, not to projects.
+  - site
+  - .github/workflows/site.yml
+  - tests/unit/site.test.ts
   # The template's own missions are its history; projects get only the mission template and README.
   - "docs/missions/[0-9]*"
 
