@@ -1,7 +1,7 @@
 # Sales page brief: adt
 
-Working notes behind the prototype in `prototype/landing/`: `index.html` (English), `pt/index.html` (Brazilian Portuguese) and the `styles.css` they share. Open either file in a browser; there is no build step.
-It is a prototype (`AGENTS.md` 1.1): nothing here ships until the owner approves mission 0048 (`docs/missions/0048-landing-page.md`).
+Working notes behind the website in `site/` (published at https://getadt.online): `index.html` (English), `pt/index.html` (Brazilian Portuguese) and the `styles.css` they share. Open either file in a browser; there is no build step.
+Mission 0048 (`docs/missions/0048-landing-page.md`) moved it here from `prototype/landing/` after the owner's go-ahead.
 
 ## The page's job
 
