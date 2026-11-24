@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>adt: guardrails for AI coding agents</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="adt is a free, open-source template and Claude Code plugin for building software with AI agents. Rules no agent can bend, a second AI review on every pull request, evidence instead of “done,” and a merge only you can click.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="adt · Agents code. Bots verify. You approve.">
+<meta property="og:description" content="A free, open-source workflow for building with AI coding agents. Every change arrives as a pull request with evidence, and nothing merges without you.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#eceef1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="frame">
+    <a class="wordmark" href="#top" aria-label="adt, home">adt<span class="mark" aria-hidden="true"></span><span class="wordmark__sub" aria-hidden="true">ai-dev-template</span></a>
+    <nav class="nav" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#checks">Checks</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/lexsimoes/ai-dev-template">GitHub</a>
+    </nav>
+    <div class="head-cta">
+      <a class="lang" href="pt/index.html" hreflang="pt-BR" lang="pt-BR" aria-label="Ver em português">PT</a>
+      <a class="btn btn--primary btn--small" href="#start">Install</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- HERO -->
+<section class="band hero" id="top" aria-labelledby="hero-title">
+  <div class="frame">
+    <div class="hero__copy">
+      <p class="eyebrow">For builders who ship with AI agents</p>
+      <h1 id="hero-title">
+        <span class="line">Agents code.</span>
+        <span class="line">Bots verify.</span>
+        <span class="line"><span class="tape">You approve.</span></span>
+      </h1>
+      <p class="lead">adt turns your GitHub repository into a workflow for AI coding agents. Every change arrives as a pull request with evidence, held to rules no agent can bend and reviewed by a second AI. You read the evidence instead of every line, and you click merge.</p>
+      <div class="cta-row">
+        <a class="btn btn--primary" href="#start">Install the plugin</a>
+        <a class="btn btn--secondary" href="#how">See how it works</a>
+      </div>
+      <ul class="facts">
+        <li>Free and open source (MIT)</li>
+        <li>Runs without an AI key</li>
+        <li>Latest release v0.6.0</li>
+      </ul>
+    </div>
+
+    <figure class="fig" aria-labelledby="fig1-cap">
+      <div class="fig__frame">
+        <div class="sheet pr">
+          <div class="pr__head">
+            <p class="pr__branch">mission/0003-coupon-at-checkout <span aria-hidden="true">→</span> main</p>
+            <p class="pr__title">Coupon at checkout <span class="pr__num">#12</span></p>
+            <p class="pr__by"><span>Opened by your agent</span><span class="pill">Ready for review</span></p>
+          </div>
+          <p class="checks-head"><span>Required checks</span><span>6 of 6</span></p>
+          <ul class="checks">
+            <li class="check" style="--i:0">
+              <span class="check__icon">
+                <span class="ic-wait" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg></span>
+                <span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span>
+              </span>
+              <span class="check__name">quality</span><span class="check__note">Lint, types, unit tests</span><span class="sr-only">: passed</span>
+            </li>
+            <li class="check" style="--i:1">
+              <span class="check__icon">
+                <span class="ic-wait" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg></span>
+                <span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span>
+              </span>
+              <span class="check__name">invariants</span><span class="check__note">Non-negotiables untouched</span><span class="sr-only">: passed</span>
+            </li>
+            <li class="check" style="--i:2">
+              <span class="check__icon">
+                <span class="ic-wait" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg></span>
+                <span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span>
+              </span>
+              <span class="check__name">dependencies</span><span class="check__note">No new advisories</span><span class="sr-only">: passed</span>
+            </li>
+            <li class="check" style="--i:3">
+              <span class="check__icon">
+                <span class="ic-wait" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg></span>
+                <span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span>
+              </span>
+              <span class="check__name">review</span><span class="check__note">0 blocking, about $0.01</span><span class="sr-only">: passed</span>
+            </li>
+            <li class="check" style="--i:4">
+              <span class="check__icon">
+                <span class="ic-wait" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg></span>
+                <span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span>
+              </span>
+              <span class="check__name">evals</span><span class="check__note">Golden set at 100%</span><span class="sr-only">: passed</span>
+            </li>
+            <li class="check" style="--i:5">
+              <span class="check__icon">
+                <span class="ic-wait" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg></span>
+                <span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span>
+              </span>
+              <span class="check__name">e2e</span><span class="check__note">Critical flows pass</span><span class="sr-only">: passed</span>
+            </li>
+          </ul>
+          <div class="pr__foot">
+            <span class="merge">Merge pull request</span>
+            <span class="merge__who"><span aria-hidden="true">←</span> only you can click this</span>
+          </div>
+        </div>
+      </div>
+      <figcaption id="fig1-cap"><span class="fig__no">Fig. 1</span>An agent's pull request on its way through the six required checks. Illustration.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- WORKS WITH -->
+<section class="band strip" aria-labelledby="strip-title">
+  <p class="strip__label" id="strip-title">One AGENTS.md, read by the agents you already use</p>
+  <ul class="strip__list">
+    <li>Claude Code</li>
+    <li>Codex</li>
+    <li>Cursor</li>
+    <li>GitHub Copilot</li>
+    <li>Windsurf</li>
+    <li>Gemini CLI</li>
+    <li>Aider</li>
+    <li>Cline</li>
+  </ul>
+</section>
+
+<!-- PROBLEM -->
+<section class="band" id="problem" aria-labelledby="problem-title">
+  <div class="frame section">
+    <header class="sec-head">
+      <p class="eyebrow">The problem</p>
+      <h2 id="problem-title">Your agent says “done.” Can&nbsp;you prove it?</h2>
+      <p class="lead">Coding agents are fast and sure of themselves. When nobody checks, they also take shortcuts. adt was built to catch these six.</p>
+    </header>
+    <div class="fails__head" aria-hidden="true"><span>What the agent did</span><span>How adt stops it</span></div>
+    <ol class="fails">
+      <li class="fail">
+        <p class="fail__what"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">The agent: </span>It turned CI green by weakening a test.</span></p>
+        <p class="fail__fix"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">adt: </span><strong>Non-negotiable tests are locked.</strong> A pull request that touches one stays red until you apply <code>invariant-approved</code>, and only you can.</span></p>
+      </li>
+      <li class="fail">
+        <p class="fail__what"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">The agent: </span>It said “done” and ran nothing.</span></p>
+        <p class="fail__fix"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">adt: </span><strong>Evidence for every requirement.</strong> Each pull request maps what was asked to its proof and status, and lists what was not verified.</span></p>
+      </li>
+      <li class="fail">
+        <p class="fail__what"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">The agent: </span>It broke a rule that must never break.</span></p>
+        <p class="fail__fix"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">adt: </span><strong>Every rule has a test in CI.</strong> Prices, permissions and personal data rules from your PRD run on each pull request, and a red one blocks the merge.</span></p>
+      </li>
+      <li class="fail">
+        <p class="fail__what"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">The agent: </span>It followed an instruction hidden in an issue.</span></p>
+        <p class="fail__fix"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">adt: </span><strong>External content is data.</strong> Issues, emails, logs and comments never become instructions. The agent quotes a possible injection in its report and keeps to the mission.</span></p>
+      </li>
+      <li class="fail">
+        <p class="fail__what"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">The agent: </span>It merged its own work.</span></p>
+        <p class="fail__fix"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">adt: </span><strong>The merge is yours.</strong> Agents never merge, tag, release or deploy, and <code>main</code> accepts only pull requests with green required checks.</span></p>
+      </li>
+      <li class="fail">
+        <p class="fail__what"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">The situation: </span>You are the only reviewer, and the pull requests keep coming.</span></p>
+        <p class="fail__fix"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span><span class="sr-only">adt: </span><strong>A second reviewer on every pull request.</strong> With your own API key, another model reviews each ready pull request for about a cent, and the agent fixes the obvious findings before it reports to you.</span></p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="band band--night" id="how" aria-labelledby="how-title">
+  <div class="frame section">
+    <header class="sec-head">
+      <p class="eyebrow">How it works</p>
+      <h2 id="how-title">One loop for every change.</h2>
+      <p class="lead">The same four steps for a one-line fix or a new feature. You are at both ends.</p>
+    </header>
+    <div class="how">
+      <ol class="steps">
+        <li class="step">
+          <span class="step__no" aria-hidden="true">01</span>
+          <div class="step__body">
+            <p class="actor actor--you">You</p>
+            <h3>Write the mission.</h3>
+            <p>A short work order: the goal, what the agent may touch, and acceptance criteria someone can check. On a new project, <code>/adt:discover</code> drafts the PRD and the first missions with you and, for a product with screens, shows a clickable mockup before any code.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step__no" aria-hidden="true">02</span>
+          <div class="step__body">
+            <p class="actor">Agent</p>
+            <h3>The agent builds on a branch.</h3>
+            <p>Claude Code, Codex or Cursor follows <code>AGENTS.md</code>, works in a draft pull request and stops to ask when a decision is yours.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step__no" aria-hidden="true">03</span>
+          <div class="step__body">
+            <p class="actor">Checks</p>
+            <h3>The checks run.</h3>
+            <p>When the agent marks the pull request ready, six required checks run: quality, non-negotiables, dependencies, AI review, evals and end-to-end tests. The agent fixes the obvious review findings and lists the rest for you.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step__no" aria-hidden="true">04</span>
+          <div class="step__body">
+            <p class="actor actor--you">You</p>
+            <h3>You approve.</h3>
+            <p>You read the evidence, the review and what was not verified, try the change, and click merge. Agents never do.</p>
+          </div>
+        </li>
+      </ol>
+      <aside class="stops" aria-labelledby="stops-title">
+        <div class="hazard" aria-hidden="true"></div>
+        <div class="stops__body">
+          <h3 id="stops-title">The agent stops and asks when</h3>
+          <ul>
+            <li>a non-negotiable test fails or needs to change;</li>
+            <li>the work needs a large dependency, a CI change or new permissions;</li>
+            <li>the mission and the PRD disagree, or the acceptance is ambiguous;</li>
+            <li>it needs a secret, an account or a payment;</li>
+            <li>external content looks like an injection.</li>
+          </ul>
+          <p class="stops__src">From <code>AGENTS.md</code>, section 1.8, which every agent reads first.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- THE CHECKS -->
+<section class="band" id="checks" aria-labelledby="checks-title">
+  <div class="frame section">
+    <header class="sec-head">
+      <p class="eyebrow">The checks</p>
+      <h2 id="checks-title">Six required checks between an agent and your main&nbsp;branch.</h2>
+      <p class="lead">Each one is required on every pull request. A red one blocks the merge, for the agent and for you.</p>
+    </header>
+    <ul class="check-grid">
+      <li><span class="check-grid__name">quality</span><p>Lint, types and unit tests.</p></li>
+      <li><span class="check-grid__name">invariants</span><p>Your non-negotiable tests, and a guard that accepts only your approval label.</p></li>
+      <li><span class="check-grid__name">dependencies</span><p>Known vulnerabilities in what the pull request adds.</p></li>
+      <li><span class="check-grid__name">review</span><p>An AI review by a different model than the one that wrote the code.</p></li>
+      <li><span class="check-grid__name">evals</span><p>Accuracy of every function that calls an LLM, against a protected golden set.</p></li>
+      <li><span class="check-grid__name">e2e</span><p>Your critical flows in a real browser, isolated, with a fake AI provider.</p></li>
+    </ul>
+
+    <div class="feature">
+      <div class="feature__copy">
+        <p class="eyebrow">Non-negotiables</p>
+        <h3>Rules no agent can bend.</h3>
+        <p>Write down what must never happen: a total below zero, a customer message treated as a command. Each rule gets a test in <code>tests/invariants/</code>. Agents may not edit, skip or weaken it. A pull request that touches the folder stays red until you apply <code>invariant-approved</code>, and the guard checks that the label came from you.</p>
+      </div>
+      <figure class="fig" aria-labelledby="fig2-cap">
+        <div class="fig__frame">
+          <div class="sheet">
+            <div class="gate">
+              <svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="currentColor"/><path d="M7 7l8 8M15 7l-8 8" stroke="var(--surface)" stroke-width="2.2"/></svg>
+              <div>
+                <p class="gate__title">Merging is blocked</p>
+                <p class="gate__sub">1 required check failed · 5 passed</p>
+              </div>
+            </div>
+            <ul class="gh-checks">
+              <li class="is-fail"><span class="ic-fail" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M6 6l6 6M12 6l-6 6" fill="none" stroke-width="2"/></svg></span><span class="name">invariants</span><span class="note"><span class="sr-only">Failed: </span><code>tests/<wbr>invariants/<wbr>pricing.invariant.test.ts</code> changed without the approval label</span></li>
+              <li><span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span><span class="name">quality</span><span class="note"><span class="sr-only">Passed: </span>Lint, types, unit tests</span></li>
+              <li><span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span><span class="name">dependencies</span><span class="note"><span class="sr-only">Passed: </span>No new advisories</span></li>
+              <li><span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span><span class="name">review</span><span class="note"><span class="sr-only">Passed: </span>Flags the change for you</span></li>
+              <li><span class="ic-pass" aria-hidden="true"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg></span><span class="name">evals · e2e</span><span class="note"><span class="sr-only">Passed: </span>Golden set and critical flows</span></li>
+            </ul>
+            <p class="unblock"><span>Unblocks with</span><span class="gh-label">invariant-approved</span><span>applied by the owner in CODEOWNERS</span></p>
+          </div>
+        </div>
+        <figcaption id="fig2-cap"><span class="fig__no">Fig. 2</span>A pull request that changes a non-negotiable test, before the owner's label. Illustration.</figcaption>
+      </figure>
+    </div>
+
+    <div class="feature feature--flip">
+      <div class="feature__copy">
+        <p class="eyebrow">Independent review</p>
+        <h3>A second model reads every change.</h3>
+        <p>The model that wrote the code doesn't see its own mistakes, so the reviewer runs on a different provider. DeepSeek reviews by default. Claude Sonnet takes over on sensitive paths such as auth, payments and AI code, and Claude Opus when you ask for a deep review. Every comment shows its tokens and cost, and the criteria come from the target branch, so a pull request can't loosen its own review.</p>
+      </div>
+      <figure class="fig" aria-labelledby="fig3-cap">
+        <div class="fig__frame">
+          <div class="sheet">
+            <div class="review__head">
+              <p class="review__title">Automated review</p>
+              <p class="review__meta">incremental review since e95a4b8 · commit a2e7d32</p>
+            </div>
+            <div class="review__body">
+              <p class="verdict"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor"/><path class="tick" d="M5.2 9.3l2.5 2.5 5-5.4" fill="none" stroke-width="2"/></svg>No open blocking findings.</p>
+              <dl class="counts">
+                <div class="sev-block"><dt>Blocking</dt><dd>0</dd></div>
+                <div class="sev-imp"><dt>Important</dt><dd>0</dd></div>
+                <div class="sev-sug"><dt>Suggestion</dt><dd>1</dd></div>
+              </dl>
+              <div class="note-box">
+                <p class="note-box__label">Not reviewed</p>
+                <p>The claim that the entry sits under Unreleased above <code>[0.5.1]</code> in <code>CHANGELOG.md</code> could not be checked, because that file is not in this incremental diff.</p>
+              </div>
+              <dl class="run">
+                <div><dt>Tier</dt><dd>sensitive · <span class="nw">claude-sonnet-5-5</span></dd></div>
+                <div><dt>Cost</dt><dd><span class="cost">≈ $0.0216</span> · 9,033 in + 354 out tokens</dd></div>
+                <div><dt>Duration</dt><dd>4.4 s</dd></div>
+                <div><dt>Criteria</dt><dd>REVIEW.md from the target branch</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <figcaption id="fig3-cap"><span class="fig__no">Fig. 3</span>The real review comment on adt's own <a href="https://github.com/lexsimoes/ai-dev-template/pull/55">pull request #55</a>, shortened.</figcaption>
+      </figure>
+    </div>
+
+    <div class="feature">
+      <div class="feature__copy">
+        <p class="eyebrow">Evidence</p>
+        <h3>Proof instead of “done.”</h3>
+        <p>Every pull request answers the same questions for each requirement: what was asked, what proves it, and whether it is verified. Then it lists what was not verified and what needs your decision. The reviewer blocks a “verified” that has no test, log or link behind it.</p>
+      </div>
+      <figure class="fig" aria-labelledby="fig4-cap">
+        <div class="fig__frame">
+          <div class="sheet doc">
+            <p class="doc__h"><span>## </span>Direction check</p>
+            <div class="table-wrap">
+              <table class="ev">
+                <thead><tr><th scope="col">Requirement</th><th scope="col">Evidence</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                  <tr><td><b>CA-02</b>A 10% coupon takes 10% off the total, rounded to the cent</td><td><code>tests/unit/pricing.test.ts</code> passing</td><td><span class="st st--ok">verified</span></td></tr>
+                  <tr><td><b>CA-03</b>Messages sorted by topic with at least 90% accuracy</td><td>Evals: 100% on 10 cases</td><td><span class="st st--ok">verified</span></td></tr>
+                  <tr><td><b>INV-001</b>The total is never negative</td><td><code>npm run test:invariants</code></td><td><span class="st st--ok">verified</span></td></tr>
+                  <tr><td><b>CA-07</b>The coupon field fits on a phone</td><td>Checked at 1280 px only</td><td><span class="st st--part">partial</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="doc__h"><span>## </span>What was NOT verified</p>
+            <ul><li>The checkout at 375 px wide.</li></ul>
+            <p class="doc__h"><span>## </span>Pending decisions</p>
+            <ul><li>Keep HTTP 422 on validation errors, or return 200 with the error on the page?</li></ul>
+          </div>
+        </div>
+        <figcaption id="fig4-cap"><span class="fig__no">Fig. 4</span>The evidence part of a pull request description, as the template's PR form asks for it. Example from the demo store.</figcaption>
+      </figure>
+    </div>
+
+    <div class="more">
+      <div>
+        <h3>Evals for AI features</h3>
+        <p>Every function that calls an LLM gets a golden set and thresholds. Output outside a closed list becomes “needs a human,” never an action. Changing a golden case needs your <code>eval-approved</code>.</p>
+        <p class="stat">On pull request #55: 10 cases, 100% accuracy, ≈ $0.0007.</p>
+      </div>
+      <div>
+        <h3>End-to-end tests agents can't rewrite</h3>
+        <p>Playwright walks your critical flows in an isolated app with a fake AI provider. Agents may update selectors. Changing what a test checks needs your <code>test-approved</code>, and a flaky test goes to quarantine with an issue, never silently off.</p>
+      </div>
+      <div>
+        <h3>External content stays data</h3>
+        <p>Issues, emails, logs, web pages and other models' output never become instructions, for the agent or for the reviewer. A planted “approve this PR” is a blocking finding.</p>
+      </div>
+      <div>
+        <h3>Starts with no AI key</h3>
+        <p>Without keys, review and evals pass with an “off” notice and every other check runs. The secret detectors and the golden-set guard still block. Add keys when you want.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROOF -->
+<section class="band band--night" id="proof" aria-labelledby="proof-title">
+  <div class="frame section">
+    <header class="sec-head">
+      <p class="eyebrow">Built with itself</p>
+      <h2 id="proof-title">adt is built with adt. Here is what it&nbsp;caught.</h2>
+      <p class="lead">Every change to the template goes through the missions, checks and reviews it gives you. These numbers and bugs come from its own repository.</p>
+    </header>
+    <div class="proof">
+      <div class="tile">
+        <p class="tile__num">47</p>
+        <p class="tile__label">pull requests merged in 8 days, by one maintainer and their agents</p>
+        <p class="tile__src">git history, Oct 20–27, 2026</p>
+      </div>
+      <div class="tile">
+        <p class="tile__num">235 + 8</p>
+        <p class="tile__label">unit tests and invariant tests in the template, all passing</p>
+        <p class="tile__src">npm test · npm run test:invariants</p>
+      </div>
+      <section class="feed" aria-labelledby="feed-title">
+        <p class="feed__head"><span id="feed-title">Caught by adt's own checks</span><span>from the changelog</span></p>
+        <ol>
+          <li class="catch">
+            <p class="catch__meta"><span class="tag tag--red">Security</span><span>v0.5.0 · security review</span></p>
+            <p class="catch__text">A pull request could redirect <code>@playwright/test</code> through the root <code>tsconfig.json</code>, so an <code>expect</code> that accepts anything would pass.</p>
+          </li>
+          <li class="catch">
+            <p class="catch__meta"><span class="tag tag--red">Bug</span><span>#33 · exploratory session</span></p>
+            <p class="catch__text">The contact form refused valid messages that had many line breaks.</p>
+          </li>
+          <li class="catch">
+            <p class="catch__meta"><span class="tag tag--red">Bug</span><span>v0.4.0 · new end-to-end test</span></p>
+            <p class="catch__text">A 2,000-character message in Japanese got an HTTP 413.</p>
+          </li>
+          <li class="catch">
+            <p class="catch__meta"><span class="tag tag--amber">Reviewer</span><span>#45 · v0.5.0</span></p>
+            <p class="catch__text">The incremental review reported a merge of <code>main</code> as the pull request's own change.</p>
+          </li>
+          <li class="catch">
+            <p class="catch__meta"><span class="tag tag--amber">CI</span><span>v0.4.0 · rehearsal</span></p>
+            <p class="catch__text">The required dependencies check failed on every pull request of a private repository.</p>
+          </li>
+          <li class="catch">
+            <p class="catch__meta"><span class="tag tag--green">Blocked</span><span>sandbox rehearsal</span></p>
+            <p class="catch__text">A pull request that skipped an invariant test stayed red, and an unrelated label did not turn it green.</p>
+          </li>
+        </ol>
+      </section>
+      <div class="tile">
+        <p class="tile__num">4 / 4</p>
+        <p class="tile__label">planted defects found by the default reviewer in a test pull request, for about $0.01</p>
+        <p class="tile__src">mission 0033 · DeepSeek Flash</p>
+      </div>
+      <div class="tile">
+        <p class="tile__num">$0.0216</p>
+        <p class="tile__label">a real incremental review by Claude Sonnet on a sensitive pull request, in 4.4 seconds</p>
+        <p class="tile__src">pull request #55</p>
+      </div>
+    </div>
+    <div class="proof-cta">
+      <a class="btn btn--secondary" href="https://github.com/lexsimoes/ai-dev-template/blob/main/CHANGELOG.md">Read the changelog</a>
+    </div>
+  </div>
+</section>
+
+<!-- OWNERSHIP -->
+<section class="band" id="own" aria-labelledby="own-title">
+  <div class="frame section">
+    <header class="sec-head">
+      <p class="eyebrow">No lock-in</p>
+      <h2 id="own-title">Yours, end to end.</h2>
+    </header>
+    <div class="own">
+      <div>
+        <p class="own__k">Agents</p>
+        <h3>Any coding agent</h3>
+        <p>One <code>AGENTS.md</code>, read by Codex, Cursor, Copilot, Windsurf and more. Claude Code gets the setup plugin. Gemini CLI and Aider get a bridge file.</p>
+      </div>
+      <div>
+        <p class="own__k">Models</p>
+        <h3>Your choice of model</h3>
+        <p>DeepSeek or Claude for the review and the evals, or no model at all. Versions are pinned, so a silent switch upstream stops the review instead of slipping through.</p>
+      </div>
+      <div>
+        <p class="own__k">Infrastructure</p>
+        <h3>Your GitHub, your keys</h3>
+        <p>Everything runs as GitHub Actions in your repository, with keys in your GitHub Secrets. There is no adt server and no account to create.</p>
+      </div>
+      <div>
+        <p class="own__k">License</p>
+        <h3>MIT, and updatable</h3>
+        <p>Fork it and change it. <code>copier update</code> brings new releases without overwriting your PRD, your non-negotiable tests or your app code.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="band" id="pricing" aria-labelledby="pricing-title">
+  <div class="frame section">
+    <header class="sec-head">
+      <p class="eyebrow">Pricing</p>
+      <h2 id="pricing-title">Free. AI checks cost cents, paid to your&nbsp;provider.</h2>
+      <p class="lead">No seats and no subscription. Bring your own keys with a spending limit at the provider, or run with none.</p>
+    </header>
+    <div class="price-wrap">
+      <table class="price">
+        <caption class="sr-only">What each mode includes</caption>
+        <thead>
+          <tr>
+            <th scope="col"><span class="sr-only">Feature</span></th>
+            <th scope="col"><span class="plan"><span class="plan__name">No-key mode</span><span class="plan__price">$0</span><span class="plan__sub">every guardrail that needs no model</span></span></th>
+            <th scope="col" class="col-keys"><span class="plan"><span class="plan__name">With your keys</span><span class="plan__price">≈ $0.01</span><span class="plan__sub">per AI review, paid to your provider</span></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="group"><th scope="colgroup" colspan="3">Guardrails</th></tr>
+          <tr><th scope="row">Rules for any agent in <code>AGENTS.md</code></th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr><th scope="row">Non-negotiable tests and their guard</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr><th scope="row">Quality and dependency checks</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr><th scope="row">End-to-end tests, isolated</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr><th scope="row">Secret detectors and golden-set guard</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr><th scope="row">Protected <code>main</code> branch</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr class="group"><th scope="colgroup" colspan="3">AI checks</th></tr>
+          <tr><th scope="row">Independent review of every ready pull request</th><td class="off">Off</td><td class="col-keys">≈ $0.01</td></tr>
+          <tr><th scope="row">Claude Sonnet on sensitive paths</th><td class="off">Off</td><td class="col-keys">≈ $0.07</td></tr>
+          <tr><th scope="row">Deep review with Claude Opus, on request</th><td class="off">Off</td><td class="col-keys">≈ $0.14</td></tr>
+          <tr><th scope="row">Evals with a real model, per run</th><td class="off">Off</td><td class="col-keys">&lt; $0.01</td></tr>
+          <tr class="group"><th scope="colgroup" colspan="3">Setup</th></tr>
+          <tr><th scope="row">Claude Code plugin: new project, discover, audit, adopt</th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+          <tr><th scope="row">New releases with <code>copier update</code></th><td><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td><td class="col-keys"><span class="yes"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span class="sr-only">Included</span></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="price-foot">
+      <a class="btn btn--primary" href="#start">Install the plugin</a>
+      <p class="fine">You choose keys or no keys during setup and can switch later. Prices are estimates for a medium pull request at list prices; each review and eval comment shows its real tokens and cost. Sonnet and Opus need an Anthropic key; without one, the standard reviewer covers those pull requests and says so. GitHub Actions is free in public repositories. A private repository needs GitHub Pro or Team for branch protection.</p>
+    </div>
+  </div>
+</section>
+
+<!-- GET STARTED -->
+<section class="band band--night" id="start" aria-labelledby="start-title">
+  <div class="frame section">
+    <header class="sec-head">
+      <p class="eyebrow">Get started</p>
+      <h2 id="start-title">Two commands in Claude Code. Then pick your&nbsp;path.</h2>
+    </header>
+    <div class="install" role="group" aria-labelledby="install-label">
+      <p class="install__label"><strong id="install-label">Install the adt plugin</strong><span>Send them one at a time. Pasted together, they fail.</span></p>
+      <ol>
+        <li class="cmd">
+          <span class="cmd__n" aria-hidden="true">1</span>
+          <code id="cmd-1">/plugin marketplace add <span class="nw">lexsimoes/ai-dev-template</span></code>
+          <button class="btn btn--secondary btn--small copy" type="button" data-copy="cmd-1" aria-label="Copy the first command">Copy</button>
+        </li>
+        <li class="cmd">
+          <span class="cmd__n" aria-hidden="true">2</span>
+          <code id="cmd-2">/plugin install <span class="nw">adt@ai-dev-template</span></code>
+          <button class="btn btn--secondary btn--small copy" type="button" data-copy="cmd-2" aria-label="Copy the second command">Copy</button>
+        </li>
+      </ol>
+    </div>
+    <p class="sr-only" id="copy-status" role="status" aria-live="polite"></p>
+
+    <div class="tracks">
+      <div class="track">
+        <div class="track__head"><h3>Starting fresh</h3><span class="track__where">In an empty folder</span></div>
+        <ol>
+          <li><code class="chip">/adt:new-project</code><p>Asks a few questions in one message, creates the repository from the latest release, and sets up the labels and the protection of <code>main</code>.</p></li>
+          <li><code class="chip">/adt:discover</code><p>Turns a short conversation about your product into a PRD, a clickable mockup and the first missions.</p></li>
+          <li><code class="chip">“Carry out mission 0001”</code><p>Ask your agent. It works on a branch and opens a draft pull request.</p></li>
+        </ol>
+      </div>
+      <div class="track">
+        <div class="track__head"><h3>Already have code</h3><span class="track__where">An existing repository</span></div>
+        <ol>
+          <li><code class="chip">/adt:audit &lt;path&gt;</code><p>Run it from a folder outside the project. It is read-only: it maps the stack, tests and sensitive areas, infers a PRD for you to confirm, and proves it changed nothing.</p></li>
+          <li><code class="chip">/adt:adopt</code><p>Run it inside the project. It adds the workflow on a branch without overwriting a file, and its checks report without blocking anything.</p></li>
+          <li><code class="chip">/adt:check-setup</code><p>Tells you when each check has been green long enough to make it required.</p></li>
+        </ol>
+      </div>
+    </div>
+    <p class="prereq">You need Node.js 22.18 or newer, Git, the GitHub CLI (logged in) and Copier 9.18.2 or newer. Every command, where to run it and what comes next: <a href="https://github.com/lexsimoes/ai-dev-template/blob/main/plugins/adt/GUIDE.md">the command guide</a>.</p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="band" id="faq" aria-labelledby="faq-title">
+  <div class="frame section">
+    <div class="faq">
+      <header class="sec-head">
+        <p class="eyebrow">FAQ</p>
+        <h2 id="faq-title">Questions before you install.</h2>
+      </header>
+      <details>
+        <summary>Is adt really free?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>Yes. The template and the plugin are under the MIT License. If you turn on the AI checks, you pay your model provider directly: about $0.01 for a standard review of a medium pull request. In no-key mode it costs nothing. GitHub Actions is free in public repositories.</p></div>
+      </details>
+      <details>
+        <summary>Which coding agents does it work with?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>Any agent that reads <code>AGENTS.md</code>. Codex, Cursor, GitHub Copilot, Windsurf, Cline and Zed read it on their own. Claude Code reads it through <code>CLAUDE.md</code> and runs the setup plugin. Gemini CLI and Aider get a small bridge file.</p></div>
+      </details>
+      <details>
+        <summary>I already have a codebase. Can I use adt?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>Yes. <code>/adt:audit</code> runs from a folder outside your project, changes nothing and proves it with a fingerprint of the folder. <code>/adt:adopt</code> then adds the workflow on a branch, as a pull request you review. It never overwrites a file, and its checks report without blocking until you decide to require them.</p></div>
+      </details>
+      <details>
+        <summary>Do I need an AI API key?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>No. Without keys, the review and evals checks pass with an “off” notice and everything else runs. When you add keys, you set them in your own terminal with <code>gh secret set</code>, never in a chat with an agent.</p></div>
+      </details>
+      <details>
+        <summary>Can an agent merge or deploy on its own?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>No. Agents never merge, create a release or trigger a production deploy, and <code>main</code> accepts changes only through a pull request with green required checks. If merging to <code>main</code> deploys your app, your merge is the deploy approval.</p></div>
+      </details>
+      <details>
+        <summary>What does the reviewer send to the model?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>The pull request's diff, after a secret filter: <code>.env</code> files, keys and certificates are never sent, and lines that look like a token become <code>[REDACTED]</code>. Lockfiles are left out and covered by the dependencies check instead.</p></div>
+      </details>
+      <details>
+        <summary>What stack does it support?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>New projects start on Node.js and TypeScript. In an existing project, the review and the guards run as GitHub Actions with their own Node.js, whatever your app is written in. The rehearsals so far used JavaScript and TypeScript apps.</p></div>
+      </details>
+      <details>
+        <summary>How do updates work?<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 7l4.5 4.5L13.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+        <div class="answer"><p>Run <code>copier update</code> in your project. It moves you to the latest release and never overwrites your PRD, your handoff notes, your app code, your non-negotiable tests or your golden set. Changelog entries that need something from you are marked “Action needed.”</p></div>
+      </details>
+      <p class="faq-more">Something else? <a href="https://github.com/lexsimoes/ai-dev-template/issues">Open an issue on GitHub</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section class="band" id="why" aria-labelledby="why-title">
+  <div class="frame section">
+    <div class="why">
+      <div class="fig__frame">
+        <div class="sheet">
+          <p class="eyebrow" id="why-title">Why adt exists</p>
+          <p>Agents can write most of the code now. They still need someone to decide what matters, to check what they skipped and to say no to an instruction hidden in an issue.</p>
+          <p>adt keeps those calls with you. You write the rules down before the work starts. A second model reads every change. The agent shows its evidence and says what it did not verify. Nothing reaches <code>main</code> without your click.</p>
+          <p class="sign">adt · open source under the MIT License</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CLOSING -->
+<section class="band band--night" aria-labelledby="final-title">
+  <div class="hazard" aria-hidden="true"></div>
+  <div class="frame section final">
+    <div class="final__body">
+      <h2 id="final-title">Let agents write the code. Keep the merge button.</h2>
+      <p class="lead">Free, open source, and it runs in your own GitHub.</p>
+      <div class="cta-row">
+        <a class="btn btn--primary" href="#start">Install the plugin</a>
+        <a class="btn btn--secondary" href="https://github.com/lexsimoes/ai-dev-template#readme">Read the docs</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="band site-foot">
+  <div class="frame">
+    <div class="foot__top">
+      <div>
+        <p class="foot__mark" aria-hidden="true">adt<span class="mark"></span></p>
+        <p class="foot__tag">A workflow for building software with AI coding agents. Agents code, bots verify, you approve.</p>
+      </div>
+      <nav class="foot__cols" aria-label="Footer">
+        <div>
+          <h2>Product</h2>
+          <ul>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#checks">The checks</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Docs</h2>
+          <ul>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template#readme">README</a></li>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template/blob/main/docs/WORKFLOW.md">Workflow</a></li>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template/blob/main/AGENTS.md">AGENTS.md</a></li>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template/blob/main/plugins/adt/GUIDE.md">Command guide</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Project</h2>
+          <ul>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template">GitHub</a></li>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template/releases">Releases</a></li>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/lexsimoes/ai-dev-template/issues">Issues</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+    <p class="foot__base"><span>Latest release <a href="https://github.com/lexsimoes/ai-dev-template/releases/tag/v0.6.0">v0.6.0</a>, October 28, 2026</span><span>English · <a href="pt/index.html" hreflang="pt-BR" lang="pt-BR">Português</a> · <a href="https://github.com/lexsimoes/ai-dev-template/blob/main/LICENSE">MIT License</a></span></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var status = document.getElementById("copy-status");
+  var buttons = document.querySelectorAll("[data-copy]");
+  function selectText(node) {
+    var range = document.createRange();
+    range.selectNodeContents(node);
+    var selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  function settle(button, label, message) {
+    button.textContent = label;
+    status.textContent = message;
+    clearTimeout(button._reset);
+    button._reset = setTimeout(function () { button.textContent = "Copy"; }, 2200);
+  }
+  Array.prototype.forEach.call(buttons, function (button) {
+    button.addEventListener("click", function () {
+      var target = document.getElementById(button.getAttribute("data-copy"));
+      var text = target.textContent.trim();
+      var fallback = function () {
+        selectText(target);
+        settle(button, "Selected", "Command selected. Press Ctrl+C or Command+C to copy it.");
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          settle(button, "Copied", "Command copied.");
+        }, fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
