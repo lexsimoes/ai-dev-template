@@ -47,7 +47,7 @@ It is a prototype (`AGENTS.md` 1.1): nothing here ships until the owner approves
 
 ## Objections, answered in the FAQ
 
-- **Price:** free, MIT; cents per review with your own keys; $0 in no-key mode.
+- **Price:** free, MIT; cents per review with your own keys; $0 in no-key mode. Answered by the first FAQ item and the "Cost" row of the before-and-after table.
 - **My agent:** `AGENTS.md` is read by most coding agents; Gemini CLI and Aider get a bridge file.
 - **Existing code:** audit (read-only, with a fingerprint) and adopt (add-only, observe mode).
 - **Keys and code:** keys set by the owner in their own terminal; a secret filter runs before any diff reaches a model.
@@ -96,6 +96,8 @@ Checked on 2026-11-24 at `b255838` unless noted.
 | The review criteria come from the target branch | `REVIEW.md` (intro), `docs/WORKFLOW.md` step 4 | ✅ |
 | Model versions are pinned; a mismatch stops the review | `CHANGELOG.md` 0.4.0, Fixed | ✅ |
 | No-key mode: review and evals pass with an "off" notice; secret detectors and golden-set guard still block | `docs/WORKFLOW.md`, "No-key mode" | ✅ |
+| `/adt:new-project` creates the repository, labels and the protection of `main` from a few questions | `README.md`, "Getting started"; `plugins/adt/GUIDE.md` | ✅ |
+| Evals run on every pull request that touches AI code | `README.md` step 6.3; `docs/WORKFLOW.md`, flow map | ✅ |
 | Audit is read-only and proves it with a fingerprint; adopt is add-only, observe mode | `README.md`, "Getting started" | ✅ |
 | `copier update` never overwrites the PRD, HANDOFF, app code, invariants or golden set | `README.md`, step 8 | ✅ |
 | Prerequisites: Node.js 22.18+, Git, GitHub CLI, Copier 9.18.2+ | `README.md`, step 1 | ✅ |
@@ -130,7 +132,7 @@ The owner asked to copy [Greptile's site on Mobbin](https://mobbin.com/sites/gre
 | [Code validation that adapts](https://mobbin.com/sites/sections/3e9e6772-e10a-4cc1-9146-b5ec11d65ed1), [An agent of few words](https://mobbin.com/sites/sections/19cd19b0-5253-4169-9f05-1da31905b738) | The checks: text beside a captioned "Fig." of a real review comment, a blocked check and an evidence table |
 | [See what Greptile can catch](https://mobbin.com/sites/sections/903b5d0f-35a2-400d-baa2-a5887937ac3f) | "adt is built with adt": stat tiles and a feed of real catches from the changelog |
 | [Independent by design](https://mobbin.com/sites/sections/7c7c51f1-6dc7-4523-935d-c9f5bb48f1d0) | "Yours, end to end": agents, models, infrastructure, license |
-| [Pricing](https://mobbin.com/sites/sections/f2a06aa9-073c-4488-a377-58390b50534b) | Two columns: no-key mode ($0) and your own keys (≈ $0.01 per review) |
+| [Pricing](https://mobbin.com/sites/sections/f2a06aa9-073c-4488-a377-58390b50534b) | "Before and after": the same two-column sheet, comparing a repository without adt and with adt, with cost as one row. A first version compared no-key mode with your own keys; the owner found it confusing, since the product is free and has no plans (2026-11-24) |
 | [FAQ](https://mobbin.com/sites/sections/e24c3838-5ada-480e-a397-16407929859f) | FAQ built from the objections above |
 | [Team note](https://mobbin.com/sites/sections/1508d627-0b84-47a8-a9ac-09aa3aa717d2) | "Why adt exists", unsigned until the owner decides |
 | [Closing call to action](https://mobbin.com/sites/sections/b68846cd-3a2b-4bb5-a381-1116890256ad), [Footer](https://mobbin.com/sites/sections/11966ed2-b7f3-4c77-bedd-f02230f12815) | Closing band with the install action; footer with the wordmark and links |

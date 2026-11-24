@@ -38,6 +38,7 @@ What the agent **may not** do (it stops and asks):
 - [x] 2. Prototype of the page, in light and dark, from 375 to 1280 px.
 - [x] 3. Private preview for the owner.
 - [x] 3b. The page in Brazilian Portuguese (`pt/index.html`), with a language switch on both pages (owner's request).
+- [x] 3c. The pricing table becomes a before-and-after comparison, without adt and with adt, with cost as one row (owner's feedback: a free product with "plans" was confusing).
 - [ ] 4. Owner's "ok" on the acceptance criteria and the decisions below.
 - [ ] 5. Move the page to `site/`, exclude it from Copier, add `tests/unit/site.test.ts`.
 - [ ] 6. Publish it as decided (decision 1).
