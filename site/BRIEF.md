@@ -82,7 +82,7 @@ Checked on 2026-11-24 at `b255838` unless noted.
 | A real review: PR #55, sensitive tier, `claude-sonnet-5-5`, 0 blocking, ≈ $0.0216, 4.4 s | The review comment on [PR #55](https://github.com/lexsimoes/ai-dev-template/pull/55), read through the GitHub API | ✅ |
 | A real evals run: PR #55, 10 cases, 100% accuracy, ≈ $0.0007 | The evals comment on [PR #55](https://github.com/lexsimoes/ai-dev-template/pull/55) | ✅ |
 | 47 pull requests merged in 8 days, by one maintainer | `git log --merges --grep='Merge pull request'`: 47 merges, 2026-10-20 to 2026-10-27, one author | ✅ |
-| 235 unit tests and 8 invariant tests, all passing | `npm test` (235 pass) and `npm run test:invariants` (8 pass), run on 2026-11-24 | ✅ |
+| 235 unit tests and 8 invariant tests in release v0.6.0, all passing | `npm test` (235 pass) and `npm run test:invariants` (8 pass) at `b255838`, the v0.6.0 merge, run on 2026-11-24. Tied to the release so it does not drift as tests are added | ✅ |
 | The default reviewer found 4 of 4 planted defects in a test PR, for about a cent | `docs/missions/0033-reviewer-model.md`, table "#35": Flash 4/4 in both runs, $0.009–0.010 | ✅ |
 | Caught: `@playwright/test` redirectable through the root `tsconfig.json` | `CHANGELOG.md` 0.5.0, Fixed (security review of mission 0036) | ✅ |
 | Caught: contact form refused valid messages with many line breaks (#33) | `CHANGELOG.md` 0.4.0, Fixed (first exploratory session) | ✅ |
