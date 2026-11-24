@@ -3,7 +3,7 @@
 > This file is the "handoff": any agent (or you, a month from now) reads it first to know where things stand.
 > The agent updates it at the end of **every** mission.
 
-**Updated on:** 2026-10-28 · **By:** agent (mission 0047)
+**Updated on:** 2026-11-24 · **By:** agent (mission 0048)
 
 ## Current state
 
@@ -22,6 +22,7 @@
 
 ## Last mission
 
+- Mission 0048: the product website, https://getadt.online, in English and Brazilian Portuguese (`site/`, template-only). `tests/unit/site.test.ts` keeps it static and in step with `CHANGELOG.md` and the README; `.github/workflows/site.yml` publishes it to Hostinger over FTP with TLS when a change to `site/` reaches `main`. Next: the owner sets `FTP_SERVER`, `FTP_USERNAME` and `FTP_PASSWORD` (`gh secret set`), merges, and checks the live pages. A release PR now also updates the version on the site (`docs/RELEASING.md`).
 - Mission 0047: the release PR for `v0.6.0`, prepared from `main` at `f36f7dc`: CHANGELOG `[0.6.0]` dated 2026-10-28 (mission 0046), empty `[Unreleased]`, plugin `adt` version `0.6.0` and pinned template release `v0.6.0`. Minor: it changes the model the evals measure in every project that does not set `EVAL_MODEL`, with a conditional **Action needed**. Next: the owner merges the release PR and publishes `v0.6.0` right afterwards (`docs/RELEASING.md`, steps 2–4). The agent created no tag or release.
 - Mission 0046 is done ([PR #55](https://github.com/lexsimoes/ai-dev-template/pull/55), merged as `f36f7dc`): the evals default to `deepseek-flash` (V4.1-Flash-1017), like the reviewer, owner's decision on 2026-10-27; `reasoning_effort: "none"` kept, accepted by Flash (PR #55's evals: 100%, about 27 output tokens per answer). A unit test pins the default and checks it is priced.
 - Release `v0.5.1` prepared from `main` at `221116f`, after the owner merged [PR #53](https://github.com/lexsimoes/ai-dev-template/pull/53): CHANGELOG `[0.5.1]` dated 2026-10-27, empty `[Unreleased]`, plugin `adt` version `0.5.1` and pinned template release `v0.5.1`. The owner merged the release PR ([#54](https://github.com/lexsimoes/ai-dev-template/pull/54)) and published `v0.5.1` on 2026-10-28; the agent created no tag or release.
